@@ -309,7 +309,6 @@ export default function CraftingPage() {
             </div>
           )}
         </div>
-        </div>
       )}
       
       <AnimatePresence>
