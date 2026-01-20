@@ -11,6 +11,8 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import PageHeader from '@/components/common/PageHeader';
 import ZoneCard from '@/components/zones/ZoneCard';
 import StatBar from '@/components/ui/StatBar';
+import NodeletCard from '@/components/zones/NodeletCard';
+import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 
 export default function ZonesPage() {
   const [selectedZone, setSelectedZone] = useState(null);
@@ -103,6 +105,14 @@ export default function ZonesPage() {
 }
 
 function ZoneDetailView({ zone, onClose }) {
+  const { data: player } = useQuery({
+    queryKey: ['player'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    }
+  });
+
   const biomeColors = {
     Forest: 'from-emerald-600 to-green-700',
     Mountain: 'from-stone-500 to-slate-700',
@@ -114,6 +124,19 @@ function ZoneDetailView({ zone, onClose }) {
   };
 
   const gradient = biomeColors[zone.biomeType] || 'from-indigo-500 to-purple-600';
+  
+  const liberatedNodelets = player?.liberatedNodelets || [];
+  const eclipseNodelets = zone.nodelets?.filter(n => n.eclipseControlled) || [];
+  
+  const handleNodeletChallenge = (nodelet) => {
+    // TODO: Implement battle system
+    console.log('Challenge nodelet:', nodelet);
+  };
+  
+  const handleNodeletInspect = (nodelet) => {
+    // TODO: Show detailed nodelet info
+    console.log('Inspect nodelet:', nodelet);
+  };
 
   return (
     <div className="pb-8">
@@ -141,6 +164,13 @@ function ZoneDetailView({ zone, onClose }) {
 
       {/* Description */}
       <p className="text-slate-300 mb-6">{zone.description}</p>
+
+      {/* Liberation Tracker */}
+      {eclipseNodelets.length > 0 && (
+        <div className="mb-4">
+          <ZoneLiberationTracker zone={zone} liberatedNodelets={liberatedNodelets} />
+        </div>
+      )}
 
       {/* Progress */}
       <div className="glass rounded-xl p-4 mb-4">
@@ -187,14 +217,34 @@ function ZoneDetailView({ zone, onClose }) {
         </div>
       )}
 
-      {/* Nodelets */}
-      {zone.nodelets && zone.nodelets.length > 0 && (
-        <div className="glass rounded-xl p-4">
+      {/* Eclipse Nodelets */}
+      {eclipseNodelets.length > 0 && (
+        <div className="mb-4">
           <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Map className="w-4 h-4 text-amber-400" /> Nodelets
+            <Map className="w-4 h-4 text-red-400" /> Eclipse Control Points
+          </h3>
+          <div className="space-y-3">
+            {eclipseNodelets.map((nodelet) => (
+              <NodeletCard
+                key={nodelet.id}
+                nodelet={nodelet}
+                isLiberated={liberatedNodelets.some(ln => ln.nodeletId === nodelet.id && ln.zoneId === zone.id)}
+                onChallenge={() => handleNodeletChallenge(nodelet)}
+                onInspect={() => handleNodeletInspect(nodelet)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Other Nodelets */}
+      {zone.nodelets && zone.nodelets.filter(n => !n.eclipseControlled).length > 0 && (
+        <div className="glass rounded-xl p-4 mb-4">
+          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+            <Map className="w-4 h-4 text-amber-400" /> Points of Interest
           </h3>
           <div className="space-y-2">
-            {zone.nodelets.map((nodelet, idx) => (
+            {zone.nodelets.filter(n => !n.eclipseControlled).map((nodelet, idx) => (
               <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${nodelet.isDiscovered ? 'bg-emerald-400' : 'bg-slate-600'}`} />

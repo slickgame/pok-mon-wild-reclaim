@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Swords, Shield, Zap, Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import RevenantIndicator from './RevenantIndicator';
 
 const typeColors = {
   Normal: 'from-gray-400 to-gray-500',
@@ -77,17 +78,20 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
       className="glass rounded-2xl overflow-hidden cursor-pointer group"
     >
       <div className={`h-32 bg-gradient-to-br ${gradientClass} relative`}>
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="absolute top-3 left-3 flex gap-2">
-          <Badge className={`bg-black/30 text-white border-white/20 text-xs`}>
-            Lv. {pokemon.level}
+      <div className={`absolute inset-0 ${pokemon.isRevenant ? 'bg-red-900/40' : 'bg-black/20'}`} />
+      <div className="absolute top-3 left-3 flex gap-2">
+        <Badge className={`bg-black/30 text-white border-white/20 text-xs`}>
+          Lv. {pokemon.level}
+        </Badge>
+        {pokemon.isStarter && (
+          <Badge className="bg-yellow-500/30 text-yellow-300 border-yellow-500/50 text-xs">
+            <Star className="w-3 h-3 mr-1" /> Starter
           </Badge>
-          {pokemon.isStarter && (
-            <Badge className="bg-yellow-500/30 text-yellow-300 border-yellow-500/50 text-xs">
-              <Star className="w-3 h-3 mr-1" /> Starter
-            </Badge>
-          )}
-        </div>
+        )}
+      </div>
+      <div className="absolute top-3 right-3">
+        <RevenantIndicator pokemon={pokemon} size="sm" />
+      </div>
         <div className="absolute inset-0 flex items-center justify-center">
           {pokemon.spriteUrl ? (
             <img 
