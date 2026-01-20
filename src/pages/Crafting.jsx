@@ -226,8 +226,7 @@ export default function CraftingPage() {
           />
         </div>
       ) : (
-        <>
-
+        <div>
       {/* Category Tabs */}
       <div className="mb-6 overflow-x-auto pb-2">
         <Tabs value={filter} onValueChange={setFilter}>
@@ -310,7 +309,9 @@ export default function CraftingPage() {
             </div>
           )}
         </div>
+        </div>
       )}
+      
       <AnimatePresence>
         {isCrafting && (
           <motion.div
