@@ -227,8 +227,8 @@ export default function CraftingPage() {
         </div>
       ) : (
         <>
-      {/* Category Tabs */}
-      <div className="mb-6 overflow-x-auto pb-2">
+          {/* Category Tabs */}
+          <div className="mb-6 overflow-x-auto pb-2">
         <Tabs value={filter} onValueChange={setFilter}>
           <TabsList className="bg-slate-800/50 p-1">
             {categories.map((cat) => (
@@ -308,8 +308,8 @@ export default function CraftingPage() {
               <p className="text-slate-400">Try a different search or category</p>
             </div>
           )}
-        </div>
-      </>
+          </div>
+        </>
       )}
       
       <AnimatePresence>
