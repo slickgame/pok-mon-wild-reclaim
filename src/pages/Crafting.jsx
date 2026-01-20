@@ -229,86 +229,87 @@ export default function CraftingPage() {
         <>
           {/* Category Tabs */}
           <div className="mb-6 overflow-x-auto pb-2">
-        <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList className="bg-slate-800/50 p-1">
-            {categories.map((cat) => (
-              <TabsTrigger 
-                key={cat.value} 
-                value={cat.value}
-                className="data-[state=active]:bg-indigo-500"
-              >
-                {cat.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1,2,3,4,5,6].map(i => (
-            <Skeleton key={i} className="h-48 bg-slate-800" />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Unlocked Recipes */}
-          {unlockedRecipes.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
-                Available Recipes
-                <Badge className="bg-emerald-500/20 text-emerald-300">{unlockedRecipes.length}</Badge>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {unlockedRecipes.map((recipe, idx) => (
-                  <motion.div
-                    key={recipe.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
+            <Tabs value={filter} onValueChange={setFilter}>
+              <TabsList className="bg-slate-800/50 p-1">
+                {categories.map((cat) => (
+                  <TabsTrigger 
+                    key={cat.value} 
+                    value={cat.value}
+                    className="data-[state=active]:bg-indigo-500"
                   >
-                    <RecipeCard
-                      recipe={recipe}
-                      canCraft={checkCanCraft(recipe)}
-                      onCraft={handleCraft}
-                      onClick={() => setSelectedRecipe(recipe)}
-                    />
-                  </motion.div>
+                    {cat.label}
+                  </TabsTrigger>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* Locked Recipes */}
-          {lockedRecipes.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
-                <Lock className="w-4 h-4" /> Locked Recipes
-                <Badge className="bg-slate-700/50 text-slate-400">{lockedRecipes.length}</Badge>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {lockedRecipes.map((recipe, idx) => (
-                  <motion.div
-                    key={recipe.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                  >
-                    <RecipeCard recipe={recipe} />
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {filteredRecipes.length === 0 && (
-            <div className="glass rounded-xl p-12 text-center">
-              <FlaskConical className="w-16 h-16 mx-auto mb-4 text-slate-600" />
-              <h3 className="text-xl font-semibold text-white mb-2">No Recipes Found</h3>
-              <p className="text-slate-400">Try a different search or category</p>
-            </div>
-          )}
+              </TabsList>
+            </Tabs>
           </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1,2,3,4,5,6].map(i => (
+                <Skeleton key={i} className="h-48 bg-slate-800" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Unlocked Recipes */}
+              {unlockedRecipes.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                    Available Recipes
+                    <Badge className="bg-emerald-500/20 text-emerald-300">{unlockedRecipes.length}</Badge>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {unlockedRecipes.map((recipe, idx) => (
+                      <motion.div
+                        key={recipe.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                      >
+                        <RecipeCard
+                          recipe={recipe}
+                          canCraft={checkCanCraft(recipe)}
+                          onCraft={handleCraft}
+                          onClick={() => setSelectedRecipe(recipe)}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Locked Recipes */}
+              {lockedRecipes.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                    <Lock className="w-4 h-4" /> Locked Recipes
+                    <Badge className="bg-slate-700/50 text-slate-400">{lockedRecipes.length}</Badge>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {lockedRecipes.map((recipe, idx) => (
+                      <motion.div
+                        key={recipe.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                      >
+                        <RecipeCard recipe={recipe} />
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {filteredRecipes.length === 0 && (
+                <div className="glass rounded-xl p-12 text-center">
+                  <FlaskConical className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+                  <h3 className="text-xl font-semibold text-white mb-2">No Recipes Found</h3>
+                  <p className="text-slate-400">Try a different search or category</p>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
       
