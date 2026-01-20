@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Clock, Sparkles, ChevronRight } from 'lucide-react';
+import { Lock, Clock, Sparkles, ChevronRight, Coins } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -56,7 +56,7 @@ export default function RecipeCard({ recipe, canCraft = false, onCraft, onClick 
         )}
         
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {recipe.craftingTime}s
@@ -65,6 +65,12 @@ export default function RecipeCard({ recipe, canCraft = false, onCraft, onClick 
               <Sparkles className="w-3 h-3 text-amber-400" />
               +{recipe.craftingXpReward} XP
             </span>
+            {recipe.goldCost > 0 && (
+              <span className="flex items-center gap-1 text-yellow-400">
+                <Coins className="w-3 h-3" />
+                {recipe.goldCost}g
+              </span>
+            )}
           </div>
           
           {recipe.isUnlocked && (
