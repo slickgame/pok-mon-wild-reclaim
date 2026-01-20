@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, Search, Sparkles, Clock, X, ChevronRight, Lock, Beaker, Swords, Target, Package } from 'lucide-react';
+import { FlaskConical, Search, Sparkles, Clock, X, ChevronRight, Lock, Beaker, Swords, Target, Package, Coins, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,15 +10,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Progress } from '@/components/ui/progress';
+import { toast } from '@/components/ui/use-toast';
 import PageHeader from '@/components/common/PageHeader';
 import RecipeCard from '@/components/crafting/RecipeCard';
 import StatBar from '@/components/ui/StatBar';
+import CraftingProgressBar from '@/components/crafting/CraftingProgressBar';
+import BenchUpgradePanel from '@/components/crafting/BenchUpgradePanel';
+import ReforgePanel from '@/components/crafting/ReforgePanel';
 
 const categories = [
   { value: 'all', label: 'All' },
   { value: 'Potions', label: 'Potions' },
   { value: 'Battle Items', label: 'Battle' },
   { value: 'Held Items', label: 'Held' },
+  { value: 'Talent Mods', label: 'Talent Mods' },
+  { value: 'Contest Trinkets', label: 'Trinkets' },
+  { value: 'Capture Gear', label: 'Capture' },
   { value: 'Bait', label: 'Bait' },
   { value: 'Special', label: 'Special' },
 ];
@@ -29,6 +36,8 @@ export default function CraftingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCrafting, setIsCrafting] = useState(false);
   const [craftingProgress, setCraftingProgress] = useState(0);
+  const [showReforge, setShowReforge] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: player } = useQuery({
     queryKey: ['player'],
@@ -58,22 +67,54 @@ export default function CraftingPage() {
   const lockedRecipes = filteredRecipes.filter(r => !r.isUnlocked);
 
   const checkCanCraft = (recipe) => {
-    if (!recipe.requiredMaterials) return true;
-    return recipe.requiredMaterials.every(mat => {
-      const invItem = inventory.find(i => i.name === mat.itemName);
-      return invItem && (invItem.quantity || 1) >= mat.quantity;
-    });
+    // Check materials
+    if (recipe.requiredMaterials) {
+      const hasMaterials = recipe.requiredMaterials.every(mat => {
+        const invItem = inventory.find(i => i.name === mat.itemName);
+        return invItem && (invItem.quantity || 1) >= mat.quantity;
+      });
+      if (!hasMaterials) return false;
+    }
+    
+    // Check gold
+    if (recipe.goldCost > 0 && (player?.gold || 0) < recipe.goldCost) {
+      return false;
+    }
+    
+    // Check crafting level
+    if (recipe.craftingLevelRequired > (player?.craftingLevel || 1)) {
+      return false;
+    }
+    
+    return true;
   };
 
   const handleCraft = async (recipe) => {
+    if (!checkCanCraft(recipe)) {
+      toast({ 
+        title: "Cannot Craft", 
+        description: "Missing required materials, gold, or crafting level",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsCrafting(true);
     setCraftingProgress(0);
+    setSelectedRecipe(null);
     
     const interval = setInterval(() => {
       setCraftingProgress(prev => {
         if (prev >= 100) {
           clearInterval(interval);
           setIsCrafting(false);
+          
+          // Award XP and show completion
+          toast({
+            title: "✨ Crafting Complete!",
+            description: `Crafted ${recipe.outputItem} (+${recipe.craftingXpReward} XP)`
+          });
+          
           return 100;
         }
         return prev + (100 / recipe.craftingTime);
@@ -81,7 +122,25 @@ export default function CraftingPage() {
     }, 1000);
   };
 
-  const craftingXpToNextLevel = 100 * (player?.craftingLevel || 1);
+  const handleReforge = (item) => {
+    toast({
+      title: "Item Upgraded!",
+      description: `${item.name} quality improved`
+    });
+    queryClient.invalidateQueries(['inventory']);
+  };
+
+  const handleRecycle = (item) => {
+    toast({
+      title: "Item Recycled",
+      description: `Gained ${item.reforgeMaterialValue} fragments`
+    });
+    queryClient.invalidateQueries(['inventory']);
+  };
+
+  const fragmentsItem = inventory.find(i => i.type === 'Fragment');
+  const fragments = fragmentsItem?.quantity || 0;
+  const isReforgingUnlocked = (player?.craftingLevel || 1) >= 4;
 
   return (
     <div>
@@ -90,54 +149,84 @@ export default function CraftingPage() {
         subtitle="Wells' Workshop"
         icon={FlaskConical}
         action={
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              placeholder="Search recipes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-slate-800/50 border-slate-700 w-48"
-            />
+          <div className="flex gap-2">
+            {isReforgingUnlocked && (
+              <Button
+                variant="outline"
+                onClick={() => setShowReforge(!showReforge)}
+                className="border-slate-700 text-slate-300"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                {showReforge ? 'Recipes' : 'Reforge'}
+              </Button>
+            )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search recipes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-slate-800/50 border-slate-700 w-48"
+              />
+            </div>
           </div>
         }
       />
 
-      {/* Crafting Level */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass rounded-xl p-5 mb-6"
-      >
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center">
-              <FlaskConical className="w-7 h-7 text-amber-400" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2">
+          <CraftingProgressBar 
+            level={player?.craftingLevel || 1} 
+            xp={player?.craftingXp || 0} 
+          />
+        </div>
+        
+        <div className="glass rounded-xl p-5">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Recipes Unlocked</span>
+              <span className="text-white font-semibold">{unlockedRecipes.length}/{recipes.length}</span>
             </div>
-            <div>
-              <p className="text-slate-400 text-sm">Crafting Level</p>
-              <p className="text-2xl font-bold text-white">{player?.craftingLevel || 1}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm flex items-center gap-1">
+                <Coins className="w-3 h-3" /> Gold
+              </span>
+              <span className="text-yellow-400 font-semibold">{player?.gold || 0}</span>
             </div>
-          </div>
-          
-          <div className="flex-1">
-            <div className="flex justify-between text-xs text-slate-400 mb-1">
-              <span>Experience</span>
-              <span>{player?.craftingXp || 0} / {craftingXpToNextLevel} XP</span>
+            {isReforgingUnlocked && (
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 text-sm flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3" /> Fragments
+                </span>
+                <span className="text-purple-400 font-semibold">{fragments}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 text-sm">Bench Tier</span>
+              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/50">
+                {player?.craftingBenchTier || 1}/3
+              </Badge>
             </div>
-            <StatBar
-              value={player?.craftingXp || 0}
-              maxValue={craftingXpToNextLevel}
-              color="bg-gradient-to-r from-amber-500 to-orange-500"
-              showValue={false}
-            />
-          </div>
-          
-          <div className="text-right">
-            <p className="text-slate-400 text-sm">Recipes Unlocked</p>
-            <p className="text-xl font-bold text-white">{unlockedRecipes.length}/{recipes.length}</p>
           </div>
         </div>
-      </motion.div>
+      </div>
+
+      {showReforge && isReforgingUnlocked ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ReforgePanel
+            inventory={inventory}
+            fragments={fragments}
+            gold={player?.gold || 0}
+            onReforge={handleReforge}
+            onRecycle={handleRecycle}
+          />
+          <BenchUpgradePanel
+            currentTier={player?.craftingBenchTier || 1}
+            completedQuests={player?.completedCraftingQuests || []}
+          />
+        </div>
+      ) : (
+        <>
 
       {/* Category Tabs */}
       <div className="mb-6 overflow-x-auto pb-2">
@@ -222,8 +311,6 @@ export default function CraftingPage() {
           )}
         </div>
       )}
-
-      {/* Crafting Progress Modal */}
       <AnimatePresence>
         {isCrafting && (
           <motion.div
@@ -272,6 +359,9 @@ function RecipeDetailView({ recipe, inventory, canCraft, onCraft, onClose }) {
     'Potions': 'from-rose-500 to-pink-600',
     'Battle Items': 'from-red-500 to-orange-600',
     'Held Items': 'from-indigo-500 to-purple-600',
+    'Talent Mods': 'from-purple-500 to-violet-600',
+    'Contest Trinkets': 'from-pink-500 to-fuchsia-600',
+    'Capture Gear': 'from-cyan-500 to-blue-600',
     'Bait': 'from-green-500 to-emerald-600',
     'Special': 'from-yellow-500 to-amber-600',
   };
@@ -341,17 +431,24 @@ function RecipeDetailView({ recipe, inventory, canCraft, onCraft, onClose }) {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="glass rounded-xl p-4 text-center">
-          <Clock className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-          <p className="text-white font-semibold">{recipe.craftingTime}s</p>
-          <p className="text-xs text-slate-400">Craft Time</p>
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="glass rounded-xl p-3 text-center">
+          <Clock className="w-4 h-4 text-slate-400 mx-auto mb-1" />
+          <p className="text-white font-semibold text-sm">{recipe.craftingTime}s</p>
+          <p className="text-[10px] text-slate-400">Time</p>
         </div>
-        <div className="glass rounded-xl p-4 text-center">
-          <Sparkles className="w-5 h-5 text-amber-400 mx-auto mb-1" />
-          <p className="text-white font-semibold">+{recipe.craftingXpReward}</p>
-          <p className="text-xs text-slate-400">XP Reward</p>
+        <div className="glass rounded-xl p-3 text-center">
+          <Sparkles className="w-4 h-4 text-amber-400 mx-auto mb-1" />
+          <p className="text-white font-semibold text-sm">+{recipe.craftingXpReward}</p>
+          <p className="text-[10px] text-slate-400">XP</p>
         </div>
+        {recipe.goldCost > 0 && (
+          <div className="glass rounded-xl p-3 text-center">
+            <Coins className="w-4 h-4 text-yellow-400 mx-auto mb-1" />
+            <p className="text-white font-semibold text-sm">{recipe.goldCost}</p>
+            <p className="text-[10px] text-slate-400">Gold</p>
+          </div>
+        )}
       </div>
 
       {/* Craft Button */}
