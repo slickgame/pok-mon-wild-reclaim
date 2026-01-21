@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTutorialTrigger } from '../components/tutorial/TutorialTrigger';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Trophy, Sparkles, AlertCircle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';

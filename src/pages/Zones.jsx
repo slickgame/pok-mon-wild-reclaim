@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Map, Search, Compass, Eye, Sparkles, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import EncounterResult from '@/components/zones/EncounterResult';
 export default function ZonesPage() {
   const [selectedZone, setSelectedZone] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const queryClient = useQueryClient();
 
   const { data: player } = useQuery({
     queryKey: ['player'],
@@ -49,6 +50,25 @@ export default function ZonesPage() {
     zone.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     zone.biomeType.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Trigger first_exploration tutorial on first visit
+  useEffect(() => {
+    const triggerFirstExploration = async () => {
+      if (player && zones.length > 0) {
+        const tutorials = await base44.entities.Tutorial.filter({
+          trigger: 'first_exploration',
+          isCompleted: false,
+          isSkipped: false
+        });
+        
+        if (tutorials.length > 0) {
+          queryClient.invalidateQueries({ queryKey: ['tutorials'] });
+        }
+      }
+    };
+    
+    triggerFirstExploration();
+  }, [player, zones, queryClient]);
 
   return (
     <div>
@@ -121,6 +141,7 @@ function ZoneDetailView({ zone, onClose }) {
   const [explorationEvents, setExplorationEvents] = useState([]);
   const [currentEncounter, setCurrentEncounter] = useState(null);
   const [zoneProgress, setZoneProgress] = useState(null);
+  const queryClient = useQueryClient();
 
   const { data: player } = useQuery({
     queryKey: ['player'],
@@ -460,6 +481,17 @@ function ZoneDetailView({ zone, onClose }) {
           rarity: 'common',
           firstDiscovery: encounter.firstDiscovery
         }, ...prev].slice(0, 10));
+
+        // Trigger first_material tutorial
+        const tutorials = await base44.entities.Tutorial.filter({
+          trigger: 'first_material',
+          isCompleted: false,
+          isSkipped: false
+        });
+        
+        if (tutorials.length > 0) {
+          queryClient.invalidateQueries({ queryKey: ['tutorials'] });
+        }
       } catch (error) {
         console.error('Failed to collect materials:', error);
       }
