@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PageHeader from '@/components/common/PageHeader';
 import NPCCard from '@/components/npc/NPCCard';
 import StatBar from '@/components/ui/StatBar';
+import NPCScheduleCalendar from '@/components/time/NPCScheduleCalendar';
 
 export default function NPCsPage() {
   const [selectedNPC, setSelectedNPC] = useState(null);
@@ -26,6 +27,19 @@ export default function NPCsPage() {
   const { data: npcs = [], isLoading } = useQuery({
     queryKey: ['npcs'],
     queryFn: () => base44.entities.NPC.list()
+  });
+
+  const { data: schedules = [] } = useQuery({
+    queryKey: ['npcSchedules'],
+    queryFn: () => base44.entities.NPCSchedule.list()
+  });
+
+  const { data: gameTime } = useQuery({
+    queryKey: ['gameTime'],
+    queryFn: async () => {
+      const times = await base44.entities.GameTime.list();
+      return times[0] || null;
+    }
   });
 
   const getTrustLevel = (npcName) => {
@@ -83,6 +97,8 @@ export default function NPCsPage() {
             <NPCDetailView 
               npc={selectedNPC} 
               trustLevel={getTrustLevel(selectedNPC.name)}
+              schedule={schedules.find(s => s.npcName === selectedNPC.name)}
+              gameTime={gameTime}
               onClose={() => setSelectedNPC(null)} 
             />
           )}
@@ -92,7 +108,7 @@ export default function NPCsPage() {
   );
 }
 
-function NPCDetailView({ npc, trustLevel, onClose }) {
+function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose }) {
   const roleIcons = {
     'Crafting Mentor': Wrench,
     'Professor': BookOpen,
@@ -193,7 +209,7 @@ function NPCDetailView({ npc, trustLevel, onClose }) {
         </div>
       )}
 
-      {/* Tabs for Services & Quests */}
+      {/* Tabs for Services, Quests & Schedule */}
       <Tabs defaultValue="services" className="mt-6">
         <TabsList className="w-full bg-slate-800/50">
           <TabsTrigger value="services" className="flex-1 data-[state=active]:bg-indigo-500">
@@ -201,6 +217,9 @@ function NPCDetailView({ npc, trustLevel, onClose }) {
           </TabsTrigger>
           <TabsTrigger value="quests" className="flex-1 data-[state=active]:bg-indigo-500">
             Quests
+          </TabsTrigger>
+          <TabsTrigger value="schedule" className="flex-1 data-[state=active]:bg-indigo-500">
+            Schedule
           </TabsTrigger>
         </TabsList>
 
@@ -272,6 +291,21 @@ function NPCDetailView({ npc, trustLevel, onClose }) {
               <Gift className="w-8 h-8 mx-auto mb-2 opacity-30" />
               <p>No quests available</p>
               <p className="text-xs mt-1">Check back later for new adventures</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="schedule" className="mt-4">
+          {schedule ? (
+            <NPCScheduleCalendar 
+              schedule={schedule}
+              currentHour={gameTime?.currentHour}
+              currentDay={gameTime?.currentDay}
+            />
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p>Schedule not available</p>
             </div>
           )}
         </TabsContent>
