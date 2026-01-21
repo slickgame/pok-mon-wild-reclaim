@@ -31,8 +31,8 @@ export default function TutorialOverlay({ tutorial, onComplete, onSkip }) {
     setDisplayedText('');
     setIsTyping(true);
     
-    if (tutorial.type === 'story') {
-      // Typewriter effect for story tutorials
+    if (tutorial.type === 'story' || tutorial.speaker === 'Maple') {
+      // Typewriter effect for story tutorials and Maple's dialogue
       let i = 0;
       const interval = setInterval(() => {
         if (i < tutorial.content.length) {
@@ -42,7 +42,7 @@ export default function TutorialOverlay({ tutorial, onComplete, onSkip }) {
           setIsTyping(false);
           clearInterval(interval);
         }
-      }, 30);
+      }, 25);
       
       return () => clearInterval(interval);
     } else {
@@ -56,6 +56,7 @@ export default function TutorialOverlay({ tutorial, onComplete, onSkip }) {
 
   const Icon = typeIcons[tutorial.type] || BookOpen;
   const colorClass = typeColors[tutorial.type] || typeColors.instruction;
+  const showMaple = tutorial.speaker === 'Maple';
 
   const handleAction = () => {
     if (tutorial.actionTarget) {
@@ -84,16 +85,28 @@ export default function TutorialOverlay({ tutorial, onComplete, onSkip }) {
           {/* Header */}
           <div className="relative z-10 flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center shadow-lg`}>
-                <Icon className="w-6 h-6 text-white" />
-              </div>
+              {showMaple ? (
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg border-2 border-emerald-400/50">
+                  <span className="text-2xl">👩‍🔬</span>
+                </div>
+              ) : (
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center shadow-lg`}>
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+              )}
               <div>
-                <Badge className={`bg-gradient-to-r ${colorClass} text-white text-xs mb-1`}>
-                  {tutorial.type === 'story' ? '📖 Story' : 
-                   tutorial.type === 'tip' ? '💡 Tip' : 
-                   tutorial.type === 'unlock' ? '🆕 Unlocked' : 
-                   '📘 Tutorial'}
-                </Badge>
+                {showMaple ? (
+                  <Badge className="bg-emerald-500/20 text-emerald-300 text-xs mb-1 border border-emerald-500/30">
+                    👩‍🔬 Professor Maple
+                  </Badge>
+                ) : (
+                  <Badge className={`bg-gradient-to-r ${colorClass} text-white text-xs mb-1`}>
+                    {tutorial.type === 'story' ? '📖 Story' : 
+                     tutorial.type === 'tip' ? '💡 Tip' : 
+                     tutorial.type === 'unlock' ? '🆕 Unlocked' : 
+                     '📘 Tutorial'}
+                  </Badge>
+                )}
                 <h3 className="text-xl font-bold text-white">{tutorial.title}</h3>
               </div>
             </div>

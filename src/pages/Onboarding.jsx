@@ -10,17 +10,23 @@ const storySteps = [
   {
     id: 1,
     title: 'The Rewilding',
-    content: 'Humanity vanished a century ago. Nature reclaimed the world, and Pokémon roam free once more. You awaken as a lone traveler in this wild paradise.',
+    content: 'Humanity vanished a century ago. Nature reclaimed the world, and Pokémon roam free once more. You awaken in a quiet glade.',
     image: '🌍'
   },
   {
     id: 2,
-    title: 'Your Companions',
-    content: 'Three young Pokémon find you: Charmander, Bulbasaur, and Squirtle. They sense something special in you—a connection to the old world.',
-    image: '✨'
+    title: 'Professor Maple',
+    content: '"Ah, you\'re awake. Welcome back… or forward. It\'s hard to say these days. The world is quieter now, but it\'s still alive. Still wild. Still worth saving."',
+    image: '👩‍🔬'
   },
   {
     id: 3,
+    title: 'Your Companions',
+    content: '"I\'ve prepared a trio of companions for you — each with a role to play. Charmander — fierce and fast. Bulbasaur — nurturing and clever. Squirtle — sturdy and patient."',
+    image: '✨'
+  },
+  {
+    id: 4,
     title: 'The Call',
     content: 'A strange energy pulses across the land. Team Eclipse has begun corrupting Pokémon into Revenants. Your journey begins now.',
     image: '⚡'
@@ -130,40 +136,43 @@ export default function OnboardingPage() {
 
         await base44.entities.Pokemon.bulkCreate(starters);
 
-        // Initialize tutorial sequence
+        // Initialize tutorial sequence with Professor Maple's guidance
         const tutorials = [
           {
             stepId: 'companions',
             title: 'Your Companions',
-            content: 'You begin your journey with three companions. Each has a role: attack, support, or defense. Use them wisely.',
+            content: '"Charmander — fierce and fast. A striker. Bulbasaur — nurturing and clever. A healer. Squirtle — sturdy and patient. A shield. Use them wisely."',
             type: 'story',
             trigger: 'onboarding',
             priority: 1,
+            speaker: 'Maple',
             action: 'View Team',
             actionTarget: 'Pokemon'
           },
           {
             stepId: 'exploration',
-            title: 'First Movement',
-            content: 'This is a wild zone. You can explore to uncover Pokémon, items, and secrets. Discovery increases as you find new things.',
+            title: 'First Exploration',
+            content: '"This place is called Verdant Hollow. It\'s one of the last stable zones. But even here, data is scarce. Exploration is our first task."',
             type: 'instruction',
             trigger: 'first_exploration',
             priority: 2,
+            speaker: 'Maple',
             action: 'Start Exploring',
             actionTarget: 'Zones'
           },
           {
             stepId: 'battle',
             title: 'First Battle',
-            content: 'A wild Pokémon appears! You can battle, attempt capture, or flee. Your choices matter.',
+            content: '"Fascinating! A wild encounter already. You\'ll need to think ahead. Who do you lead with? What\'s their role?"',
             type: 'instruction',
             trigger: 'first_battle',
-            priority: 3
+            priority: 3,
+            speaker: 'Maple'
           },
           {
             stepId: 'victory',
             title: 'Victory!',
-            content: 'Your Pokémon gain XP. Some may level up or unlock upgrades. Keep battling to strengthen your team.',
+            content: 'Your Pokémon gained experience! They grow stronger with each battle. Keep training them to unlock their full potential.',
             type: 'unlock',
             trigger: 'first_victory',
             priority: 4
@@ -171,12 +180,31 @@ export default function OnboardingPage() {
           {
             stepId: 'material',
             title: 'First Item Found',
-            content: 'You found a material. These are used for crafting and quests. Visit crafting stations or NPCs to make tools, battle gear, and more.',
+            content: '"Looks like you found some usable materials. These can be turned into tools, traps, even recovery items. You\'ll learn more soon."',
             type: 'tip',
             trigger: 'first_material',
             priority: 5,
+            speaker: 'Maple',
             action: 'View Crafting',
             actionTarget: 'Crafting'
+          },
+          {
+            stepId: 'poi_discovered',
+            title: 'Point of Interest',
+            content: '"The forest remembers. Places like this carry echoes. Mark this location. It may hold secrets or tasks left behind."',
+            type: 'tip',
+            trigger: 'first_quest',
+            priority: 6,
+            speaker: 'Maple'
+          },
+          {
+            stepId: 'journal',
+            title: 'Journal Unlocked',
+            content: '"Your journal is how we make sense of the wild again. Every new entry is progress."',
+            type: 'unlock',
+            trigger: 'first_capture',
+            priority: 7,
+            speaker: 'Maple'
           }
         ];
 
