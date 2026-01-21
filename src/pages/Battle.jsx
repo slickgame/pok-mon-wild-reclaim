@@ -10,6 +10,8 @@ import BattleHUD from '@/components/battle/BattleHUD';
 import MoveCard from '@/components/battle/MoveCard';
 import BattleLog from '@/components/battle/BattleLog';
 import TalentDisplay from '@/components/battle/TalentDisplay';
+import BattleOutcomeModal from '@/components/battle/BattleOutcomeModal';
+import { BattleEngine } from '@/components/battle/BattleEngine';
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
@@ -78,87 +80,52 @@ export default function BattlePage() {
   const useMove = (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
 
-    const damage = Math.floor(Math.random() * 30) + move.power / 2;
-    const newEnemyHP = Math.max(0, battleState.enemyHP - damage);
-    
-    // Check for synergy
-    const hasSynergy = move.synergyConditions?.some(s => 
-      s.type === 'role' && battleState.playerPokemon.roles?.includes(s.requirement)
-    );
+    // Initialize battle engine
+    const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
 
-    const newLog = {
-      turn: battleState.turnNumber,
-      actor: battleState.playerPokemon.nickname || battleState.playerPokemon.species,
-      action: `used ${move.name}`,
-      result: `${damage} damage!`,
-      synergyTriggered: hasSynergy
+    // Enemy selects a random move (simple AI)
+    const enemyAvailableMoves = moves.filter(m => m.category !== 'Status').slice(0, 3);
+    const enemyMove = enemyAvailableMoves[Math.floor(Math.random() * enemyAvailableMoves.length)] || moves[0];
+
+    // Create a copy of battle state for engine to modify
+    const stateCopy = { ...battleState };
+
+    // Execute turn
+    const turnLogs = engine.executeTurn(move, enemyMove, stateCopy);
+
+    // Update battle state with results
+    const newBattleState = {
+      ...stateCopy,
+      battleLog: [...battleState.battleLog, ...turnLogs],
+      turnNumber: battleState.turnNumber + 1,
     };
 
-    // Check if battle is won
-    if (newEnemyHP <= 0) {
-      setBattleState({
-        ...battleState,
-        enemyHP: 0,
-        battleLog: [...battleState.battleLog, newLog, {
-          turn: battleState.turnNumber,
-          actor: 'System',
-          action: 'Victory!',
-          result: 'You won the battle!',
-          synergyTriggered: false
-        }],
-        currentTurn: 'ended',
-        status: 'won'
+    // Check for victory/defeat
+    if (newBattleState.enemyHP <= 0) {
+      newBattleState.status = 'won';
+      newBattleState.currentTurn = 'ended';
+      newBattleState.battleLog.push({
+        turn: newBattleState.turnNumber,
+        actor: 'System',
+        action: 'Victory!',
+        result: 'You won the battle!',
+        synergyTriggered: false
       });
-      return;
+    } else if (newBattleState.playerHP <= 0) {
+      newBattleState.status = 'lost';
+      newBattleState.currentTurn = 'ended';
+      newBattleState.battleLog.push({
+        turn: newBattleState.turnNumber,
+        actor: 'System',
+        action: 'Defeat!',
+        result: 'You lost the battle.',
+        synergyTriggered: false
+      });
+    } else {
+      newBattleState.currentTurn = 'player';
     }
 
-    // Enemy turn
-    setTimeout(() => {
-      const enemyDamage = Math.floor(Math.random() * 25) + 10;
-      const newPlayerHP = Math.max(0, battleState.playerHP - enemyDamage);
-
-      const enemyLog = {
-        turn: battleState.turnNumber,
-        actor: battleState.enemyPokemon.species,
-        action: 'attacked',
-        result: `${enemyDamage} damage!`,
-        synergyTriggered: false
-      };
-
-      if (newPlayerHP <= 0) {
-        setBattleState({
-          ...battleState,
-          playerHP: 0,
-          enemyHP: newEnemyHP,
-          battleLog: [...battleState.battleLog, newLog, enemyLog, {
-            turn: battleState.turnNumber,
-            actor: 'System',
-            action: 'Defeat!',
-            result: 'You lost the battle.',
-            synergyTriggered: false
-          }],
-          currentTurn: 'ended',
-          status: 'lost'
-        });
-      } else {
-        setBattleState({
-          ...battleState,
-          playerHP: newPlayerHP,
-          enemyHP: newEnemyHP,
-          battleLog: [...battleState.battleLog, newLog, enemyLog],
-          turnNumber: battleState.turnNumber + 1,
-          currentTurn: 'player',
-          synergyChains: hasSynergy ? battleState.synergyChains + 1 : battleState.synergyChains
-        });
-      }
-    }, 1500);
-
-    setBattleState({
-      ...battleState,
-      enemyHP: newEnemyHP,
-      battleLog: [...battleState.battleLog, newLog],
-      currentTurn: 'enemy'
-    });
+    setBattleState(newBattleState);
   };
 
   if (loadingPokemon) {
@@ -263,41 +230,22 @@ export default function BattlePage() {
             isPlayer
           />
 
-          {/* Battle Results */}
+          {/* Battle Results Modal */}
           {isBattleEnded && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className={`glass rounded-xl p-8 text-center ${
-                battleState.status === 'won' 
-                  ? 'border-2 border-emerald-500' 
-                  : 'border-2 border-red-500'
-              }`}
-            >
-              {battleState.status === 'won' ? (
-                <>
-                  <Trophy className="w-20 h-20 mx-auto mb-4 text-yellow-400" />
-                  <h2 className="text-3xl font-bold text-white mb-2">Victory!</h2>
-                  <p className="text-slate-300 mb-4">
-                    You defeated {battleState.enemyPokemon.species}!
-                  </p>
-                  {battleState.synergyChains > 0 && (
-                    <div className="flex items-center justify-center gap-2 text-cyan-400">
-                      <Sparkles className="w-5 h-5" />
-                      <span>{battleState.synergyChains} Synergy Chain(s)!</span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="w-20 h-20 mx-auto mb-4 text-red-400" />
-                  <h2 className="text-3xl font-bold text-white mb-2">Defeat</h2>
-                  <p className="text-slate-300">
-                    Your Pokémon fainted. Train harder and try again!
-                  </p>
-                </>
-              )}
-            </motion.div>
+            <BattleOutcomeModal
+              outcome={{
+                result: battleState.status === 'won' ? 'victory' : 'defeat',
+                enemyName: battleState.enemyPokemon.species,
+                xpGained: battleState.status === 'won' ? Math.floor(battleState.enemyPokemon.level * 25) : 0,
+                goldGained: battleState.status === 'won' ? Math.floor(battleState.enemyPokemon.level * 15) : 0,
+                synergyChains: battleState.synergyChains || 0,
+                itemsReceived: [],
+                canCapture: battleState.status === 'won' && !battleState.enemyPokemon.isRevenant,
+                enemyHP: battleState.enemyHP
+              }}
+              onClose={() => setBattleState(null)}
+              onCapture={() => console.log('Attempt capture')}
+            />
           )}
 
           {/* Move Selection */}

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import StatBar from '@/components/ui/StatBar';
 import RoleIndicator from './RoleIndicator';
 import RevenantIndicator from '../pokemon/RevenantIndicator';
+import StatusIndicator from './StatusIndicator';
 
 export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false, roles = [] }) {
   const hpPercent = (hp / maxHp) * 100;
@@ -61,12 +62,8 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
 
       {/* Status effects */}
       {status?.conditions?.length > 0 && (
-        <div className="flex gap-2 mt-2 flex-wrap">
-          {status.conditions.map((condition, idx) => (
-            <Badge key={idx} className="bg-purple-500/20 text-purple-300 border-purple-500/50 text-xs">
-              {condition}
-            </Badge>
-          ))}
+        <div className="mt-2">
+          <StatusIndicator statuses={status.conditions} />
         </div>
       )}
 
