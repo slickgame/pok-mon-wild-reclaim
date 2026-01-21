@@ -23,7 +23,7 @@ const navItems = [
   { name: 'Tutorials', icon: Sparkles, page: 'TutorialLog' },
 ];
 
-const noLayoutPages = ['StartScreen', 'Onboarding'];
+const noLayoutPages = ['StartScreen', 'StoryCutscene', 'Onboarding'];
 
 export default function Layout({ children, currentPageName }) {
   // Don't show layout for start screen and onboarding

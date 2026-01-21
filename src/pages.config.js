@@ -13,6 +13,7 @@ import Zones from './pages/Zones';
 import Onboarding from './pages/Onboarding';
 import TutorialLog from './pages/TutorialLog';
 import StartScreen from './pages/StartScreen';
+import StoryCutscene from './pages/StoryCutscene';
 import __Layout from './Layout.jsx';
 
 
@@ -32,6 +33,7 @@ export const PAGES = {
     "Onboarding": Onboarding,
     "TutorialLog": TutorialLog,
     "StartScreen": StartScreen,
+    "StoryCutscene": StoryCutscene,
 }
 
 export const pagesConfig = {

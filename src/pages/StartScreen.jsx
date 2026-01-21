@@ -56,8 +56,8 @@ export default function StartScreen() {
         ...tutorials.map(t => base44.entities.Tutorial.delete(t.id))
       ]);
 
-      // Redirect to onboarding
-      window.location.href = createPageUrl('Onboarding');
+      // Redirect to story cutscene
+      window.location.href = createPageUrl('StoryCutscene');
     } catch (error) {
       console.error('Failed to reset game:', error);
       setIsResetting(false);
