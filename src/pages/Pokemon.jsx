@@ -276,21 +276,38 @@ function PokemonDetailView({ pokemon, onClose }) {
       )}
 
       {/* Held Items */}
-      {pokemon.heldItems && pokemon.heldItems.length > 0 && (
-        <div className="glass rounded-xl p-4 mb-4">
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Shield className="w-4 h-4 text-indigo-400" /> Held Items
-          </h3>
-          <div className="space-y-2">
-            {pokemon.heldItems.map((itemId, idx) => (
-              <div key={idx} className="bg-slate-800/50 rounded-lg p-3">
-                <p className="text-white text-sm">{itemId}</p>
+      <div className="glass rounded-xl p-4 mb-4">
+        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+          <Shield className="w-4 h-4 text-indigo-400" /> Held Items
+        </h3>
+        <div className="grid grid-cols-3 gap-3">
+          {[1, 2, 3].map(slotNum => {
+            const item = pokemon.heldItems?.[slotNum - 1];
+            return (
+              <div key={slotNum} className={`aspect-square rounded-lg border-2 ${
+                item ? 'border-indigo-500/30 bg-indigo-500/10' : 'border-dashed border-slate-700 bg-slate-800/50'
+              } flex items-center justify-center`}>
+                {item ? (
+                  <div className="text-center p-2">
+                    <div className="text-2xl mb-1">💎</div>
+                    <p className="text-xs text-white truncate">{typeof item === 'string' ? item : item.name}</p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="text-slate-600 text-2xl">+</div>
+                    <p className="text-xs text-slate-600">Slot {slotNum}</p>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-          <p className="text-xs text-slate-400 mt-2">{3 - pokemon.heldItems.length} slot(s) remaining</p>
+            );
+          })}
         </div>
-      )}
+        {pokemon.heldItems?.length > 0 && (
+          <p className="text-xs text-slate-400 mt-3 text-center">
+            {3 - (pokemon.heldItems?.length || 0)} slot(s) available
+          </p>
+        )}
+      </div>
 
       {/* Abilities */}
       {pokemon.abilities && pokemon.abilities.length > 0 && (

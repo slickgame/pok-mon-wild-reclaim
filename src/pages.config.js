@@ -6,6 +6,7 @@ import Pokemon from './pages/Pokemon';
 import Zones from './pages/Zones';
 import Battle from './pages/Battle';
 import MaplesLab from './pages/MaplesLab';
+import SetBuilder from './pages/SetBuilder';
 import __Layout from './Layout.jsx';
 
 
@@ -18,6 +19,7 @@ export const PAGES = {
     "Zones": Zones,
     "Battle": Battle,
     "MaplesLab": MaplesLab,
+    "SetBuilder": SetBuilder,
 }
 
 export const pagesConfig = {
