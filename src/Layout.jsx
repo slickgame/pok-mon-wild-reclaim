@@ -11,6 +11,7 @@ const navItems = [
   { name: 'Zones', icon: Map, page: 'Zones' },
   { name: 'Inventory', icon: Backpack, page: 'Inventory' },
   { name: 'Crafting', icon: FlaskConical, page: 'Crafting' },
+  { name: "Maple's Lab", icon: Sparkles, page: 'MaplesLab' },
   { name: 'NPCs', icon: Users, page: 'NPCs' },
 ];
 

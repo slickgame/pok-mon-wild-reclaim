@@ -5,6 +5,7 @@ import NPCs from './pages/NPCs';
 import Pokemon from './pages/Pokemon';
 import Zones from './pages/Zones';
 import Battle from './pages/Battle';
+import MaplesLab from './pages/MaplesLab';
 import __Layout from './Layout.jsx';
 
 
@@ -16,6 +17,7 @@ export const PAGES = {
     "Pokemon": Pokemon,
     "Zones": Zones,
     "Battle": Battle,
+    "MaplesLab": MaplesLab,
 }
 
 export const pagesConfig = {
