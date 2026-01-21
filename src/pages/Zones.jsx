@@ -411,13 +411,13 @@ function ZoneDetailView({ zone, onClose }) {
       {/* Progress */}
       <div className="glass rounded-xl p-4 mb-4">
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-          <Compass className="w-4 h-4 text-indigo-400" /> Exploration Progress
+          <Compass className="w-4 h-4 text-indigo-400" /> 
+          Discovery Progress: {Math.round(zoneProgress?.discoveryProgress || zone.discoveryProgress || 0)}%
         </h3>
         <StatBar
-          value={zone.discoveryProgress || 0}
+          value={zoneProgress?.discoveryProgress || zone.discoveryProgress || 0}
           maxValue={100}
           color="bg-gradient-to-r from-indigo-500 to-cyan-500"
-          label="Discovery"
         />
       </div>
 

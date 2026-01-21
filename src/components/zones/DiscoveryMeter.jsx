@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge';
 
 export default function DiscoveryMeter({ progress, discoveredPokemon, discoveredPOIs, totalPokemon, totalPOIs }) {
   const getTier = (progress) => {
-    if (progress >= 61) return { name: 'Fully Explored', color: 'text-purple-400', bg: 'bg-purple-500' };
+    if (progress >= 100) return { name: 'Mastered', color: 'text-purple-400', bg: 'bg-purple-500' };
+    if (progress >= 61) return { name: 'Known', color: 'text-emerald-400', bg: 'bg-emerald-500' };
     if (progress >= 26) return { name: 'Familiar', color: 'text-blue-400', bg: 'bg-blue-500' };
-    return { name: 'Unexplored', color: 'text-slate-400', bg: 'bg-slate-500' };
+    return { name: 'Unfamiliar', color: 'text-slate-400', bg: 'bg-slate-500' };
   };
 
   const tier = getTier(progress);
@@ -20,12 +21,9 @@ export default function DiscoveryMeter({ progress, discoveredPokemon, discovered
             <Eye className="w-6 h-6 text-indigo-400" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Discovery Progress</h3>
+            <h3 className="text-lg font-bold text-white">Discovery Progress: {Math.round(progress)}%</h3>
             <p className={`text-sm ${tier.color}`}>{tier.name}</p>
           </div>
-        </div>
-        <div className="text-right">
-          <p className="text-3xl font-bold text-white">{Math.round(progress)}%</p>
         </div>
       </div>
 
