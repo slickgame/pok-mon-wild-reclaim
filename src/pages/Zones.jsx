@@ -333,81 +333,165 @@ function ZoneDetailView({ zone, onClose }) {
     };
 
     if (action === 'battle' && encounter.pokemon) {
-      // Navigate to battle page with wild Pokémon
-      logEntry.details = `Started battle with ${encounter.pokemon}`;
-      setExplorationEvents(prev => [{
-        title: '⚔️ Battle Started',
-        description: `Engaging ${encounter.pokemon} in battle!`,
-        type: 'special',
-        rarity: 'uncommon'
-      }, ...prev].slice(0, 10));
-      
-      // TODO: Navigate to battle page with encounter data
-      console.log('Starting battle with:', encounter);
-      setCurrentEncounter(null);
-    } 
-    else if (action === 'capture' && encounter.pokemon) {
-      // Attempt to capture - simplified for now
-      const captureChance = Math.random() * 100;
-      const success = captureChance > 30; // 70% base capture rate
-      
-      if (success) {
-        logEntry.details = `Captured ${encounter.pokemon}!`;
+      // Create wild Pokémon and navigate to battle
+      try {
+        const wildPokemon = await base44.entities.Pokemon.create({
+          species: encounter.pokemon,
+          level: encounter.pokemonLevel,
+          isInTeam: false,
+          stats: {
+            hp: encounter.pokemonLevel * 10,
+            maxHp: encounter.pokemonLevel * 10,
+            atk: encounter.pokemonLevel * 5,
+            def: encounter.pokemonLevel * 4,
+            spAtk: encounter.pokemonLevel * 5,
+            spDef: encounter.pokemonLevel * 4,
+            spd: encounter.pokemonLevel * 6
+          }
+        });
+
+        logEntry.details = `Started battle with ${encounter.pokemon}`;
         setExplorationEvents(prev => [{
-          title: '🎉 Capture Success!',
-          description: `${encounter.pokemon} was caught!`,
-          type: 'pokemon',
-          rarity: 'uncommon',
-          firstDiscovery: true
+          title: '⚔️ Battle Started',
+          description: `Engaging ${encounter.pokemon} in battle!`,
+          type: 'special',
+          rarity: 'uncommon'
         }, ...prev].slice(0, 10));
         
-        // TODO: Add to player's Pokémon collection
-      } else {
-        logEntry.details = `${encounter.pokemon} broke free!`;
-        setExplorationEvents(prev => [{
-          title: '💨 Capture Failed',
-          description: `${encounter.pokemon} escaped!`,
-          type: 'pokemon',
-          rarity: 'common'
-        }, ...prev].slice(0, 10));
+        // Store battle data and navigate
+        window.location.href = `/Battle?wildPokemonId=${wildPokemon.id}&returnTo=Zones`;
+        setCurrentEncounter(null);
+      } catch (error) {
+        console.error('Failed to create wild Pokémon:', error);
+      }
+    } 
+    else if (action === 'capture' && encounter.pokemon) {
+      // Attempt to capture
+      try {
+        const captureChance = Math.random() * 100;
+        const rarityModifier = encounter.rarity === 'legendary' ? 50 : 
+                              encounter.rarity === 'rare' ? 30 : 
+                              encounter.rarity === 'uncommon' ? 10 : 0;
+        const success = captureChance > (30 + rarityModifier);
+        
+        if (success) {
+          // Create the captured Pokémon
+          await base44.entities.Pokemon.create({
+            species: encounter.pokemon,
+            level: encounter.pokemonLevel,
+            isInTeam: false,
+            stats: {
+              hp: encounter.pokemonLevel * 10,
+              maxHp: encounter.pokemonLevel * 10,
+              atk: encounter.pokemonLevel * 5,
+              def: encounter.pokemonLevel * 4,
+              spAtk: encounter.pokemonLevel * 5,
+              spDef: encounter.pokemonLevel * 4,
+              spd: encounter.pokemonLevel * 6
+            }
+          });
+          
+          logEntry.details = `Captured ${encounter.pokemon}!`;
+          setExplorationEvents(prev => [{
+            title: '🎉 Capture Success!',
+            description: `${encounter.pokemon} was caught!`,
+            type: 'pokemon',
+            rarity: 'uncommon',
+            firstDiscovery: true
+          }, ...prev].slice(0, 10));
+        } else {
+          logEntry.details = `${encounter.pokemon} broke free!`;
+          setExplorationEvents(prev => [{
+            title: '💨 Capture Failed',
+            description: `${encounter.pokemon} escaped!`,
+            type: 'pokemon',
+            rarity: 'common'
+          }, ...prev].slice(0, 10));
+        }
+      } catch (error) {
+        console.error('Failed to capture Pokémon:', error);
       }
       setCurrentEncounter(null);
     }
     else if (action === 'scan' && encounter.pokemon) {
-      // Add to journal without battle
-      logEntry.details = `Scanned ${encounter.pokemon}`;
-      setExplorationEvents(prev => [{
-        title: '📝 Pokémon Scanned',
-        description: `${encounter.pokemon} data logged to journal`,
-        type: 'pokemon',
-        rarity: 'common'
-      }, ...prev].slice(0, 10));
+      // Add to discovered Pokémon list only
+      try {
+        if (zoneProgress?.id && !zoneProgress.discoveredPokemon?.includes(encounter.pokemon)) {
+          const updatedDiscovered = [...(zoneProgress.discoveredPokemon || []), encounter.pokemon];
+          await base44.entities.ZoneProgress.update(zoneProgress.id, {
+            discoveredPokemon: updatedDiscovered
+          });
+          refetchProgress();
+        }
+        
+        logEntry.details = `Scanned ${encounter.pokemon}`;
+        setExplorationEvents(prev => [{
+          title: '📝 Pokémon Scanned',
+          description: `${encounter.pokemon} data logged to journal`,
+          type: 'pokemon',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+      } catch (error) {
+        console.error('Failed to scan Pokémon:', error);
+      }
       setCurrentEncounter(null);
     }
     else if (action === 'collect' && encounter.materials) {
       // Add materials to inventory
-      logEntry.details = `Collected ${encounter.materials.join(', ')}`;
-      setExplorationEvents(prev => [{
-        title: '✅ Materials Collected',
-        description: `Added ${encounter.materials.join(', ')} to inventory`,
-        type: 'material',
-        rarity: 'common',
-        firstDiscovery: encounter.firstDiscovery
-      }, ...prev].slice(0, 10));
-      
-      // TODO: Add to player inventory
+      try {
+        for (const material of encounter.materials) {
+          await base44.entities.Item.create({
+            name: material,
+            type: 'Material',
+            tier: 1,
+            rarity: 'Common',
+            description: `A crafting material found in ${zone.name}`,
+            quantity: 1,
+            stackable: true,
+            sellValue: 10
+          });
+        }
+        
+        logEntry.details = `Collected ${encounter.materials.join(', ')}`;
+        setExplorationEvents(prev => [{
+          title: '✅ Materials Collected',
+          description: `Added ${encounter.materials.join(', ')} to inventory`,
+          type: 'material',
+          rarity: 'common',
+          firstDiscovery: encounter.firstDiscovery
+        }, ...prev].slice(0, 10));
+      } catch (error) {
+        console.error('Failed to collect materials:', error);
+      }
       setCurrentEncounter(null);
     }
     else if (action === 'reveal' && encounter.poi) {
-      // Reveal POI on map
-      logEntry.details = `Revealed ${encounter.poi}`;
-      setExplorationEvents(prev => [{
-        title: '🗺️ Location Revealed',
-        description: `${encounter.poi} is now accessible`,
-        type: 'poi',
-        rarity: 'uncommon',
-        firstDiscovery: true
-      }, ...prev].slice(0, 10));
+      // Reveal POI on map and update progress
+      try {
+        if (zoneProgress?.id && encounter.poiId && !zoneProgress.discoveredPOIs?.includes(encounter.poiId)) {
+          const updatedPOIs = [...(zoneProgress.discoveredPOIs || []), encounter.poiId];
+          await base44.entities.ZoneProgress.update(zoneProgress.id, {
+            discoveredPOIs: updatedPOIs
+          });
+          refetchProgress();
+        }
+        
+        logEntry.details = `Revealed ${encounter.poi}`;
+        setExplorationEvents(prev => [{
+          title: '🗺️ Location Revealed',
+          description: `${encounter.poi} is now accessible`,
+          type: 'poi',
+          rarity: 'uncommon',
+          firstDiscovery: true
+        }, ...prev].slice(0, 10));
+        
+        // Refresh zone progress to show the newly revealed POI
+        setTimeout(() => {
+          setIsExploring(false);
+        }, 1500);
+      } catch (error) {
+        console.error('Failed to reveal POI:', error);
+      }
       setCurrentEncounter(null);
     }
     else if (action === 'investigate') {
@@ -596,10 +680,17 @@ function ZoneDetailView({ zone, onClose }) {
             {zone.nodelets.filter(n => !n.eclipseControlled).map((nodelet, idx) => {
               const isDiscovered = (zoneProgress?.discoveredPOIs || []).includes(nodelet.id);
               return (
-                <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+                <button
+                  key={idx}
+                  onClick={() => isDiscovered && handleNodeletInspect(nodelet)}
+                  disabled={!isDiscovered}
+                  className={`w-full flex items-center justify-between bg-slate-800/50 rounded-lg p-3 transition-colors ${
+                    isDiscovered ? 'hover:bg-slate-700/50 cursor-pointer' : 'cursor-default'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${isDiscovered ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                    <div>
+                    <div className="text-left">
                       <p className="text-white text-sm">
                         {isDiscovered ? nodelet.name : '??? Location'}
                       </p>
@@ -608,14 +699,19 @@ function ZoneDetailView({ zone, onClose }) {
                       </p>
                     </div>
                   </div>
-                  {nodelet.isCompleted ? (
-                    <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">Complete</Badge>
-                  ) : isDiscovered ? (
-                    <Badge className="bg-amber-500/20 text-amber-300 text-xs">Available</Badge>
-                  ) : (
-                    <Badge className="bg-slate-700/50 text-slate-400 text-xs">Hidden</Badge>
-                  )}
-                </div>
+                  <div className="flex items-center gap-2">
+                    {nodelet.isCompleted ? (
+                      <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">Complete</Badge>
+                    ) : isDiscovered ? (
+                      <>
+                        <Badge className="bg-amber-500/20 text-amber-300 text-xs">Available</Badge>
+                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                      </>
+                    ) : (
+                      <Badge className="bg-slate-700/50 text-slate-400 text-xs">Hidden</Badge>
+                    )}
+                  </div>
+                </button>
               );
             })}
           </div>

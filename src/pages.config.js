@@ -1,31 +1,31 @@
+import Battle from './pages/Battle';
+import Contests from './pages/Contests';
 import Crafting from './pages/Crafting';
+import Endgame from './pages/Endgame';
+import Fishing from './pages/Fishing';
 import Home from './pages/Home';
 import Inventory from './pages/Inventory';
+import MaplesLab from './pages/MaplesLab';
 import NPCs from './pages/NPCs';
 import Pokemon from './pages/Pokemon';
-import Zones from './pages/Zones';
-import Battle from './pages/Battle';
-import MaplesLab from './pages/MaplesLab';
 import SetBuilder from './pages/SetBuilder';
-import Contests from './pages/Contests';
-import Fishing from './pages/Fishing';
-import Endgame from './pages/Endgame';
+import Zones from './pages/Zones';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "Battle": Battle,
+    "Contests": Contests,
     "Crafting": Crafting,
+    "Endgame": Endgame,
+    "Fishing": Fishing,
     "Home": Home,
     "Inventory": Inventory,
+    "MaplesLab": MaplesLab,
     "NPCs": NPCs,
     "Pokemon": Pokemon,
-    "Zones": Zones,
-    "Battle": Battle,
-    "MaplesLab": MaplesLab,
     "SetBuilder": SetBuilder,
-    "Contests": Contests,
-    "Fishing": Fishing,
-    "Endgame": Endgame,
+    "Zones": Zones,
 }
 
 export const pagesConfig = {
