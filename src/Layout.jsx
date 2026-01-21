@@ -20,6 +20,7 @@ const navItems = [
   { name: 'Sets', icon: Sparkles, page: 'SetBuilder' },
   { name: "Maple's Lab", icon: Sparkles, page: 'MaplesLab' },
   { name: 'NPCs', icon: Users, page: 'NPCs' },
+  { name: 'Tutorials', icon: Sparkles, page: 'TutorialLog' },
 ];
 
 export default function Layout({ children, currentPageName }) {

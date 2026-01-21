@@ -218,5 +218,6 @@ export default function HomePage() {
         )}
       </motion.div>
     </motion.div>
+    </>
   );
 }

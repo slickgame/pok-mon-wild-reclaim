@@ -10,6 +10,7 @@ import NPCs from './pages/NPCs';
 import Pokemon from './pages/Pokemon';
 import SetBuilder from './pages/SetBuilder';
 import Zones from './pages/Zones';
+import Onboarding from './pages/Onboarding';
 import __Layout from './Layout.jsx';
 
 
@@ -26,6 +27,7 @@ export const PAGES = {
     "Pokemon": Pokemon,
     "SetBuilder": SetBuilder,
     "Zones": Zones,
+    "Onboarding": Onboarding,
 }
 
 export const pagesConfig = {
