@@ -12,6 +12,7 @@ import SetBuilder from './pages/SetBuilder';
 import Zones from './pages/Zones';
 import Onboarding from './pages/Onboarding';
 import TutorialLog from './pages/TutorialLog';
+import StartScreen from './pages/StartScreen';
 import __Layout from './Layout.jsx';
 
 
@@ -30,6 +31,7 @@ export const PAGES = {
     "Zones": Zones,
     "Onboarding": Onboarding,
     "TutorialLog": TutorialLog,
+    "StartScreen": StartScreen,
 }
 
 export const pagesConfig = {

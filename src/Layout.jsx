@@ -23,7 +23,13 @@ const navItems = [
   { name: 'Tutorials', icon: Sparkles, page: 'TutorialLog' },
 ];
 
+const noLayoutPages = ['StartScreen', 'Onboarding'];
+
 export default function Layout({ children, currentPageName }) {
+  // Don't show layout for start screen and onboarding
+  if (noLayoutPages.includes(currentPageName)) {
+    return children;
+  }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { data: gameTime } = useQuery({

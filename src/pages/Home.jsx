@@ -41,7 +41,7 @@ export default function HomePage() {
   // Check for onboarding
   useEffect(() => {
     if (!playerLoading && !player) {
-      window.location.href = createPageUrl('Onboarding');
+      window.location.href = createPageUrl('StartScreen');
     }
   }, [player, playerLoading]);
 
