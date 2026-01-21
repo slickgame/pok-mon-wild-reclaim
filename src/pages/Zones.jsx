@@ -324,6 +324,105 @@ function ZoneDetailView({ zone, onClose }) {
     setCurrentEncounter(null);
   };
 
+  const handleEncounterAction = async (action, encounter) => {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      type: encounter.type,
+      action: action,
+      details: ''
+    };
+
+    if (action === 'battle' && encounter.pokemon) {
+      // Navigate to battle page with wild Pokémon
+      logEntry.details = `Started battle with ${encounter.pokemon}`;
+      setExplorationEvents(prev => [{
+        title: '⚔️ Battle Started',
+        description: `Engaging ${encounter.pokemon} in battle!`,
+        type: 'special',
+        rarity: 'uncommon'
+      }, ...prev].slice(0, 10));
+      
+      // TODO: Navigate to battle page with encounter data
+      console.log('Starting battle with:', encounter);
+      setCurrentEncounter(null);
+    } 
+    else if (action === 'capture' && encounter.pokemon) {
+      // Attempt to capture - simplified for now
+      const captureChance = Math.random() * 100;
+      const success = captureChance > 30; // 70% base capture rate
+      
+      if (success) {
+        logEntry.details = `Captured ${encounter.pokemon}!`;
+        setExplorationEvents(prev => [{
+          title: '🎉 Capture Success!',
+          description: `${encounter.pokemon} was caught!`,
+          type: 'pokemon',
+          rarity: 'uncommon',
+          firstDiscovery: true
+        }, ...prev].slice(0, 10));
+        
+        // TODO: Add to player's Pokémon collection
+      } else {
+        logEntry.details = `${encounter.pokemon} broke free!`;
+        setExplorationEvents(prev => [{
+          title: '💨 Capture Failed',
+          description: `${encounter.pokemon} escaped!`,
+          type: 'pokemon',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+      }
+      setCurrentEncounter(null);
+    }
+    else if (action === 'scan' && encounter.pokemon) {
+      // Add to journal without battle
+      logEntry.details = `Scanned ${encounter.pokemon}`;
+      setExplorationEvents(prev => [{
+        title: '📝 Pokémon Scanned',
+        description: `${encounter.pokemon} data logged to journal`,
+        type: 'pokemon',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+      setCurrentEncounter(null);
+    }
+    else if (action === 'collect' && encounter.materials) {
+      // Add materials to inventory
+      logEntry.details = `Collected ${encounter.materials.join(', ')}`;
+      setExplorationEvents(prev => [{
+        title: '✅ Materials Collected',
+        description: `Added ${encounter.materials.join(', ')} to inventory`,
+        type: 'material',
+        rarity: 'common',
+        firstDiscovery: encounter.firstDiscovery
+      }, ...prev].slice(0, 10));
+      
+      // TODO: Add to player inventory
+      setCurrentEncounter(null);
+    }
+    else if (action === 'reveal' && encounter.poi) {
+      // Reveal POI on map
+      logEntry.details = `Revealed ${encounter.poi}`;
+      setExplorationEvents(prev => [{
+        title: '🗺️ Location Revealed',
+        description: `${encounter.poi} is now accessible`,
+        type: 'poi',
+        rarity: 'uncommon',
+        firstDiscovery: true
+      }, ...prev].slice(0, 10));
+      setCurrentEncounter(null);
+    }
+    else if (action === 'investigate') {
+      // Special event investigation
+      logEntry.details = 'Investigated unusual phenomenon';
+      setExplorationEvents(prev => [{
+        title: '🔍 Mystery Deepens',
+        description: 'You sense a powerful presence nearby...',
+        type: 'special',
+        rarity: 'rare'
+      }, ...prev].slice(0, 10));
+      setCurrentEncounter(null);
+    }
+  };
+
   const discoveredPokemon = zoneProgress?.discoveredPokemon?.length || 0;
   const totalPokemon = zone.availableWildPokemon?.length || 0;
   const discoveredPOIs = zoneProgress?.discoveredPOIs?.length || 0;
@@ -342,33 +441,36 @@ function ZoneDetailView({ zone, onClose }) {
 
         <h2 className="text-2xl font-bold text-white mb-6">{zone.name} - Exploration</h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <DiscoveryMeter
-              progress={zoneProgress?.discoveryProgress || 0}
-              discoveredPokemon={discoveredPokemon}
-              discoveredPOIs={discoveredPOIs}
-              totalPokemon={totalPokemon}
-              totalPOIs={totalPOIs}
-            />
+        <div className="grid grid-cols-1 gap-6">
+          <DiscoveryMeter
+            progress={zoneProgress?.discoveryProgress || 0}
+            discoveredPokemon={discoveredPokemon}
+            discoveredPOIs={discoveredPOIs}
+            totalPokemon={totalPokemon}
+            totalPOIs={totalPOIs}
+          />
 
-            {currentEncounter ? (
-              <EncounterResult
-                result={currentEncounter}
-                onContinue={handleContinueExploring}
-              />
-            ) : (
-              <Button
-                onClick={handleExplore}
-                className="w-full bg-gradient-to-r from-indigo-500 to-cyan-500 text-lg py-6"
-              >
-                <Compass className="w-5 h-5 mr-2" />
-                Explore
-              </Button>
-            )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              {currentEncounter ? (
+                <EncounterResult
+                  result={currentEncounter}
+                  onContinue={handleContinueExploring}
+                  onAction={handleEncounterAction}
+                />
+              ) : (
+                <Button
+                  onClick={handleExplore}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-cyan-500 text-lg py-6"
+                >
+                  <Compass className="w-5 h-5 mr-2" />
+                  Explore
+                </Button>
+              )}
+            </div>
+
+            <ExplorationFeed events={explorationEvents} />
           </div>
-
-          <ExplorationFeed events={explorationEvents} />
         </div>
       </div>
     );
