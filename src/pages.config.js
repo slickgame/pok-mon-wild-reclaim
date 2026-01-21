@@ -9,6 +9,7 @@ import MaplesLab from './pages/MaplesLab';
 import SetBuilder from './pages/SetBuilder';
 import Contests from './pages/Contests';
 import Fishing from './pages/Fishing';
+import Endgame from './pages/Endgame';
 import __Layout from './Layout.jsx';
 
 
@@ -24,6 +25,7 @@ export const PAGES = {
     "SetBuilder": SetBuilder,
     "Contests": Contests,
     "Fishing": Fishing,
+    "Endgame": Endgame,
 }
 
 export const pagesConfig = {
