@@ -62,8 +62,8 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
 
       {/* Status effects */}
       {status?.conditions?.length > 0 && (
-        <div className="mt-2">
-          <StatusIndicator statuses={status.conditions} />
+        <div className="mt-2 flex gap-1">
+          <StatusIndicator status={status} />
         </div>
       )}
 
