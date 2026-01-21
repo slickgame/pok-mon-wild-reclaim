@@ -13,8 +13,11 @@ import PokemonCard from '@/components/pokemon/PokemonCard';
 import QuestCard from '@/components/home/QuestCard';
 import TrustMeter from '@/components/home/TrustMeter';
 import StatBar from '@/components/ui/StatBar';
+import TutorialOverlay from '../components/tutorial/TutorialOverlay';
 
 export default function HomePage() {
+  const [currentTutorial, setCurrentTutorial] = useState(null);
+  
   const { data: player, isLoading: playerLoading } = useQuery({
     queryKey: ['player'],
     queryFn: async () => {
@@ -29,6 +32,49 @@ export default function HomePage() {
       return await base44.entities.Pokemon.filter({ isInTeam: true });
     }
   });
+
+  const { data: tutorials = [] } = useQuery({
+    queryKey: ['tutorials'],
+    queryFn: () => base44.entities.Tutorial.list()
+  });
+
+  // Check for onboarding
+  useEffect(() => {
+    if (!playerLoading && !player) {
+      window.location.href = createPageUrl('Onboarding');
+    }
+  }, [player, playerLoading]);
+
+  // Show tutorial if available
+  useEffect(() => {
+    const pendingTutorial = tutorials.find(t => !t.isCompleted && !t.isSkipped);
+    if (pendingTutorial) {
+      setCurrentTutorial(pendingTutorial);
+    }
+  }, [tutorials]);
+
+  const handleCompleteTutorial = async () => {
+    if (!currentTutorial) return;
+    
+    await base44.entities.Tutorial.update(currentTutorial.id, {
+      isCompleted: true,
+      completedAt: new Date().toISOString()
+    });
+    
+    setCurrentTutorial(null);
+  };
+
+  const handleSkipTutorials = async () => {
+    for (const tutorial of tutorials) {
+      if (!tutorial.isCompleted) {
+        await base44.entities.Tutorial.update(tutorial.id, {
+          isSkipped: true
+        });
+      }
+    }
+    
+    setCurrentTutorial(null);
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -56,12 +102,19 @@ export default function HomePage() {
   }
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="space-y-6"
-    >
+    <>
+      <TutorialOverlay
+        tutorial={currentTutorial}
+        onComplete={handleCompleteTutorial}
+        onSkip={handleSkipTutorials}
+      />
+      
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="space-y-6"
+      >
       {/* Welcome Banner */}
       <motion.div 
         variants={itemVariants}
