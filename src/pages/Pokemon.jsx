@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PageHeader from '@/components/common/PageHeader';
 import PokemonCard from '@/components/pokemon/PokemonCard';
 import StatBar from '@/components/ui/StatBar';
+import RoleIndicator from '@/components/battle/RoleIndicator';
+import TalentDisplay from '@/components/battle/TalentDisplay';
+import RevenantIndicator from '@/components/pokemon/RevenantIndicator';
 
 const typeColors = {
   Normal: 'from-gray-400 to-gray-500',
@@ -167,6 +170,9 @@ function PokemonDetailView({ pokemon, onClose }) {
             </Badge>
           )}
         </div>
+        <div className="mt-3">
+          <RevenantIndicator pokemon={pokemon} showEffects />
+        </div>
       </div>
 
       {/* Stats */}
@@ -239,33 +245,18 @@ function PokemonDetailView({ pokemon, onClose }) {
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <Star className="w-4 h-4 text-amber-400" /> Talents
             </h3>
-            <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-white">
-              <RotateCcw className="w-3 h-3 mr-1" /> Reroll
-            </Button>
           </div>
-          <div className="space-y-2">
-            {pokemon.talents.map((talent, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
-                <div>
-                  <p className="text-white font-medium text-sm">{talent.name}</p>
-                  <p className="text-xs text-slate-400">{talent.description}</p>
-                </div>
-                <Badge className={gradeColors[talent.grade]}>{talent.grade}</Badge>
-              </div>
-            ))}
-          </div>
+          <TalentDisplay talents={pokemon.talents} showDescription />
         </div>
       )}
 
       {/* Roles */}
       {pokemon.roles && pokemon.roles.length > 0 && (
         <div className="glass rounded-xl p-4 mb-4">
-          <h3 className="text-sm font-semibold text-white mb-3">Roles</h3>
-          <div className="flex flex-wrap gap-2">
+          <h3 className="text-sm font-semibold text-white mb-3">Battle Roles</h3>
+          <div className="space-y-2">
             {pokemon.roles.map((role, idx) => (
-              <Badge key={idx} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/50">
-                {role}
-              </Badge>
+              <RoleIndicator key={idx} role={role} showDescription />
             ))}
           </div>
         </div>
@@ -274,10 +265,30 @@ function PokemonDetailView({ pokemon, onClose }) {
       {/* Signature Move */}
       {pokemon.signatureMove && (
         <div className="glass rounded-xl p-4 mb-4">
-          <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-            <ArrowUpCircle className="w-4 h-4 text-cyan-400" /> Signature Move
+          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+            <Star className="w-4 h-4 text-yellow-400" /> Signature Move
           </h3>
-          <p className="text-cyan-400 font-medium">{pokemon.signatureMove}</p>
+          <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-lg p-3">
+            <p className="text-yellow-300 font-bold">{pokemon.signatureMove}</p>
+            <p className="text-xs text-slate-400 mt-1">Unlocked through leveling and trust</p>
+          </div>
+        </div>
+      )}
+
+      {/* Held Items */}
+      {pokemon.heldItems && pokemon.heldItems.length > 0 && (
+        <div className="glass rounded-xl p-4 mb-4">
+          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-indigo-400" /> Held Items
+          </h3>
+          <div className="space-y-2">
+            {pokemon.heldItems.map((itemId, idx) => (
+              <div key={idx} className="bg-slate-800/50 rounded-lg p-3">
+                <p className="text-white text-sm">{itemId}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 mt-2">{3 - pokemon.heldItems.length} slot(s) remaining</p>
         </div>
       )}
 
