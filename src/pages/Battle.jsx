@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, Trophy, Sparkles, AlertCircle } from 'lucide-react';
+import { Swords, Trophy, Sparkles, AlertCircle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import PageHeader from '@/components/common/PageHeader';
@@ -19,6 +19,7 @@ export default function BattlePage() {
   const [wildPokemonId, setWildPokemonId] = useState(null);
   const [returnTo, setReturnTo] = useState(null);
   const [capturingPokemon, setCapturingPokemon] = useState(false);
+  const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch'
   const queryClient = useQueryClient();
 
   // Parse URL parameters for wild encounters
@@ -33,7 +34,7 @@ export default function BattlePage() {
     }
   }, []);
 
-  // Fetch player inventory for Pokéballs
+  // Fetch player inventory for Pokéballs and battle items
   const { data: inventory = [] } = useQuery({
     queryKey: ['inventory'],
     queryFn: async () => {
@@ -43,6 +44,7 @@ export default function BattlePage() {
   });
 
   const pokeballCount = inventory.filter(item => item.name === 'Pokéball').reduce((acc, item) => acc + (item.quantity || 1), 0);
+  const battleItems = inventory.filter(item => ['Potion', 'Battle Item'].includes(item.type));
 
   // Fetch player's team
   const { data: playerPokemon = [], isLoading: loadingPokemon } = useQuery({
@@ -350,6 +352,78 @@ export default function BattlePage() {
     setBattleState(newBattleState);
   };
 
+  // Flee from battle
+  const fleeBattle = () => {
+    if (!battleState || !battleState.isWildBattle) return;
+    
+    // Return to zone
+    if (returnTo) {
+      window.location.href = `/${returnTo}`;
+    } else {
+      setBattleState(null);
+      setWildPokemonId(null);
+      setReturnTo(null);
+    }
+  };
+
+  // Switch Pokémon
+  const switchPokemon = async (newPokemon) => {
+    if (!battleState || !newPokemon) return;
+
+    const newBattleState = {
+      ...battleState,
+      playerPokemon: newPokemon,
+      playerHP: newPokemon.stats.maxHp,
+      battleLog: [...battleState.battleLog, {
+        turn: battleState.turnNumber,
+        actor: 'System',
+        action: 'Switch',
+        result: `${newPokemon.nickname || newPokemon.species} switched in!`,
+        synergyTriggered: false
+      }],
+      turnNumber: battleState.turnNumber + 1
+    };
+
+    setBattleState(newBattleState);
+    setActionMenu('main');
+  };
+
+  // Use battle item
+  const useItem = async (item) => {
+    if (!battleState) return;
+
+    let healAmount = 0;
+    if (item.name === 'Potion') healAmount = 50;
+    if (item.name === 'Super Potion') healAmount = 100;
+
+    const newHP = Math.min(battleState.playerHP + healAmount, battleState.playerPokemon.stats.maxHp);
+
+    const newBattleState = {
+      ...battleState,
+      playerHP: newHP,
+      battleLog: [...battleState.battleLog, {
+        turn: battleState.turnNumber,
+        actor: 'Player',
+        action: `Used ${item.name}`,
+        result: `Restored ${newHP - battleState.playerHP} HP`,
+        synergyTriggered: false
+      }],
+      turnNumber: battleState.turnNumber + 1,
+      currentTurn: 'player'
+    };
+
+    setBattleState(newBattleState);
+    setActionMenu('main');
+
+    // Consume item
+    if (item.quantity > 1) {
+      await base44.entities.Item.update(item.id, { quantity: item.quantity - 1 });
+    } else {
+      await base44.entities.Item.delete(item.id);
+    }
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+  };
+
   if (loadingPokemon) {
     return (
       <div>
@@ -497,46 +571,163 @@ export default function BattlePage() {
             />
           )}
 
-          {/* Move Selection and Actions */}
+          {/* Action Menu */}
           {!isBattleEnded && (
             <div className="space-y-4">
-              {battleState.isWildBattle && (
-                <div className="glass rounded-xl p-4 border-2 border-purple-500/30">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-white">Capture</h3>
-                    <Badge className="bg-purple-500/20 text-purple-300">
-                      Pokéballs: {pokeballCount}
-                    </Badge>
-                  </div>
+              {/* Main Action Menu */}
+              {actionMenu === 'main' && (
+                <div className="grid grid-cols-2 gap-3">
                   <Button
-                    onClick={attemptCapture}
-                    disabled={!isPlayerTurn || pokeballCount <= 0 || capturingPokemon}
-                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+                    onClick={() => setActionMenu('fight')}
+                    disabled={!isPlayerTurn}
+                    className="h-20 bg-gradient-to-br from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
                   >
-                    {capturingPokemon ? 'Throwing...' : 'Throw Pokéball'}
+                    <Swords className="w-6 h-6 mr-2" />
+                    Fight
                   </Button>
-                  <p className="text-xs text-slate-400 mt-2 text-center">
-                    Lower HP = Higher catch rate
-                  </p>
+                  
+                  <Button
+                    onClick={() => setActionMenu('items')}
+                    disabled={!isPlayerTurn || battleItems.length === 0}
+                    className="h-20 bg-gradient-to-br from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                  >
+                    <Package className="w-6 h-6 mr-2" />
+                    Items
+                  </Button>
+
+                  {battleState.isWildBattle && (
+                    <Button
+                      onClick={attemptCapture}
+                      disabled={!isPlayerTurn || pokeballCount <= 0 || capturingPokemon}
+                      className="h-20 bg-gradient-to-br from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+                    >
+                      <Trophy className="w-6 h-6 mr-2" />
+                      Capture
+                      <Badge className="ml-2 bg-white/20">{pokeballCount}</Badge>
+                    </Button>
+                  )}
+
+                  <Button
+                    onClick={() => setActionMenu('switch')}
+                    disabled={!isPlayerTurn || playerPokemon.length <= 1}
+                    className="h-20 bg-gradient-to-br from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                  >
+                    <Sparkles className="w-6 h-6 mr-2" />
+                    Switch
+                  </Button>
+
+                  {battleState.isWildBattle && (
+                    <Button
+                      onClick={fleeBattle}
+                      disabled={!isPlayerTurn}
+                      variant="outline"
+                      className="h-20 border-slate-600 hover:bg-slate-800"
+                    >
+                      <AlertCircle className="w-6 h-6 mr-2" />
+                      Flee
+                    </Button>
+                  )}
                 </div>
               )}
 
-              <div>
-                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-indigo-400" />
-                  Select a Move
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {moves.slice(0, 4).map((move) => (
-                    <MoveCard
-                      key={move.id}
-                      move={move}
-                      onUse={useMove}
-                      disabled={!isPlayerTurn}
-                    />
-                  ))}
+              {/* Fight Menu - Move Selection */}
+              {actionMenu === 'fight' && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-indigo-400" />
+                      Select a Move
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActionMenu('main')}
+                    >
+                      Back
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {moves.slice(0, 4).map((move) => (
+                      <MoveCard
+                        key={move.id}
+                        move={move}
+                        onUse={(m) => {
+                          useMove(m);
+                          setActionMenu('main');
+                        }}
+                        disabled={!isPlayerTurn}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Items Menu */}
+              {actionMenu === 'items' && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-white">Battle Items</h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActionMenu('main')}
+                    >
+                      Back
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {battleItems.map((item) => (
+                      <Button
+                        key={item.id}
+                        onClick={() => useItem(item)}
+                        disabled={!isPlayerTurn}
+                        variant="outline"
+                        className="w-full justify-between"
+                      >
+                        <span>{item.name}</span>
+                        <Badge className="bg-slate-700">x{item.quantity || 1}</Badge>
+                      </Button>
+                    ))}
+                    {battleItems.length === 0 && (
+                      <div className="text-center text-slate-400 py-4">
+                        No battle items available
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Switch Menu */}
+              {actionMenu === 'switch' && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-white">Switch Pokémon</h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActionMenu('main')}
+                    >
+                      Back
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {playerPokemon
+                      .filter(p => p.id !== battleState.playerPokemon.id)
+                      .map((pokemon) => (
+                        <Button
+                          key={pokemon.id}
+                          onClick={() => switchPokemon(pokemon)}
+                          disabled={!isPlayerTurn || pokemon.stats.hp <= 0}
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          <span>{pokemon.nickname || pokemon.species}</span>
+                          <Badge className="bg-slate-700">Lv. {pokemon.level}</Badge>
+                        </Button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
