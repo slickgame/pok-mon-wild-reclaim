@@ -172,43 +172,48 @@ function ZoneDetailView({ zone, onClose }) {
     setExplorationEvents([]);
   };
 
-  const handleExplore = () => {
+  const handleExplore = async () => {
     const currentProgress = zoneProgress?.discoveryProgress || 0;
     const progressGain = Math.floor(Math.random() * 11) + 5; // 5-15
     
     // Weighted random encounter
     const roll = Math.random() * 100;
     let encounterType, result;
+    let actualProgressGain = 0;
 
     if (roll < 50) {
       // Material Discovery
       const materials = ['Silk Fragment', 'Glowworm', 'Moonleaf', 'River Stone', 'Ancient Shard'];
       const material = materials[Math.floor(Math.random() * materials.length)];
       const firstDiscovery = !(zoneProgress?.discoveredMaterials || []).includes(material);
+      actualProgressGain = firstDiscovery ? progressGain : 0;
       
       encounterType = 'material';
       result = {
         type: 'material',
-        title: 'Materials Found!',
+        title: firstDiscovery ? '🆕 New Material Found!' : 'Materials Found',
         description: `Gathered ${material} from the area`,
         materials: [material],
-        progressGained: progressGain,
+        progressGained: actualProgressGain,
         firstDiscovery,
-        rarity: 'common'
+        rarity: 'common',
+        materialName: material
       };
     } else if (roll < 80) {
       // Wild Pokémon
       const availablePokemon = zone.availableWildPokemon || [];
       const pokemon = availablePokemon[Math.floor(Math.random() * availablePokemon.length)];
       const firstDiscovery = pokemon && !(zoneProgress?.discoveredPokemon || []).includes(pokemon.species);
+      actualProgressGain = firstDiscovery ? progressGain : 0;
       
       encounterType = 'pokemon';
       result = {
         type: 'pokemon',
-        title: 'Wild Pokémon!',
+        title: firstDiscovery ? '🆕 New Pokémon Discovered!' : 'Wild Pokémon Encountered',
         description: `A ${pokemon?.species || 'Pokémon'} appeared!`,
         pokemon: pokemon?.species || 'Unknown',
-        progressGained: progressGain,
+        pokemonLevel: pokemon?.minLevel || 5,
+        progressGained: actualProgressGain,
         firstDiscovery,
         rarity: pokemon?.rarity?.toLowerCase() || 'common'
       };
@@ -217,26 +222,50 @@ function ZoneDetailView({ zone, onClose }) {
       const undiscoveredPOIs = (zone.nodelets || []).filter(
         n => !(zoneProgress?.discoveredPOIs || []).includes(n.id)
       );
-      const poi = undiscoveredPOIs[Math.floor(Math.random() * undiscoveredPOIs.length)];
       
-      encounterType = 'poi';
-      result = {
-        type: 'poi',
-        title: 'Location Discovered!',
-        description: `Found ${poi?.name || 'a hidden location'}`,
-        poi: poi?.name || 'Mystery Location',
-        progressGained: progressGain + 10,
-        firstDiscovery: true,
-        rarity: 'uncommon'
-      };
+      if (undiscoveredPOIs.length > 0) {
+        const poi = undiscoveredPOIs[Math.floor(Math.random() * undiscoveredPOIs.length)];
+        actualProgressGain = progressGain + 10;
+        
+        encounterType = 'poi';
+        result = {
+          type: 'poi',
+          title: '🆕 Point of Interest Unlocked!',
+          description: `Discovered ${poi?.name || 'a hidden location'}`,
+          poi: poi?.name || 'Mystery Location',
+          poiId: poi?.id,
+          progressGained: actualProgressGain,
+          firstDiscovery: true,
+          rarity: 'uncommon'
+        };
+      } else {
+        // No more POIs to discover, find material instead
+        const materials = ['Silk Fragment', 'Glowworm', 'Moonleaf'];
+        const material = materials[Math.floor(Math.random() * materials.length)];
+        const firstDiscovery = !(zoneProgress?.discoveredMaterials || []).includes(material);
+        actualProgressGain = firstDiscovery ? progressGain : 0;
+        
+        encounterType = 'material';
+        result = {
+          type: 'material',
+          title: firstDiscovery ? '🆕 New Material Found!' : 'Materials Found',
+          description: `Gathered ${material} from the area`,
+          materials: [material],
+          progressGained: actualProgressGain,
+          firstDiscovery,
+          rarity: 'common',
+          materialName: material
+        };
+      }
     } else {
       // Special Event
+      actualProgressGain = progressGain + 15;
       encounterType = 'special';
       result = {
         type: 'special',
-        title: 'Special Event!',
-        description: 'Something unusual happened...',
-        progressGained: progressGain + 15,
+        title: '⚡ Special Event!',
+        description: 'You sense something unusual in the air...',
+        progressGained: actualProgressGain,
         firstDiscovery: true,
         rarity: 'rare'
       };
@@ -248,12 +277,47 @@ function ZoneDetailView({ zone, onClose }) {
     // Show encounter result
     setCurrentEncounter(result);
     
-    // Update zone progress (in real app, would save to DB)
-    setZoneProgress(prev => ({
-      ...prev,
-      discoveryProgress: Math.min((prev?.discoveryProgress || 0) + progressGain, 100),
-      explorationCount: (prev?.explorationCount || 0) + 1
-    }));
+    // Update zone progress in state and database
+    const newProgress = Math.min(currentProgress + actualProgressGain, 100);
+    const updatedDiscoveredPokemon = result.firstDiscovery && result.type === 'pokemon'
+      ? [...(zoneProgress?.discoveredPokemon || []), result.pokemon]
+      : (zoneProgress?.discoveredPokemon || []);
+    
+    const updatedDiscoveredMaterials = result.firstDiscovery && result.type === 'material'
+      ? [...(zoneProgress?.discoveredMaterials || []), result.materialName]
+      : (zoneProgress?.discoveredMaterials || []);
+    
+    const updatedDiscoveredPOIs = result.firstDiscovery && result.type === 'poi'
+      ? [...(zoneProgress?.discoveredPOIs || []), result.poiId]
+      : (zoneProgress?.discoveredPOIs || []);
+
+    const updatedProgress = {
+      ...zoneProgress,
+      discoveryProgress: newProgress,
+      discoveredPokemon: updatedDiscoveredPokemon,
+      discoveredMaterials: updatedDiscoveredMaterials,
+      discoveredPOIs: updatedDiscoveredPOIs,
+      explorationCount: (zoneProgress?.explorationCount || 0) + 1,
+      lastExploredAt: new Date().toISOString()
+    };
+
+    setZoneProgress(updatedProgress);
+
+    // Save to database
+    try {
+      if (zoneProgress?.id) {
+        await base44.entities.ZoneProgress.update(zoneProgress.id, updatedProgress);
+      } else {
+        await base44.entities.ZoneProgress.create({
+          zoneId: zone.id,
+          zoneName: zone.name,
+          ...updatedProgress
+        });
+      }
+      refetchProgress();
+    } catch (error) {
+      console.error('Failed to save progress:', error);
+    }
   };
 
   const handleContinueExploring = () => {
@@ -364,27 +428,38 @@ function ZoneDetailView({ zone, onClose }) {
             <Eye className="w-4 h-4 text-emerald-400" /> Wild Pokémon
           </h3>
           <div className="space-y-2">
-            {zone.availableWildPokemon.map((pokemon, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-slate-400" />
+            {zone.availableWildPokemon.map((pokemon, idx) => {
+              const isDiscovered = (zoneProgress?.discoveredPokemon || []).includes(pokemon.species);
+              return (
+                <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+                      {isDiscovered ? (
+                        <Sparkles className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <span className="text-slate-600 text-xs">???</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">
+                        {isDiscovered ? pokemon.species : '??? Pokémon'}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {isDiscovered ? `Lv. ${pokemon.minLevel}-${pokemon.maxLevel}` : 'Not yet discovered'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white font-medium text-sm">{pokemon.species}</p>
-                    <p className="text-xs text-slate-400">Lv. {pokemon.minLevel}-{pokemon.maxLevel}</p>
-                  </div>
+                  <Badge className={`text-xs ${
+                    pokemon.rarity === 'Legendary' ? 'bg-yellow-500/20 text-yellow-300' :
+                    pokemon.rarity === 'Rare' ? 'bg-purple-500/20 text-purple-300' :
+                    pokemon.rarity === 'Uncommon' ? 'bg-blue-500/20 text-blue-300' :
+                    'bg-slate-700/50 text-slate-300'
+                  }`}>
+                    {pokemon.rarity}
+                  </Badge>
                 </div>
-                <Badge className={`text-xs ${
-                  pokemon.rarity === 'Legendary' ? 'bg-yellow-500/20 text-yellow-300' :
-                  pokemon.rarity === 'Rare' ? 'bg-purple-500/20 text-purple-300' :
-                  pokemon.rarity === 'Uncommon' ? 'bg-blue-500/20 text-blue-300' :
-                  'bg-slate-700/50 text-slate-300'
-                }`}>
-                  {pokemon.rarity}
-                </Badge>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -416,24 +491,31 @@ function ZoneDetailView({ zone, onClose }) {
             <Map className="w-4 h-4 text-amber-400" /> Points of Interest
           </h3>
           <div className="space-y-2">
-            {zone.nodelets.filter(n => !n.eclipseControlled).map((nodelet, idx) => (
-              <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${nodelet.isDiscovered ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                  <div>
-                    <p className="text-white text-sm">{nodelet.name}</p>
-                    <p className="text-xs text-slate-400">{nodelet.type}</p>
+            {zone.nodelets.filter(n => !n.eclipseControlled).map((nodelet, idx) => {
+              const isDiscovered = (zoneProgress?.discoveredPOIs || []).includes(nodelet.id);
+              return (
+                <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${isDiscovered ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                    <div>
+                      <p className="text-white text-sm">
+                        {isDiscovered ? nodelet.name : '??? Location'}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {isDiscovered ? nodelet.type : 'Not yet discovered'}
+                      </p>
+                    </div>
                   </div>
+                  {nodelet.isCompleted ? (
+                    <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">Complete</Badge>
+                  ) : isDiscovered ? (
+                    <Badge className="bg-amber-500/20 text-amber-300 text-xs">Available</Badge>
+                  ) : (
+                    <Badge className="bg-slate-700/50 text-slate-400 text-xs">Hidden</Badge>
+                  )}
                 </div>
-                {nodelet.isCompleted ? (
-                  <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">Complete</Badge>
-                ) : nodelet.isDiscovered ? (
-                  <Badge className="bg-amber-500/20 text-amber-300 text-xs">Available</Badge>
-                ) : (
-                  <Badge className="bg-slate-700/50 text-slate-400 text-xs">Hidden</Badge>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
