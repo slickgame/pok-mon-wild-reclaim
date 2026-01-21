@@ -56,13 +56,14 @@ export default function OnboardingPage() {
         await base44.entities.Player.create({
           name: user.full_name || 'Traveler',
           currentLocation: 'Verdant Hollow',
-          gold: 0,
+          gold: 100,
           discoveredZones: ['Verdant Hollow'],
           unlockedRecipes: [],
           craftingLevel: 1,
           craftingXp: 0,
           professionLevel: 1,
-          professionXp: 0
+          professionXp: 0,
+          activeQuests: []
         });
 
         // Create starter Pokémon
@@ -129,14 +130,57 @@ export default function OnboardingPage() {
 
         await base44.entities.Pokemon.bulkCreate(starters);
 
-        // Initialize first tutorial
-        await base44.entities.Tutorial.create({
-          stepId: 'welcome',
-          title: 'Welcome to Wild Reclaim',
-          content: 'Explore the world, discover Pokémon, and uncover the mystery of Team Eclipse. Start by exploring Verdant Hollow!',
-          trigger: 'first_zone',
-          isCompleted: false
-        });
+        // Initialize tutorial sequence
+        const tutorials = [
+          {
+            stepId: 'companions',
+            title: 'Your Companions',
+            content: 'You begin your journey with three companions. Each has a role: attack, support, or defense. Use them wisely.',
+            type: 'story',
+            trigger: 'onboarding',
+            priority: 1,
+            action: 'View Team',
+            actionTarget: 'Pokemon'
+          },
+          {
+            stepId: 'exploration',
+            title: 'First Movement',
+            content: 'This is a wild zone. You can explore to uncover Pokémon, items, and secrets. Discovery increases as you find new things.',
+            type: 'instruction',
+            trigger: 'first_exploration',
+            priority: 2,
+            action: 'Start Exploring',
+            actionTarget: 'Zones'
+          },
+          {
+            stepId: 'battle',
+            title: 'First Battle',
+            content: 'A wild Pokémon appears! You can battle, attempt capture, or flee. Your choices matter.',
+            type: 'instruction',
+            trigger: 'first_battle',
+            priority: 3
+          },
+          {
+            stepId: 'victory',
+            title: 'Victory!',
+            content: 'Your Pokémon gain XP. Some may level up or unlock upgrades. Keep battling to strengthen your team.',
+            type: 'unlock',
+            trigger: 'first_victory',
+            priority: 4
+          },
+          {
+            stepId: 'material',
+            title: 'First Item Found',
+            content: 'You found a material. These are used for crafting and quests. Visit crafting stations or NPCs to make tools, battle gear, and more.',
+            type: 'tip',
+            trigger: 'first_material',
+            priority: 5,
+            action: 'View Crafting',
+            actionTarget: 'Crafting'
+          }
+        ];
+
+        await base44.entities.Tutorial.bulkCreate(tutorials);
       }
       
       // Navigate to home

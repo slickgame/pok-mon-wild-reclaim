@@ -45,13 +45,16 @@ export default function HomePage() {
     }
   }, [player, playerLoading]);
 
-  // Show tutorial if available
+  // Show tutorial if available (prioritized)
   useEffect(() => {
-    const pendingTutorial = tutorials.find(t => !t.isCompleted && !t.isSkipped);
-    if (pendingTutorial) {
-      setCurrentTutorial(pendingTutorial);
+    const pendingTutorials = tutorials
+      .filter(t => !t.isCompleted && !t.isSkipped)
+      .sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    
+    if (pendingTutorials.length > 0 && !currentTutorial) {
+      setCurrentTutorial(pendingTutorials[0]);
     }
-  }, [tutorials]);
+  }, [tutorials, currentTutorial]);
 
   const handleCompleteTutorial = async () => {
     if (!currentTutorial) return;
