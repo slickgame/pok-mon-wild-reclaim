@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import PageHeader from '@/components/common/PageHeader';
+import TimePhaseIndicator from '@/components/time/TimePhaseIndicator';
 import ZoneCard from '@/components/zones/ZoneCard';
 import StatBar from '@/components/ui/StatBar';
 import NodeletCard from '@/components/zones/NodeletCard';
@@ -29,6 +30,14 @@ export default function ZonesPage() {
   const { data: zones = [], isLoading } = useQuery({
     queryKey: ['zones'],
     queryFn: () => base44.entities.Zone.list()
+  });
+
+  const { data: gameTime } = useQuery({
+    queryKey: ['gameTime'],
+    queryFn: async () => {
+      const times = await base44.entities.GameTime.list();
+      return times[0] || null;
+    }
   });
 
   const discoveredZones = player?.discoveredZones || ['Verdant Hollow'];

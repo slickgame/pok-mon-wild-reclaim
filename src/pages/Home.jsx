@@ -8,6 +8,7 @@ import { Home, MapPin, PawPrint, Sparkles, ChevronRight, Zap, Target, Trophy } f
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import PageHeader from '@/components/common/PageHeader';
+import BulletinBoard from '@/components/time/BulletinBoard';
 import PokemonCard from '@/components/pokemon/PokemonCard';
 import QuestCard from '@/components/home/QuestCard';
 import TrustMeter from '@/components/home/TrustMeter';

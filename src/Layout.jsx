@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
+import TimeWidget from '@/components/time/TimeWidget';
 
 const navItems = [
   { name: 'Home', icon: Home, page: 'Home' },
@@ -20,6 +23,15 @@ const navItems = [
 
 export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const { data: gameTime } = useQuery({
+    queryKey: ['gameTime'],
+    queryFn: async () => {
+      const times = await base44.entities.GameTime.list();
+      return times[0] || null;
+    },
+    refetchInterval: 60000, // Refresh every minute
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -97,13 +109,18 @@ export default function Layout({ children, currentPageName }) {
             );
           })}
         </nav>
-        
-        <div className="p-4 border-t border-indigo-500/20">
+
+        <div className="p-4 border-t border-indigo-500/20 space-y-3">
+          {gameTime && (
+            <div className="hidden lg:block">
+              <TimeWidget gameTime={gameTime} />
+            </div>
+          )}
           <div className="hidden lg:block text-xs text-slate-500 text-center">
             © 2024 Pokémon Wild Reclaim
           </div>
         </div>
-      </aside>
+        </aside>
 
       {/* Mobile Header */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-16 glass z-50 flex items-center justify-between px-4">
@@ -113,12 +130,15 @@ export default function Layout({ children, currentPageName }) {
           </div>
           <span className="font-bold text-white">Wild Reclaim</span>
         </Link>
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 text-slate-400 hover:text-white"
-        >
-          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {gameTime && <TimeWidget gameTime={gameTime} compact />}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 text-slate-400 hover:text-white"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </header>
 
       {/* Mobile Menu */}
