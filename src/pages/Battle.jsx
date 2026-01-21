@@ -18,6 +18,7 @@ export default function BattlePage() {
   const [selectedMove, setSelectedMove] = useState(null);
   const [wildPokemonId, setWildPokemonId] = useState(null);
   const [returnTo, setReturnTo] = useState(null);
+  const [capturingPokemon, setCapturingPokemon] = useState(false);
   const queryClient = useQueryClient();
 
   // Parse URL parameters for wild encounters
@@ -31,6 +32,17 @@ export default function BattlePage() {
       setReturnTo(returnPage || 'Zones');
     }
   }, []);
+
+  // Fetch player inventory for Pokéballs
+  const { data: inventory = [] } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: async () => {
+      const items = await base44.entities.Item.list();
+      return items;
+    }
+  });
+
+  const pokeballCount = inventory.filter(item => item.name === 'Pokéball').reduce((acc, item) => acc + (item.quantity || 1), 0);
 
   // Fetch player's team
   const { data: playerPokemon = [], isLoading: loadingPokemon } = useQuery({
@@ -130,6 +142,118 @@ export default function BattlePage() {
     });
   };
 
+  // Attempt capture
+  const attemptCapture = async () => {
+    if (!battleState || !battleState.isWildBattle || capturingPokemon) return;
+    if (pokeballCount <= 0) {
+      setBattleState({
+        ...battleState,
+        battleLog: [...battleState.battleLog, {
+          turn: battleState.turnNumber,
+          actor: 'System',
+          action: 'No Pokéballs!',
+          result: 'You don\'t have any Pokéballs.',
+          synergyTriggered: false
+        }]
+      });
+      return;
+    }
+
+    setCapturingPokemon(true);
+
+    // Calculate catch rate
+    const hpPercent = (battleState.enemyHP / battleState.enemyPokemon.stats.maxHp) * 100;
+    const rarityModifier = {
+      'common': 50,
+      'uncommon': 35,
+      'rare': 20,
+      'legendary': 5
+    }[battleState.enemyPokemon.rarity?.toLowerCase() || 'common'];
+
+    const baseChance = rarityModifier;
+    const hpBonus = Math.max(0, 50 - hpPercent);
+    const catchChance = Math.min(95, baseChance + hpBonus);
+
+    const roll = Math.random() * 100;
+    const success = roll < catchChance;
+
+    // Use a Pokéball
+    const pokeball = inventory.find(item => item.name === 'Pokéball' && (item.quantity || 1) > 0);
+    if (pokeball) {
+      if (pokeball.quantity > 1) {
+        await base44.entities.Item.update(pokeball.id, { quantity: pokeball.quantity - 1 });
+      } else {
+        await base44.entities.Item.delete(pokeball.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    }
+
+    if (success) {
+      // Capture successful
+      const newBattleState = {
+        ...battleState,
+        status: 'captured',
+        currentTurn: 'ended',
+        battleLog: [...battleState.battleLog, {
+          turn: battleState.turnNumber,
+          actor: 'System',
+          action: 'Gotcha!',
+          result: `${battleState.enemyPokemon.species} was caught!`,
+          synergyTriggered: false
+        }]
+      };
+      setBattleState(newBattleState);
+    } else {
+      // Capture failed, enemy gets free turn
+      const enemyAvailableMoves = moves.filter(m => m.category !== 'Status').slice(0, 3);
+      const enemyMove = enemyAvailableMoves[Math.floor(Math.random() * enemyAvailableMoves.length)] || moves[0];
+      
+      const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
+      const stateCopy = { ...battleState };
+      
+      // Enemy attacks
+      const damage = Math.floor(Math.random() * 30) + 10;
+      stateCopy.playerHP = Math.max(0, stateCopy.playerHP - damage);
+
+      const newBattleState = {
+        ...stateCopy,
+        battleLog: [...battleState.battleLog, 
+          {
+            turn: battleState.turnNumber,
+            actor: 'System',
+            action: 'Capture Failed!',
+            result: `${battleState.enemyPokemon.species} broke free!`,
+            synergyTriggered: false
+          },
+          {
+            turn: battleState.turnNumber,
+            actor: battleState.enemyPokemon.species,
+            action: enemyMove.name,
+            result: `Dealt ${damage} damage to ${battleState.playerPokemon.species}`,
+            synergyTriggered: false
+          }
+        ],
+        turnNumber: battleState.turnNumber + 1,
+        currentTurn: stateCopy.playerHP > 0 ? 'player' : 'ended'
+      };
+
+      if (stateCopy.playerHP <= 0) {
+        newBattleState.status = 'lost';
+        newBattleState.battleLog.push({
+          turn: newBattleState.turnNumber,
+          actor: 'System',
+          action: 'Defeat!',
+          result: 'You lost the battle.',
+          synergyTriggered: false
+        });
+      }
+
+      setBattleState(newBattleState);
+    }
+
+    setCapturingPokemon(false);
+  };
+
   // Use a move
   const useMove = (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
@@ -166,14 +290,48 @@ export default function BattlePage() {
         synergyTriggered: false
       });
 
-      // Award XP to player Pokémon
+      // Award XP and calculate rewards
       const xpGained = Math.floor(newBattleState.enemyPokemon.level * 25);
       const newXP = (newBattleState.playerPokemon.experience || 0) + xpGained;
+      const goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
+      
+      // Generate material drops for wild battles
+      const materialsDropped = [];
+      if (newBattleState.isWildBattle) {
+        const dropChance = Math.random() * 100;
+        if (dropChance > 40) {
+          const materials = ['Silk Fragment', 'Glowworm', 'Moonleaf', 'River Stone'];
+          const dropped = materials[Math.floor(Math.random() * materials.length)];
+          materialsDropped.push(dropped);
+        }
+      }
+
+      newBattleState.rewards = {
+        xpGained,
+        goldGained,
+        materialsDropped
+      };
       
       // Update player's Pokémon
       base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
         experience: newXP
       }).catch(err => console.error('Failed to update XP:', err));
+
+      // Add materials to inventory
+      if (materialsDropped.length > 0) {
+        materialsDropped.forEach(material => {
+          base44.entities.Item.create({
+            name: material,
+            type: 'Material',
+            tier: 1,
+            rarity: 'Common',
+            description: 'A crafting material',
+            quantity: 1,
+            stackable: true,
+            sellValue: 10
+          }).catch(err => console.error('Failed to add material:', err));
+        });
+      }
 
     } else if (newBattleState.playerHP <= 0) {
       newBattleState.status = 'lost';
@@ -298,22 +456,32 @@ export default function BattlePage() {
           {isBattleEnded && (
             <BattleOutcomeModal
               outcome={{
-                result: battleState.status === 'won' ? 'victory' : 'defeat',
+                result: battleState.status === 'captured' ? 'captured' : 
+                        battleState.status === 'won' ? 'victory' : 'defeat',
                 enemyName: battleState.enemyPokemon.species,
-                xpGained: battleState.status === 'won' ? Math.floor(battleState.enemyPokemon.level * 25) : 0,
-                goldGained: battleState.status === 'won' ? Math.floor(battleState.enemyPokemon.level * 15) : 0,
+                xpGained: (battleState.status === 'won' || battleState.status === 'captured') ? (battleState.rewards?.xpGained || Math.floor(battleState.enemyPokemon.level * 25)) : 0,
+                goldGained: (battleState.status === 'won' || battleState.status === 'captured') ? (battleState.rewards?.goldGained || Math.floor(battleState.enemyPokemon.level * 15)) : 0,
                 synergyChains: battleState.synergyChains || 0,
-                itemsReceived: [],
-                canCapture: battleState.status === 'won' && battleState.isWildBattle && !battleState.enemyPokemon.isRevenant,
-                enemyHP: battleState.enemyHP
+                itemsReceived: battleState.rewards?.materialsDropped || [],
+                canCapture: false,
+                enemyHP: battleState.enemyHP,
+                wasCaptured: battleState.status === 'captured'
               }}
               onClose={async () => {
-                // Clean up wild Pokémon if it was defeated
-                if (wildPokemonId && battleState.status === 'won') {
+                // Clean up or capture wild Pokémon
+                if (wildPokemonId) {
                   try {
-                    await base44.entities.Pokemon.delete(wildPokemonId);
+                    if (battleState.status === 'captured') {
+                      // Add to collection
+                      await base44.entities.Pokemon.update(wildPokemonId, {
+                        isInTeam: false
+                      });
+                    } else if (battleState.status === 'won') {
+                      // Delete defeated wild Pokémon
+                      await base44.entities.Pokemon.delete(wildPokemonId);
+                    }
                   } catch (err) {
-                    console.error('Failed to delete wild Pokémon:', err);
+                    console.error('Failed to handle wild Pokémon:', err);
                   }
                 }
                 
@@ -326,42 +494,48 @@ export default function BattlePage() {
                   setReturnTo(null);
                 }
               }}
-              onCapture={async () => {
-                if (!battleState.isWildBattle || !wildPokemonId) return;
-                
-                try {
-                  // Update the wild Pokémon to add it to collection
-                  await base44.entities.Pokemon.update(wildPokemonId, {
-                    isInTeam: false
-                  });
-                  
-                  // Return to zones
-                  if (returnTo) {
-                    window.location.href = `/${returnTo}`;
-                  }
-                } catch (err) {
-                  console.error('Failed to capture:', err);
-                }
-              }}
             />
           )}
 
-          {/* Move Selection */}
+          {/* Move Selection and Actions */}
           {!isBattleEnded && (
-            <div>
-              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                Select a Move
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {moves.slice(0, 4).map((move) => (
-                  <MoveCard
-                    key={move.id}
-                    move={move}
-                    onUse={useMove}
-                    disabled={!isPlayerTurn}
-                  />
-                ))}
+            <div className="space-y-4">
+              {battleState.isWildBattle && (
+                <div className="glass rounded-xl p-4 border-2 border-purple-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-white">Capture</h3>
+                    <Badge className="bg-purple-500/20 text-purple-300">
+                      Pokéballs: {pokeballCount}
+                    </Badge>
+                  </div>
+                  <Button
+                    onClick={attemptCapture}
+                    disabled={!isPlayerTurn || pokeballCount <= 0 || capturingPokemon}
+                    className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
+                  >
+                    {capturingPokemon ? 'Throwing...' : 'Throw Pokéball'}
+                  </Button>
+                  <p className="text-xs text-slate-400 mt-2 text-center">
+                    Lower HP = Higher catch rate
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-400" />
+                  Select a Move
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {moves.slice(0, 4).map((move) => (
+                    <MoveCard
+                      key={move.id}
+                      move={move}
+                      onUse={useMove}
+                      disabled={!isPlayerTurn}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           )}
