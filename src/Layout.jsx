@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles } from 'lucide-react';
+import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems = [
   { name: 'Home', icon: Home, page: 'Home' },
   { name: 'Pokémon', icon: PawPrint, page: 'Pokemon' },
+  { name: 'Battle', icon: Swords, page: 'Battle' },
   { name: 'Zones', icon: Map, page: 'Zones' },
   { name: 'Inventory', icon: Backpack, page: 'Inventory' },
   { name: 'Crafting', icon: FlaskConical, page: 'Crafting' },
