@@ -270,7 +270,7 @@ export default function HomePage() {
           </div>
         )}
       </motion.div>
-    </motion.div>
+      </motion.div>
     </>
   );
 }
