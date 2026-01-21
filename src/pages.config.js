@@ -11,6 +11,7 @@ import Pokemon from './pages/Pokemon';
 import SetBuilder from './pages/SetBuilder';
 import Zones from './pages/Zones';
 import Onboarding from './pages/Onboarding';
+import TutorialLog from './pages/TutorialLog';
 import __Layout from './Layout.jsx';
 
 
@@ -28,6 +29,7 @@ export const PAGES = {
     "SetBuilder": SetBuilder,
     "Zones": Zones,
     "Onboarding": Onboarding,
+    "TutorialLog": TutorialLog,
 }
 
 export const pagesConfig = {

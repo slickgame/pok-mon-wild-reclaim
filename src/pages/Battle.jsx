@@ -23,6 +23,7 @@ export default function BattlePage() {
   const [capturingPokemon, setCapturingPokemon] = useState(false);
   const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch'
   const queryClient = useQueryClient();
+  const { triggerTutorial } = useTutorialTrigger();
 
   // Parse URL parameters for wild encounters
   useEffect(() => {
@@ -33,8 +34,10 @@ export default function BattlePage() {
     if (wildId) {
       setWildPokemonId(wildId);
       setReturnTo(returnPage || 'Zones');
+      // Trigger first_battle tutorial
+      triggerTutorial('first_battle');
     }
-  }, []);
+  }, [triggerTutorial]);
 
   // Fetch player inventory for Pokéballs and battle items
   const { data: inventory = [] } = useQuery({
@@ -315,6 +318,9 @@ export default function BattlePage() {
         goldGained,
         materialsDropped
       };
+      
+      // Trigger first_victory tutorial
+      triggerTutorial('first_victory');
       
       // Update player's Pokémon
       base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
