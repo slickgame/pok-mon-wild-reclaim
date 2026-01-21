@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { MapPin, Lock, Trees, Mountain, Waves, Compass, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import StatBar from '@/components/ui/StatBar';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 
 const biomeIcons = {
   Forest: Trees,
@@ -25,6 +27,25 @@ const biomeColors = {
 };
 
 export default function ZoneCard({ zone, isDiscovered, onClick }) {
+  const { data: zoneProgress } = useQuery({
+    queryKey: ['zoneProgress', zone.id],
+    queryFn: async () => {
+      const progs = await base44.entities.ZoneProgress.filter({ zoneId: zone.id });
+      return progs[0] || null;
+    },
+    enabled: isDiscovered
+  });
+
+  const progress = zoneProgress?.discoveryProgress || zone.discoveryProgress || 0;
+  const progressPercent = Math.round(progress);
+
+  const getTier = (progress) => {
+    if (progress >= 100) return 'Mastered';
+    if (progress >= 61) return 'Known';
+    if (progress >= 26) return 'Familiar';
+    return 'Unfamiliar';
+  };
+
   const Icon = biomeIcons[zone.biomeType] || MapPin;
   const gradient = biomeColors[zone.biomeType] || 'from-indigo-500 to-purple-600';
   
@@ -69,11 +90,11 @@ export default function ZoneCard({ zone, isDiscovered, onClick }) {
           <>
             <div className="mb-3">
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-400">Exploration</span>
-                <span className="text-indigo-400">{zone.discoveryProgress || 0}%</span>
+                <span className="text-slate-400">Exploration: {progressPercent}%</span>
+                <span className="text-slate-500">{getTier(progress)}</span>
               </div>
               <StatBar
-                value={zone.discoveryProgress || 0}
+                value={progress}
                 maxValue={100}
                 color="bg-gradient-to-r from-indigo-500 to-cyan-500"
                 showValue={false}
