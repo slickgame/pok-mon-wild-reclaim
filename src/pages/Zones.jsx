@@ -14,6 +14,9 @@ import ZoneCard from '@/components/zones/ZoneCard';
 import StatBar from '@/components/ui/StatBar';
 import NodeletCard from '@/components/zones/NodeletCard';
 import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
+import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
+import ExplorationFeed from '@/components/zones/ExplorationFeed';
+import EncounterResult from '@/components/zones/EncounterResult';
 
 export default function ZonesPage() {
   const [selectedZone, setSelectedZone] = useState(null);
@@ -114,6 +117,11 @@ export default function ZonesPage() {
 }
 
 function ZoneDetailView({ zone, onClose }) {
+  const [isExploring, setIsExploring] = useState(false);
+  const [explorationEvents, setExplorationEvents] = useState([]);
+  const [currentEncounter, setCurrentEncounter] = useState(null);
+  const [zoneProgress, setZoneProgress] = useState(null);
+
   const { data: player } = useQuery({
     queryKey: ['player'],
     queryFn: async () => {
@@ -121,6 +129,20 @@ function ZoneDetailView({ zone, onClose }) {
       return players[0] || null;
     }
   });
+
+  const { data: progress, refetch: refetchProgress } = useQuery({
+    queryKey: ['zoneProgress', zone.id],
+    queryFn: async () => {
+      const progs = await base44.entities.ZoneProgress.filter({ zoneId: zone.id });
+      return progs[0] || null;
+    }
+  });
+
+  React.useEffect(() => {
+    if (progress) {
+      setZoneProgress(progress);
+    }
+  }, [progress]);
 
   const biomeColors = {
     Forest: 'from-emerald-600 to-green-700',
@@ -138,14 +160,155 @@ function ZoneDetailView({ zone, onClose }) {
   const eclipseNodelets = zone.nodelets?.filter(n => n.eclipseControlled) || [];
   
   const handleNodeletChallenge = (nodelet) => {
-    // TODO: Implement battle system
     console.log('Challenge nodelet:', nodelet);
   };
   
   const handleNodeletInspect = (nodelet) => {
-    // TODO: Show detailed nodelet info
     console.log('Inspect nodelet:', nodelet);
   };
+
+  const handleStartExploring = () => {
+    setIsExploring(true);
+    setExplorationEvents([]);
+  };
+
+  const handleExplore = () => {
+    const currentProgress = zoneProgress?.discoveryProgress || 0;
+    const progressGain = Math.floor(Math.random() * 11) + 5; // 5-15
+    
+    // Weighted random encounter
+    const roll = Math.random() * 100;
+    let encounterType, result;
+
+    if (roll < 50) {
+      // Material Discovery
+      const materials = ['Silk Fragment', 'Glowworm', 'Moonleaf', 'River Stone', 'Ancient Shard'];
+      const material = materials[Math.floor(Math.random() * materials.length)];
+      const firstDiscovery = !(zoneProgress?.discoveredMaterials || []).includes(material);
+      
+      encounterType = 'material';
+      result = {
+        type: 'material',
+        title: 'Materials Found!',
+        description: `Gathered ${material} from the area`,
+        materials: [material],
+        progressGained: progressGain,
+        firstDiscovery,
+        rarity: 'common'
+      };
+    } else if (roll < 80) {
+      // Wild Pokémon
+      const availablePokemon = zone.availableWildPokemon || [];
+      const pokemon = availablePokemon[Math.floor(Math.random() * availablePokemon.length)];
+      const firstDiscovery = pokemon && !(zoneProgress?.discoveredPokemon || []).includes(pokemon.species);
+      
+      encounterType = 'pokemon';
+      result = {
+        type: 'pokemon',
+        title: 'Wild Pokémon!',
+        description: `A ${pokemon?.species || 'Pokémon'} appeared!`,
+        pokemon: pokemon?.species || 'Unknown',
+        progressGained: progressGain,
+        firstDiscovery,
+        rarity: pokemon?.rarity?.toLowerCase() || 'common'
+      };
+    } else if (roll < 95) {
+      // Point of Interest
+      const undiscoveredPOIs = (zone.nodelets || []).filter(
+        n => !(zoneProgress?.discoveredPOIs || []).includes(n.id)
+      );
+      const poi = undiscoveredPOIs[Math.floor(Math.random() * undiscoveredPOIs.length)];
+      
+      encounterType = 'poi';
+      result = {
+        type: 'poi',
+        title: 'Location Discovered!',
+        description: `Found ${poi?.name || 'a hidden location'}`,
+        poi: poi?.name || 'Mystery Location',
+        progressGained: progressGain + 10,
+        firstDiscovery: true,
+        rarity: 'uncommon'
+      };
+    } else {
+      // Special Event
+      encounterType = 'special';
+      result = {
+        type: 'special',
+        title: 'Special Event!',
+        description: 'Something unusual happened...',
+        progressGained: progressGain + 15,
+        firstDiscovery: true,
+        rarity: 'rare'
+      };
+    }
+
+    // Add to exploration feed
+    setExplorationEvents(prev => [result, ...prev].slice(0, 10));
+    
+    // Show encounter result
+    setCurrentEncounter(result);
+    
+    // Update zone progress (in real app, would save to DB)
+    setZoneProgress(prev => ({
+      ...prev,
+      discoveryProgress: Math.min((prev?.discoveryProgress || 0) + progressGain, 100),
+      explorationCount: (prev?.explorationCount || 0) + 1
+    }));
+  };
+
+  const handleContinueExploring = () => {
+    setCurrentEncounter(null);
+  };
+
+  const discoveredPokemon = zoneProgress?.discoveredPokemon?.length || 0;
+  const totalPokemon = zone.availableWildPokemon?.length || 0;
+  const discoveredPOIs = zoneProgress?.discoveredPOIs?.length || 0;
+  const totalPOIs = zone.nodelets?.length || 0;
+
+  if (isExploring) {
+    return (
+      <div className="pb-8">
+        <Button
+          variant="outline"
+          onClick={() => setIsExploring(false)}
+          className="mb-4"
+        >
+          ← Back to Zone Details
+        </Button>
+
+        <h2 className="text-2xl font-bold text-white mb-6">{zone.name} - Exploration</h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
+            <DiscoveryMeter
+              progress={zoneProgress?.discoveryProgress || 0}
+              discoveredPokemon={discoveredPokemon}
+              discoveredPOIs={discoveredPOIs}
+              totalPokemon={totalPokemon}
+              totalPOIs={totalPOIs}
+            />
+
+            {currentEncounter ? (
+              <EncounterResult
+                result={currentEncounter}
+                onContinue={handleContinueExploring}
+              />
+            ) : (
+              <Button
+                onClick={handleExplore}
+                className="w-full bg-gradient-to-r from-indigo-500 to-cyan-500 text-lg py-6"
+              >
+                <Compass className="w-5 h-5 mr-2" />
+                Explore
+              </Button>
+            )}
+          </div>
+
+          <ExplorationFeed events={explorationEvents} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-8">
@@ -276,7 +439,10 @@ function ZoneDetailView({ zone, onClose }) {
       )}
 
       {/* Explore Button */}
-      <Button className="w-full mt-6 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600">
+      <Button
+        onClick={handleStartExploring}
+        className="w-full mt-6 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600"
+      >
         <Compass className="w-4 h-4 mr-2" /> Start Exploring
       </Button>
     </div>
