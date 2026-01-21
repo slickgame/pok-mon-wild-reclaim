@@ -8,6 +8,7 @@ import Battle from './pages/Battle';
 import MaplesLab from './pages/MaplesLab';
 import SetBuilder from './pages/SetBuilder';
 import Contests from './pages/Contests';
+import Fishing from './pages/Fishing';
 import __Layout from './Layout.jsx';
 
 
@@ -22,6 +23,7 @@ export const PAGES = {
     "MaplesLab": MaplesLab,
     "SetBuilder": SetBuilder,
     "Contests": Contests,
+    "Fishing": Fishing,
 }
 
 export const pagesConfig = {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy } from 'lucide-react';
+import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { name: 'Pokémon', icon: PawPrint, page: 'Pokemon' },
   { name: 'Battle', icon: Swords, page: 'Battle' },
   { name: 'Contests', icon: Trophy, page: 'Contests' },
+  { name: 'Fishing', icon: Fish, page: 'Fishing' },
   { name: 'Zones', icon: Map, page: 'Zones' },
   { name: 'Inventory', icon: Backpack, page: 'Inventory' },
   { name: 'Crafting', icon: FlaskConical, page: 'Crafting' },
