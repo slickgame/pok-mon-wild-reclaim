@@ -36,7 +36,7 @@ export default function ZoneCard({ zone, isDiscovered, onClick }) {
     enabled: isDiscovered
   });
 
-  const progress = zoneProgress?.discoveryProgress || zone.discoveryProgress || 0;
+  const progress = zoneProgress?.discoveryProgress || 0;
   const progressPercent = Math.round(progress);
 
   const getTier = (progress) => {

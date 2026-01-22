@@ -630,13 +630,17 @@ function ZoneDetailView({ zone, onClose }) {
       <div className="glass rounded-xl p-4 mb-4">
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
           <Compass className="w-4 h-4 text-indigo-400" /> 
-          Discovery Progress: {Math.round(zoneProgress?.discoveryProgress || zone.discoveryProgress || 0)}%
+          Discovery Progress: {Math.round(zoneProgress?.discoveryProgress || 0)}/100
         </h3>
         <StatBar
-          value={zoneProgress?.discoveryProgress || zone.discoveryProgress || 0}
+          value={zoneProgress?.discoveryProgress || 0}
           maxValue={100}
           color="bg-gradient-to-r from-indigo-500 to-cyan-500"
         />
+        <div className="flex justify-between text-xs text-slate-400 mt-1">
+          <span>{Math.round(zoneProgress?.discoveryProgress || 0)}%</span>
+          <span>Explorations: {zoneProgress?.explorationCount || 0}</span>
+        </div>
       </div>
 
       {/* Wild Pokémon */}
