@@ -1,6 +1,8 @@
 import { getPokemonStats } from '../pokemon/usePokemonStats';
+import { getMoveData } from '@/components/pokemon/moveData';
 
 // Battle Engine - Core logic for turn-based combat
+// INTEGRATION: Uses centralized MOVE_DATA for all move metadata
 export class BattleEngine {
   constructor(playerPokemon, enemyPokemon) {
     // Ensure stats are calculated dynamically from base stats
@@ -10,8 +12,12 @@ export class BattleEngine {
 
   // Calculate turn order based on Speed stat and priority
   determineTurnOrder(playerMove, enemyMove) {
-    const playerPriority = playerMove?.priority || 0;
-    const enemyPriority = enemyMove?.priority || 0;
+    // Get move data from central registry
+    const playerMoveData = typeof playerMove === 'string' ? getMoveData(playerMove) : (getMoveData(playerMove?.name) || playerMove);
+    const enemyMoveData = typeof enemyMove === 'string' ? getMoveData(enemyMove) : (getMoveData(enemyMove?.name) || enemyMove);
+    
+    const playerPriority = playerMoveData?.priority || 0;
+    const enemyPriority = enemyMoveData?.priority || 0;
 
     // Check for Scout role (priority boost)
     const playerHasScout = this.playerPokemon.roles?.includes('Scout');
@@ -34,10 +40,13 @@ export class BattleEngine {
   // Check for synergy effects
   checkSynergies(attacker, move, defender) {
     const synergies = [];
+    
+    // Get move data from central registry
+    const moveData = typeof move === 'string' ? getMoveData(move) : (getMoveData(move?.name) || move);
 
-    if (!move.synergyConditions) return synergies;
+    if (!moveData?.synergyConditions) return synergies;
 
-    move.synergyConditions.forEach(condition => {
+    moveData.synergyConditions.forEach(condition => {
       let triggered = false;
       let bonus = condition.bonus;
 
@@ -67,16 +76,32 @@ export class BattleEngine {
 
   // Calculate damage
   calculateDamage(attacker, defender, move, synergies = []) {
-    if (move.category === 'Status') return 0;
+    // Get move data from central registry
+    const moveData = typeof move === 'string' ? getMoveData(move) : (getMoveData(move?.name) || move);
+    
+    if (!moveData) {
+      console.warn('Move data not found:', move);
+      return 0;
+    }
+    
+    if (moveData.category === 'Status') return 0;
 
-    const basePower = move.power || 50;
-    const attackStat = move.category === 'Physical' ? attacker.stats.atk : attacker.stats.spAtk;
-    const defenseStat = move.category === 'Physical' ? defender.stats.def : defender.stats.spDef;
+    const basePower = moveData.power || 50;
+    const attackStat = moveData.category === 'Physical' ? attacker.stats.atk : attacker.stats.spAtk;
+    const defenseStat = moveData.category === 'Physical' ? defender.stats.def : defender.stats.spDef;
     
     // Base damage calculation
     let damage = Math.floor(
       ((2 * attacker.level / 5 + 2) * basePower * (attackStat / defenseStat)) / 50 + 2
     );
+
+    // Apply synergy bonuses from move data
+    if (moveData.synergy && moveData.synergy.rolebonus) {
+      if (attacker.roles?.includes(moveData.synergy.rolebonus)) {
+        const multiplier = moveData.synergy.roleDamageMultiplier || moveData.synergy.damageMultiplier || 1.3;
+        damage = Math.floor(damage * multiplier);
+      }
+    }
 
     // Apply synergy bonuses
     synergies.forEach(synergy => {
@@ -214,19 +239,34 @@ export class BattleEngine {
   // Execute a single move
   executeMove(attacker, defender, battleState) {
     const logs = [];
-    const move = attacker.move;
     
-    // Check accuracy
-    const accuracyRoll = Math.random() * 100;
-    if (accuracyRoll > move.accuracy) {
+    // Get move data from central registry
+    const move = typeof attacker.move === 'string' ? getMoveData(attacker.move) : (getMoveData(attacker.move?.name) || attacker.move);
+    
+    if (!move) {
       logs.push({
         turn: battleState.turnNumber,
         actor: attacker.pokemon.nickname || attacker.pokemon.species,
-        action: `used ${move.name}`,
-        result: 'but it missed!',
+        action: 'Error',
+        result: 'Move data not found',
         synergyTriggered: false
       });
       return { logs };
+    }
+    
+    // Check accuracy (never-miss moves skip this)
+    if (!move.neverMiss && move.accuracy) {
+      const accuracyRoll = Math.random() * 100;
+      if (accuracyRoll > move.accuracy) {
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: attacker.pokemon.nickname || attacker.pokemon.species,
+          action: `used ${move.name}`,
+          result: 'but it missed!',
+          synergyTriggered: false
+        });
+        return { logs };
+      }
     }
 
     // Check for synergies
@@ -274,11 +314,11 @@ export class BattleEngine {
       battleState.synergyChains = (battleState.synergyChains || 0) + 1;
     }
 
-    // Apply move effects
-    if (move.effects && move.effects.length > 0) {
-      move.effects.forEach(effect => {
-        if (effect.type === 'status' && Math.random() * 100 < (effect.chance || 100)) {
-          const statusResult = this.applyStatusEffect(defender.pokemon, effect.value, battleState);
+    // Apply move effects from central move data
+    if (move.effect && move.effectChance) {
+      if (Math.random() * 100 < move.effectChance) {
+        if (move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralysis') {
+          const statusResult = this.applyStatusEffect(defender.pokemon, move.effect, battleState);
           if (statusResult.success) {
             logs.push({
               turn: battleState.turnNumber,
@@ -289,20 +329,36 @@ export class BattleEngine {
             });
           }
         }
+      }
+    }
 
-        if (effect.type === 'buff' || effect.type === 'debuff') {
-          const target = effect.target === 'self' ? attacker.pokemon : defender.pokemon;
-          const stages = effect.type === 'buff' ? effect.value : -effect.value;
-          this.applyStatChange(target, 'atk', stages, battleState);
-          logs.push({
-            turn: battleState.turnNumber,
-            actor: target.nickname || target.species,
-            action: `${effect.type === 'buff' ? 'gained' : 'lost'}`,
-            result: `Attack ${stages > 0 ? '+' : ''}${stages}`,
-            synergyTriggered: false
-          });
-        }
-      });
+    // Apply stat changes
+    if (move.effect && move.effect.includes('lower') || move.effect && move.effect.includes('raise')) {
+      const target = defender.pokemon;
+      const stages = move.stages || 1;
+      const isRaise = move.effect.includes('raise');
+      const statMap = {
+        'lowerAttack': 'atk',
+        'raiseAttack': 'atk',
+        'lowerDefense': 'def',
+        'raiseDefense': 'def',
+        'lowerSpeed': 'spd',
+        'raiseSpeed': 'spd',
+        'lowerSpDef': 'spDef',
+        'raiseSpDef': 'spDef'
+      };
+      
+      const stat = statMap[move.effect];
+      if (stat) {
+        this.applyStatChange(target, stat, isRaise ? stages : -stages, battleState);
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: target.nickname || target.species,
+          action: isRaise ? 'gained' : 'lost',
+          result: `${stat} ${isRaise ? '+' : ''}${isRaise ? stages : -stages}`,
+          synergyTriggered: false
+        });
+      }
     }
 
     return { logs };
