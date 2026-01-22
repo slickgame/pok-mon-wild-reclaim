@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Skull, Sparkles, Star, Package, Heart } from 'lucide-react';
+import { Trophy, Skull, Sparkles, Star, Package, Heart, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -94,6 +94,55 @@ export default function BattleOutcomeModal({ outcome, onClose, onCapture }) {
                 </div>
               )}
             </div>
+
+            {/* EV Gains */}
+            {outcome.evsGained && outcome.totalEVsGained > 0 && (
+              <div className="glass rounded-lg p-4 border border-emerald-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-400 font-semibold">Effort Values Gained</span>
+                  <Badge className="bg-emerald-500/20 text-emerald-300">+{outcome.totalEVsGained}</Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  {outcome.evsGained.hp > 0 && (
+                    <div className="text-center">
+                      <div className="text-red-400 font-bold">+{outcome.evsGained.hp}</div>
+                      <div className="text-slate-500">HP</div>
+                    </div>
+                  )}
+                  {outcome.evsGained.atk > 0 && (
+                    <div className="text-center">
+                      <div className="text-orange-400 font-bold">+{outcome.evsGained.atk}</div>
+                      <div className="text-slate-500">ATK</div>
+                    </div>
+                  )}
+                  {outcome.evsGained.def > 0 && (
+                    <div className="text-center">
+                      <div className="text-amber-400 font-bold">+{outcome.evsGained.def}</div>
+                      <div className="text-slate-500">DEF</div>
+                    </div>
+                  )}
+                  {outcome.evsGained.spAtk > 0 && (
+                    <div className="text-center">
+                      <div className="text-blue-400 font-bold">+{outcome.evsGained.spAtk}</div>
+                      <div className="text-slate-500">SpA</div>
+                    </div>
+                  )}
+                  {outcome.evsGained.spDef > 0 && (
+                    <div className="text-center">
+                      <div className="text-cyan-400 font-bold">+{outcome.evsGained.spDef}</div>
+                      <div className="text-slate-500">SpD</div>
+                    </div>
+                  )}
+                  {outcome.evsGained.spd > 0 && (
+                    <div className="text-center">
+                      <div className="text-yellow-400 font-bold">+{outcome.evsGained.spd}</div>
+                      <div className="text-slate-500">SPD</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {isCaptured && (
               <div className="glass rounded-lg p-4 border-2 border-purple-500/30 text-center">
