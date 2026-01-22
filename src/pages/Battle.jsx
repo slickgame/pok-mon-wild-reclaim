@@ -278,9 +278,9 @@ export default function BattlePage() {
     // Initialize battle engine
     const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
 
-    // Enemy selects a random move (simple AI)
-    const enemyAvailableMoves = moves.filter(m => m.category !== 'Status').slice(0, 3);
-    const enemyMove = enemyAvailableMoves[Math.floor(Math.random() * enemyAvailableMoves.length)] || moves[0];
+    // Enemy uses smart AI to choose best move
+    const enemyAvailableMoves = moves.slice(0, 4);
+    const enemyMove = engine.chooseEnemyMove(enemyAvailableMoves, battleState.playerPokemon);
 
     // Create a copy of battle state for engine to modify
     const stateCopy = { ...battleState };
@@ -758,6 +758,19 @@ export default function BattlePage() {
             <EvolutionModal
               pokemon={evolutionState.pokemon}
               evolvesInto={evolutionState.evolvesInto}
+              newStats={(() => {
+                const baseStats = getBaseStats(evolutionState.evolvesInto);
+                return calculateAllStats(
+                  { 
+                    level: evolutionState.pendingUpdate.level, 
+                    nature: evolutionState.pokemon.nature, 
+                    ivs: evolutionState.pokemon.ivs, 
+                    evs: evolutionState.pendingUpdate.evs 
+                  },
+                  baseStats
+                );
+              })()}
+              oldStats={evolutionState.pokemon.stats}
               onComplete={handleEvolution}
               onCancel={handleCancelEvolution}
             />

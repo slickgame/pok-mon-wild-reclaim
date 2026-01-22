@@ -197,6 +197,91 @@ export class BattleEngine {
     return effects;
   }
 
+  // Smart AI: Choose best move based on strategy
+  chooseEnemyMove(availableMoves, playerPokemon) {
+    if (!availableMoves || availableMoves.length === 0) {
+      return availableMoves[0];
+    }
+    
+    // Get move data for all available moves
+    const movesWithData = availableMoves.map(move => {
+      const moveData = getMoveData(move.name) || move;
+      return { ...move, ...moveData };
+    });
+    
+    // Calculate HP percentage
+    const enemyHPPercent = (this.enemyPokemon.currentHp / this.enemyPokemon.stats.maxHp) * 100;
+    
+    // Priority 1: If low HP (<30%), consider healing/status moves
+    if (enemyHPPercent < 30) {
+      const healingMoves = movesWithData.filter(m => 
+        m.category === 'Status' && m.effect && m.effect.includes('heal')
+      );
+      if (healingMoves.length > 0 && Math.random() < 0.6) {
+        return healingMoves[0];
+      }
+    }
+    
+    // Priority 2: Check for super-effective moves (type advantage)
+    const superEffectiveMoves = movesWithData.filter(move => {
+      // Simplified type effectiveness check
+      const playerTypes = [playerPokemon.type1, playerPokemon.type2].filter(Boolean);
+      return this.isSuper Effective(move.type, playerTypes);
+    });
+    
+    if (superEffectiveMoves.length > 0) {
+      // Choose highest power super-effective move
+      return superEffectiveMoves.reduce((best, current) => 
+        (current.power || 0) > (best.power || 0) ? current : best
+      );
+    }
+    
+    // Priority 3: Choose highest damage move
+    const damageMoves = movesWithData.filter(m => m.category !== 'Status' && m.power > 0);
+    if (damageMoves.length > 0) {
+      return damageMoves.reduce((best, current) => 
+        (current.power || 0) > (best.power || 0) ? current : best
+      );
+    }
+    
+    // Priority 4: Random status move for variety (20% chance)
+    if (Math.random() < 0.2) {
+      const statusMoves = movesWithData.filter(m => m.category === 'Status');
+      if (statusMoves.length > 0) {
+        return statusMoves[Math.floor(Math.random() * statusMoves.length)];
+      }
+    }
+    
+    // Fallback: random move
+    return movesWithData[Math.floor(Math.random() * movesWithData.length)];
+  }
+  
+  // Simplified type effectiveness check
+  isSuperEffective(moveType, defenderTypes) {
+    const typeChart = {
+      Fire: ['Grass', 'Ice', 'Bug', 'Steel'],
+      Water: ['Fire', 'Ground', 'Rock'],
+      Grass: ['Water', 'Ground', 'Rock'],
+      Electric: ['Water', 'Flying'],
+      Ice: ['Grass', 'Ground', 'Flying', 'Dragon'],
+      Fighting: ['Normal', 'Ice', 'Rock', 'Dark', 'Steel'],
+      Poison: ['Grass', 'Fairy'],
+      Ground: ['Fire', 'Electric', 'Poison', 'Rock', 'Steel'],
+      Flying: ['Grass', 'Fighting', 'Bug'],
+      Psychic: ['Fighting', 'Poison'],
+      Bug: ['Grass', 'Psychic', 'Dark'],
+      Rock: ['Fire', 'Ice', 'Flying', 'Bug'],
+      Ghost: ['Psychic', 'Ghost'],
+      Dragon: ['Dragon'],
+      Dark: ['Psychic', 'Ghost'],
+      Steel: ['Ice', 'Rock', 'Fairy'],
+      Fairy: ['Fighting', 'Dragon', 'Dark']
+    };
+    
+    const superEffectiveAgainst = typeChart[moveType] || [];
+    return defenderTypes.some(type => superEffectiveAgainst.includes(type));
+  }
+
   // Execute a full turn
   executeTurn(playerMove, enemyMove, battleState) {
     const turnLog = [];

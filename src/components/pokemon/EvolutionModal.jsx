@@ -5,9 +5,10 @@ import { Sparkles, Zap, ArrowRight, TrendingUp } from 'lucide-react';
 import { getEvolvedStats } from './evolutionData';
 
 export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStats, onComplete, onCancel }) {
-  const [stage, setStage] = useState('confirm'); // 'confirm', 'evolving', 'stats', 'complete'
+  const [stage, setStage] = useState('confirm'); // 'confirm', 'evolving', 'stats', 'complete', 'cancelled'
   const [showNewForm, setShowNewForm] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
+  const [bKeyPressed, setBKeyPressed] = useState(false);
 
   useEffect(() => {
     if (stage === 'evolving') {
@@ -15,11 +16,15 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
       setShowSparkles(true);
       
       const timer1 = setTimeout(() => {
-        setShowNewForm(true);
+        if (!bKeyPressed) {
+          setShowNewForm(true);
+        }
       }, 2000);
       
       const timer2 = setTimeout(() => {
-        setStage('stats');
+        if (!bKeyPressed) {
+          setStage('stats');
+        }
       }, 3500);
       
       return () => {
@@ -27,6 +32,19 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
         clearTimeout(timer2);
       };
     }
+  }, [stage, bKeyPressed]);
+  
+  // Handle B key press to cancel evolution
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if ((e.key === 'b' || e.key === 'B' || e.key === 'Escape') && stage === 'evolving') {
+        setBKeyPressed(true);
+        setStage('cancelled');
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, [stage]);
   
   const evolvedSprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${Math.floor(Math.random() * 150) + 1}.png`;
@@ -258,6 +276,14 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
                 </motion.span>
               )}
             </motion.p>
+            
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              className="text-sm text-slate-400 mt-4"
+            >
+              Press <kbd className="px-2 py-1 bg-slate-700 rounded text-white">B</kbd> to cancel
+            </motion.p>
           </motion.div>
         )}
         
@@ -326,6 +352,37 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
           </motion.div>
         )}
 
+        {stage === 'cancelled' && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="glass rounded-2xl max-w-md w-full p-8"
+          >
+            <div className="text-center mb-6">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200 }}
+                className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center shadow-lg"
+              >
+                <motion.span className="text-5xl">🚫</motion.span>
+              </motion.div>
+              
+              <h2 className="text-2xl font-bold text-white mb-2">Huh?</h2>
+              <p className="text-slate-300 text-lg">
+                {pokemon.nickname || pokemon.species} stopped evolving!
+              </p>
+            </div>
+
+            <Button
+              onClick={onCancel}
+              className="w-full bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800"
+            >
+              Continue
+            </Button>
+          </motion.div>
+        )}
+        
         {stage === 'complete' && (
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
