@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PawPrint, X, Heart, Swords, Shield, Zap, Sparkles, Star, RotateCcw, ArrowUpCircle } from 'lucide-react';
+import { PawPrint, X, Heart, Swords, Shield, Zap, Sparkles, Star, RotateCcw, ArrowUpCircle, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +15,7 @@ import RoleIndicator from '@/components/battle/RoleIndicator';
 import TalentDisplay from '@/components/battle/TalentDisplay';
 import RevenantIndicator from '@/components/pokemon/RevenantIndicator';
 import StatDisplay from '@/components/pokemon/StatDisplay';
+import MoveReminderModal from '@/components/moves/MoveReminderModal';
 
 const typeColors = {
   Normal: 'from-gray-400 to-gray-500',
@@ -121,7 +122,50 @@ export default function PokemonPage() {
 }
 
 function PokemonDetailView({ pokemon, onClose }) {
+  const [showMoveReminder, setShowMoveReminder] = useState(false);
+  const queryClient = useQueryClient();
+  
+  const { data: player } = useQuery({
+    queryKey: ['player'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    }
+  });
+  
   const gradientClass = typeColors[pokemon.type1] || 'from-indigo-500 to-purple-600';
+  
+  const handleRelearn = async (pokemon, moveName, forgetMove, cost) => {
+    try {
+      // Deduct gold
+      if (player && player.gold >= cost) {
+        await base44.entities.Player.update(player.id, {
+          gold: player.gold - cost
+        });
+      }
+      
+      // Update moves
+      let updatedMoves = [...(pokemon.abilities || [])];
+      if (forgetMove) {
+        const index = updatedMoves.indexOf(forgetMove);
+        if (index !== -1) {
+          updatedMoves[index] = moveName;
+        }
+      } else {
+        updatedMoves.push(moveName);
+      }
+      
+      await base44.entities.Pokemon.update(pokemon.id, {
+        abilities: updatedMoves
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['pokemon'] });
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+      setShowMoveReminder(false);
+    } catch (err) {
+      console.error('Failed to relearn move:', err);
+    }
+  };
   
   return (
     <div className="pb-8">
@@ -252,8 +296,19 @@ function PokemonDetailView({ pokemon, onClose }) {
 
       {/* Abilities */}
       {pokemon.abilities && pokemon.abilities.length > 0 && (
-        <div className="glass rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-white mb-3">Abilities</h3>
+        <div className="glass rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white">Moves</h3>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowMoveReminder(true)}
+              className="flex items-center gap-1 h-7"
+            >
+              <Brain className="w-3 h-3" />
+              Relearn
+            </Button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {pokemon.abilities.map((ability, idx) => (
               <Badge key={idx} className="bg-slate-700/50 text-slate-300 border-slate-600/50">
@@ -262,6 +317,16 @@ function PokemonDetailView({ pokemon, onClose }) {
             ))}
           </div>
         </div>
+      )}
+      
+      {/* Move Reminder Modal */}
+      {showMoveReminder && (
+        <MoveReminderModal
+          pokemon={pokemon}
+          playerGold={player?.gold || 0}
+          onClose={() => setShowMoveReminder(false)}
+          onRelearn={handleRelearn}
+        />
       )}
     </div>
   );
