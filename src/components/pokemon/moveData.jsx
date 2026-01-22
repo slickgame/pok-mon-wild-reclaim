@@ -116,6 +116,102 @@ export const MOVE_DATA = {
     effectChance: 10
   },
 
+  // Squirtle's moves
+  'Bubble': {
+    type: 'Water',
+    category: 'Special',
+    power: 40,
+    accuracy: 100,
+    pp: 30,
+    description: 'May lower enemy Speed.',
+    effect: 'lowerSpeed',
+    effectChance: 10
+  },
+  'Shell Slam': {
+    type: 'Water',
+    category: 'Physical',
+    power: 45,
+    accuracy: 100,
+    pp: 10,
+    description: 'Hits twice if HP > 75%. 20% chance to lower enemy Attack.',
+    signature: true,
+    effect: 'lowerAttack',
+    effectChance: 20,
+    synergy: {
+      rolebonus: 'Juggernaut',
+      hpThreshold: 0.75,
+      multiHit: 2,
+      description: 'Hits twice when HP is above 75%'
+    }
+  },
+  'Withdraw': {
+    type: 'Water',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 40,
+    description: "Raises user's Defense.",
+    effect: 'raiseDefense',
+    stages: 1
+  },
+  'Water Gun': {
+    type: 'Water',
+    category: 'Special',
+    power: 40,
+    accuracy: 100,
+    pp: 25,
+    description: 'Basic ranged STAB.'
+  },
+  'Protect': {
+    type: 'Normal',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 10,
+    description: 'Prevents all damage that turn.',
+    effect: 'protect',
+    priority: 4
+  },
+  'Aqua Ring': {
+    type: 'Water',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'Restores HP each turn.',
+    effect: 'healOverTime',
+    healAmount: 0.0625
+  },
+  'Bite': {
+    type: 'Dark',
+    category: 'Physical',
+    power: 60,
+    accuracy: 100,
+    pp: 25,
+    description: 'May cause flinch.',
+    effect: 'flinch',
+    effectChance: 30
+  },
+  'Surf': {
+    type: 'Water',
+    category: 'Special',
+    power: 90,
+    accuracy: 100,
+    pp: 15,
+    description: 'Hits all adjacent foes.',
+    aoe: true
+  },
+  'Iron Defense': {
+    type: 'Steel',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 15,
+    description: "Sharply raises user's Defense.",
+    effect: 'raiseDefense',
+    stages: 2
+  },
+
   // Common moves
   'Tackle': {
     type: 'Normal',

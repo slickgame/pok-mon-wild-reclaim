@@ -31,15 +31,15 @@ export const LEVEL_UP_LEARNSETS = {
   
   Squirtle: {
     1: ['Tackle', 'Tail Whip'],
-    7: ['Water Gun'],
-    10: ['Withdraw'],
-    13: ['Aqua Shield'], // Signature
-    16: ['Bite'],
-    19: ['Rapid Spin'],
-    22: ['Protect'],
-    25: ['Aqua Tail'],
-    28: ['Iron Defense'],
-    32: ['Hydro Pump'],
+    6: ['Bubble'],
+    9: ['Shell Slam'], // Signature: Hits twice if HP > 75%, 20% chance to lower Attack
+    13: ['Withdraw'],
+    16: ['Water Gun'],
+    21: ['Protect'],
+    25: ['Aqua Ring'],
+    28: ['Bite'],
+    33: ['Surf'],
+    38: ['Iron Defense'],
   },
 
   // Common Wild Pokémon
