@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, TrendingUp } from 'lucide-react';
+import { Eye, EyeOff, TrendingUp, ArrowUp, ArrowDown } from 'lucide-react';
 import { getBaseStats } from './baseStats';
-import { calculateAllStats, getNatureDescription } from './statCalculations';
+import { calculateAllStats, getNatureDescription, NATURES } from './statCalculations';
 
 export default function StatDisplay({ pokemon }) {
   const [showIVs, setShowIVs] = useState(false);
@@ -41,6 +41,13 @@ export default function StatDisplay({ pokemon }) {
     if (iv >= 20) return 'text-green-400';
     if (iv >= 15) return 'text-yellow-400';
     return 'text-slate-400';
+  };
+
+  // Get nature modifier for a specific stat
+  const getNatureModifier = (stat) => {
+    const nature = NATURES[pokemon.nature || 'Hardy'];
+    if (!nature) return 1.0;
+    return nature[stat] || 1.0;
   };
 
   return (
@@ -107,54 +114,68 @@ export default function StatDisplay({ pokemon }) {
 
       {/* Stats Display */}
       <div className="space-y-2">
-        {Object.keys(statNames).map((stat) => (
-          <motion.div
-            key={stat}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="glass p-3 rounded-xl"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className={`font-medium ${statColors[stat]}`}>
-                {statNames[stat]}
-              </span>
-              <div className="flex items-center gap-3">
-                {showIVs && (
-                  <span className={`text-xs ${getIVQuality(ivs[stat])}`}>
-                    IV: {ivs[stat]}
-                  </span>
-                )}
-                {showEVs && (
-                  <span className="text-xs text-emerald-400">
-                    EV: {evs[stat]}
-                  </span>
-                )}
-                <span className="text-white font-bold text-lg">
-                  {calculatedStats[stat]}
+        {Object.keys(statNames).map((stat) => {
+          const modifier = stat === 'hp' ? 1.0 : getNatureModifier(stat);
+          const isBoosted = modifier > 1.0;
+          const isReduced = modifier < 1.0;
+          
+          return (
+            <motion.div
+              key={stat}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="glass p-3 rounded-xl"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className={`font-medium ${statColors[stat]} flex items-center gap-1`}>
+                  {statNames[stat]}
+                  {isBoosted && <ArrowUp className="w-3 h-3 text-green-400" />}
+                  {isReduced && <ArrowDown className="w-3 h-3 text-red-400" />}
                 </span>
+                <div className="flex items-center gap-3">
+                  {showIVs && (
+                    <span className={`text-xs ${getIVQuality(ivs[stat])}`}>
+                      IV: {ivs[stat]}
+                    </span>
+                  )}
+                  {showEVs && (
+                    <span className="text-xs text-emerald-400">
+                      EV: {evs[stat]}
+                    </span>
+                  )}
+                  <span className={`font-bold text-lg ${
+                    isBoosted ? 'text-green-400' : 
+                    isReduced ? 'text-red-400' : 
+                    'text-white'
+                  }`}>
+                    {calculatedStats[stat]}
+                  </span>
+                </div>
               </div>
-            </div>
             
-            <div className="flex gap-2 text-xs text-slate-400">
-              <span>Base: {baseStats[stat]}</span>
-            </div>
-            
-            {/* Stat bar */}
-            <div className="mt-2 w-full bg-slate-800 rounded-full h-1.5">
-              <div
-                className={`bg-gradient-to-r ${
-                  stat === 'hp' ? 'from-red-500 to-pink-500' :
-                  stat === 'atk' ? 'from-orange-500 to-red-500' :
-                  stat === 'def' ? 'from-amber-500 to-orange-500' :
-                  stat === 'spAtk' ? 'from-blue-500 to-cyan-500' :
-                  stat === 'spDef' ? 'from-cyan-500 to-teal-500' :
-                  'from-yellow-500 to-amber-500'
-                } h-1.5 rounded-full transition-all`}
-                style={{ width: `${Math.min((calculatedStats[stat] / 200) * 100, 100)}%` }}
-              />
-            </div>
-          </motion.div>
-        ))}
+              <div className="flex gap-2 text-xs text-slate-400">
+                <span>Base: {baseStats[stat]}</span>
+                {isBoosted && <span className="text-green-400">+10%</span>}
+                {isReduced && <span className="text-red-400">-10%</span>}
+              </div>
+              
+              {/* Stat bar */}
+              <div className="mt-2 w-full bg-slate-800 rounded-full h-1.5">
+                <div
+                  className={`bg-gradient-to-r ${
+                    stat === 'hp' ? 'from-red-500 to-pink-500' :
+                    stat === 'atk' ? 'from-orange-500 to-red-500' :
+                    stat === 'def' ? 'from-amber-500 to-orange-500' :
+                    stat === 'spAtk' ? 'from-blue-500 to-cyan-500' :
+                    stat === 'spDef' ? 'from-cyan-500 to-teal-500' :
+                    'from-yellow-500 to-amber-500'
+                  } h-1.5 rounded-full transition-all`}
+                  style={{ width: `${Math.min((calculatedStats[stat] / 200) * 100, 100)}%` }}
+                />
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Total Stats */}
