@@ -179,3 +179,23 @@ export function getAllMovesUpToLevel(species, maxLevel) {
 export function hasLearnset(species) {
   return !!LEVEL_UP_LEARNSETS[species];
 }
+
+/**
+ * Get all moves a Pokémon could have learned up to its current level
+ * (for Move Reminder feature)
+ * @param {string} species - Pokémon species name
+ * @param {number} currentLevel - Current level of the Pokémon
+ * @returns {string[]} Array of all move names that can be relearned
+ */
+export function getMovesLearnableUpToLevel(species, currentLevel) {
+  return getAllMovesUpToLevel(species, currentLevel);
+}
+
+/**
+ * Get the full learnset for a species
+ * @param {string} species - Pokémon species name
+ * @returns {Object} Learnset object with levels as keys
+ */
+export function getLevelUpLearnset(species) {
+  return LEVEL_UP_LEARNSETS[species] || {};
+}
