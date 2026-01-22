@@ -13,6 +13,7 @@ import MoveCard from '@/components/battle/MoveCard';
 import BattleLog from '@/components/battle/BattleLog';
 import TalentDisplay from '@/components/battle/TalentDisplay';
 import BattleOutcomeModal from '@/components/battle/BattleOutcomeModal';
+import CaptureSuccessModal from '@/components/battle/CaptureSuccessModal';
 import { BattleEngine } from '@/components/battle/BattleEngine';
 import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
@@ -32,6 +33,7 @@ export default function BattlePage() {
   const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch'
   const [moveLearnState, setMoveLearnState] = useState(null); // { pokemon, newMoves, currentMoves, pendingUpdate }
   const [evolutionState, setEvolutionState] = useState(null); // { pokemon, evolvesInto, pendingUpdate }
+  const [captureModalState, setCaptureModalState] = useState(null); // { pokemon, addedToParty }
   const queryClient = useQueryClient();
   const { triggerTutorial } = useTutorialTrigger();
 
@@ -220,6 +222,14 @@ export default function BattlePage() {
         }]
       };
       setBattleState(newBattleState);
+      
+      // Check if party has room
+      const addedToParty = partyPokemon.length < 6;
+      
+      setCaptureModalState({
+        pokemon: battleState.enemyPokemon,
+        addedToParty
+      });
     } else {
       // Capture failed, enemy gets free turn
       const enemyAvailableMoves = moves.filter(m => m.category !== 'Status').slice(0, 3);
@@ -787,8 +797,36 @@ export default function BattlePage() {
             />
           )}
 
+          {/* Capture Success Modal */}
+          {captureModalState && (
+            <CaptureSuccessModal
+              pokemon={captureModalState.pokemon}
+              addedToParty={captureModalState.addedToParty}
+              onComplete={async (nickname) => {
+                try {
+                  // Update the captured Pokémon with correct placement and nickname
+                  await base44.entities.Pokemon.update(wildPokemonId, {
+                    isInTeam: captureModalState.addedToParty,
+                    nickname: nickname || undefined
+                  });
+                  
+                  queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+                  queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+                  
+                  setCaptureModalState(null);
+                  
+                  // Trigger first_capture tutorial
+                  triggerTutorial('first_capture');
+                } catch (err) {
+                  console.error('Failed to update captured Pokémon:', err);
+                  setCaptureModalState(null);
+                }
+              }}
+            />
+          )}
+
           {/* Battle Results Modal */}
-          {isBattleEnded && !moveLearnState && !evolutionState && (
+          {isBattleEnded && !moveLearnState && !evolutionState && !captureModalState && (
             <BattleOutcomeModal
               outcome={{
                 result: battleState.status === 'captured' ? 'captured' : 
@@ -803,14 +841,11 @@ export default function BattlePage() {
                 wasCaptured: battleState.status === 'captured'
               }}
               onClose={async () => {
-                // Clean up or capture wild Pokémon
+                // Clean up wild Pokémon
                 if (wildPokemonId) {
                   try {
                     if (battleState.status === 'captured') {
-                      // Add to collection
-                      await base44.entities.Pokemon.update(wildPokemonId, {
-                        isInTeam: false
-                      });
+                      // Captured Pokémon already handled by CaptureSuccessModal
                     } else if (battleState.status === 'won') {
                       // Delete defeated wild Pokémon
                       await base44.entities.Pokemon.delete(wildPokemonId);
