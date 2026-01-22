@@ -382,6 +382,28 @@ export const MOVE_DATA = {
     effect: 'recoil',
     recoilPercentage: 0.33
   },
+  
+  // Charizard's signature move
+  'Infernal Cyclone': {
+    type: 'Fire',
+    category: 'Special',
+    power: 90,
+    accuracy: 95,
+    pp: 10,
+    description: 'Hits all enemies. 30% Burn. If Sunny, +25% damage. Bonus turn if KO achieved.',
+    signature: true,
+    signatureFor: ['Striker', 'Scout'],
+    tags: ['signature', 'aoe', 'weather'],
+    effect: 'burn',
+    effectChance: 30,
+    aoe: true,
+    synergy: {
+      rolebonus: 'Striker',
+      damageMultiplier: 1.25,
+      weatherBonus: 'sunny',
+      additionalEffect: 'bonusTurnOnKO'
+    }
+  },
 
   // Wartortle's additional moves
   'Rapid Spin': {
@@ -439,6 +461,28 @@ export const MOVE_DATA = {
     accuracy: 80,
     pp: 5,
     description: 'Big damage.'
+  },
+  
+  // Blastoise's signature move
+  'Shell Fortress': {
+    type: 'Water',
+    category: 'Physical',
+    power: 60,
+    accuracy: 100,
+    pp: 10,
+    description: 'Reflects 50% of damage back next turn. Raises Defense +1. Enhanced defense vs critical hits.',
+    signature: true,
+    signatureFor: ['Tank', 'Juggernaut'],
+    tags: ['signature', 'reflect', 'defensive'],
+    effect: 'raiseDefense',
+    effectChance: 100,
+    stages: 1,
+    synergy: {
+      rolebonus: 'Tank',
+      damageMultiplier: 1.3,
+      additionalEffect: 'reflect50Percent',
+      critResistance: true
+    }
   },
 
   // Ivysaur's additional moves
@@ -508,6 +552,30 @@ export const MOVE_DATA = {
     description: '2–3 turns; confusion after.',
     effect: 'confuseAfter',
     lockTurns: [2, 3]
+  },
+  
+  // Venusaur's signature move
+  'Verdant Sanctuary': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: 100,
+    pp: 5,
+    description: 'Creates field that heals all allies 10% HP/turn for 3 turns. Status cleared. Allies get +1 SPDEF.',
+    signature: true,
+    signatureFor: ['Medic', 'Support'],
+    tags: ['signature', 'terrain', 'healing', 'support'],
+    effect: 'setTerrain',
+    terrain: 'verdant',
+    duration: 3,
+    synergy: {
+      rolebonus: 'Medic',
+      healingMultiplier: 1.5,
+      additionalEffect: 'clearStatus',
+      statBoost: {
+        spDef: 1
+      }
+    }
   },
 
   // Additional TM/HM and Tutor Moves
@@ -622,6 +690,24 @@ export const MOVE_DATA = {
     tags: ['ultimate', 'recharge'],
     effect: 'recharge'
   },
+  'Air Slash': {
+    type: 'Flying',
+    category: 'Special',
+    power: 75,
+    accuracy: 95,
+    pp: 15,
+    description: 'May cause flinch.',
+    effect: 'flinch',
+    effectChance: 30
+  },
+  'Dragon Claw': {
+    type: 'Dragon',
+    category: 'Physical',
+    power: 80,
+    accuracy: 100,
+    pp: 15,
+    description: 'Powerful dragon attack.'
+  },
   'Zen Headbutt': {
     type: 'Psychic',
     category: 'Physical',
@@ -642,6 +728,35 @@ export const MOVE_DATA = {
     tags: ['ultimate', 'recharge'],
     effect: 'recharge'
   },
+  'Skull Bash': {
+    type: 'Normal',
+    category: 'Physical',
+    power: 130,
+    accuracy: 100,
+    pp: 10,
+    description: 'Raises Defense, then attacks next turn.',
+    effect: 'raiseDefenseAndCharge'
+  },
+  'Flash Cannon': {
+    type: 'Steel',
+    category: 'Special',
+    power: 80,
+    accuracy: 100,
+    pp: 10,
+    description: 'May lower Sp. Def.',
+    effect: 'lowerSpDef',
+    effectChance: 10
+  },
+  'Ice Beam': {
+    type: 'Ice',
+    category: 'Special',
+    power: 90,
+    accuracy: 100,
+    pp: 10,
+    description: 'May freeze target.',
+    effect: 'freeze',
+    effectChance: 10
+  },
   'Grass Pledge': {
     type: 'Grass',
     category: 'Special',
@@ -660,6 +775,33 @@ export const MOVE_DATA = {
     description: 'Ultimate move. Requires recharge.',
     tags: ['ultimate', 'recharge'],
     effect: 'recharge'
+  },
+  'Petal Blizzard': {
+    type: 'Grass',
+    category: 'Physical',
+    power: 90,
+    accuracy: 100,
+    pp: 15,
+    description: 'Hits all adjacent targets.',
+    aoe: true
+  },
+  'Solar Beam': {
+    type: 'Grass',
+    category: 'Special',
+    power: 120,
+    accuracy: 100,
+    pp: 10,
+    description: 'Charges one turn, attacks next.',
+    effect: 'charge'
+  },
+  'Earthquake': {
+    type: 'Ground',
+    category: 'Physical',
+    power: 100,
+    accuracy: 100,
+    pp: 10,
+    description: 'Powerful ground attack.',
+    aoe: true
   },
 
   // Egg Moves - Charmander line
