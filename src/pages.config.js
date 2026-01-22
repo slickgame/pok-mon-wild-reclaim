@@ -15,6 +15,7 @@ import StoryCutscene from './pages/StoryCutscene';
 import TutorialLog from './pages/TutorialLog';
 import Zones from './pages/Zones';
 import Storage from './pages/Storage';
+import Pokedex from './pages/Pokedex';
 import __Layout from './Layout.jsx';
 
 
@@ -36,6 +37,7 @@ export const PAGES = {
     "TutorialLog": TutorialLog,
     "Zones": Zones,
     "Storage": Storage,
+    "Pokedex": Pokedex,
 }
 
 export const pagesConfig = {
