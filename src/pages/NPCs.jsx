@@ -12,9 +12,12 @@ import PageHeader from '@/components/common/PageHeader';
 import NPCCard from '@/components/npc/NPCCard';
 import StatBar from '@/components/ui/StatBar';
 import NPCScheduleCalendar from '@/components/time/NPCScheduleCalendar';
+import MoveTutorModal from '@/components/npc/MoveTutorModal';
+import { MOVE_TUTORS } from '@/components/pokemon/moveTutors';
 
 export default function NPCsPage() {
   const [selectedNPC, setSelectedNPC] = useState(null);
+  const [tutorModalState, setTutorModalState] = useState(null);
 
   const { data: player } = useQuery({
     queryKey: ['player'],
@@ -99,16 +102,29 @@ export default function NPCsPage() {
               trustLevel={getTrustLevel(selectedNPC.name)}
               schedule={schedules.find(s => s.npcName === selectedNPC.name)}
               gameTime={gameTime}
-              onClose={() => setSelectedNPC(null)} 
+              onClose={() => setSelectedNPC(null)}
+              onLearnMove={(tutor, move) => {
+                setTutorModalState({ tutor, move });
+                setSelectedNPC(null);
+              }}
             />
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Move Tutor Modal */}
+      {tutorModalState && (
+        <MoveTutorModal
+          tutor={tutorModalState.tutor}
+          move={tutorModalState.move}
+          onClose={() => setTutorModalState(null)}
+        />
+      )}
     </div>
   );
 }
 
-function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose }) {
+function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMove }) {
   const roleIcons = {
     'Crafting Mentor': Wrench,
     'Professor': BookOpen,
@@ -224,30 +240,87 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose }) {
         </TabsList>
 
         <TabsContent value="services" className="mt-4">
-          {npc.servicesAvailable && npc.servicesAvailable.length > 0 ? (
-            <div className="space-y-2">
-              {npc.servicesAvailable.map((service, idx) => (
-                <div 
-                  key={idx} 
-                  className="glass rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                      <Wrench className="w-5 h-5 text-indigo-400" />
-                    </div>
-                    <span className="text-white">{service}</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-500" />
+          {/* Check if NPC is a move tutor */}
+          {(() => {
+            const npcKey = npc.name.toLowerCase().split(' ')[0].replace('.', '');
+            const tutorData = MOVE_TUTORS[npcKey];
+            
+            if (tutorData && tutorData.moves.length > 0) {
+              return (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-amber-400" />
+                    Move Tutor Services
+                  </h4>
+                  {tutorData.moves.map((move, idx) => {
+                    const canTeach = trustLevel >= move.trustRequired;
+                    return (
+                      <div 
+                        key={idx}
+                        onClick={() => canTeach && onLearnMove(tutorData, move)}
+                        className={`glass rounded-xl p-4 ${canTeach ? 'cursor-pointer hover:bg-slate-800/50' : 'opacity-60'} transition-colors`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h5 className="text-white font-medium">{move.name}</h5>
+                              {!canTeach && (
+                                <Badge className="text-xs bg-red-500/20 text-red-300">
+                                  Trust {move.trustRequired}+ required
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">{move.description}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge className="text-xs bg-amber-500/20 text-amber-300">
+                                💰 {move.cost.gold}
+                              </Badge>
+                              {move.cost.materials.map((mat, i) => (
+                                <Badge key={i} className="text-xs bg-slate-700/50 text-slate-300">
+                                  {mat.name} x{mat.quantity}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          {canTeach && <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-slate-400">
-              <Wrench className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p>No services available yet</p>
-              <p className="text-xs mt-1">Increase trust to unlock services</p>
-            </div>
-          )}
+              );
+            }
+            
+            // Show regular services if not a tutor
+            if (npc.servicesAvailable && npc.servicesAvailable.length > 0) {
+              return (
+                <div className="space-y-2">
+                  {npc.servicesAvailable.map((service, idx) => (
+                    <div 
+                      key={idx} 
+                      className="glass rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                          <Wrench className="w-5 h-5 text-indigo-400" />
+                        </div>
+                        <span className="text-white">{service}</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-500" />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            
+            return (
+              <div className="text-center py-8 text-slate-400">
+                <Wrench className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p>No services available yet</p>
+                <p className="text-xs mt-1">Increase trust to unlock services</p>
+              </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="quests" className="mt-4">
