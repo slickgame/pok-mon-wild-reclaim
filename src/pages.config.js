@@ -7,13 +7,13 @@ import Home from './pages/Home';
 import Inventory from './pages/Inventory';
 import MaplesLab from './pages/MaplesLab';
 import NPCs from './pages/NPCs';
+import Onboarding from './pages/Onboarding';
 import Pokemon from './pages/Pokemon';
 import SetBuilder from './pages/SetBuilder';
-import Zones from './pages/Zones';
-import Onboarding from './pages/Onboarding';
-import TutorialLog from './pages/TutorialLog';
 import StartScreen from './pages/StartScreen';
 import StoryCutscene from './pages/StoryCutscene';
+import TutorialLog from './pages/TutorialLog';
+import Zones from './pages/Zones';
 import __Layout from './Layout.jsx';
 
 
@@ -27,13 +27,13 @@ export const PAGES = {
     "Inventory": Inventory,
     "MaplesLab": MaplesLab,
     "NPCs": NPCs,
+    "Onboarding": Onboarding,
     "Pokemon": Pokemon,
     "SetBuilder": SetBuilder,
-    "Zones": Zones,
-    "Onboarding": Onboarding,
-    "TutorialLog": TutorialLog,
     "StartScreen": StartScreen,
     "StoryCutscene": StoryCutscene,
+    "TutorialLog": TutorialLog,
+    "Zones": Zones,
 }
 
 export const pagesConfig = {

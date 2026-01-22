@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, TrendingUp } from 'lucide-react';
-import { getBaseStats } from '@/utils/baseStats';
-import { calculateAllStats, getNatureDescription } from '@/utils/statCalculations';
+import { getBaseStats } from './baseStats';
+import { calculateAllStats, getNatureDescription } from './statCalculations';
 
 export default function StatDisplay({ pokemon }) {
   const [showIVs, setShowIVs] = useState(false);

@@ -14,6 +14,7 @@ import StatBar from '@/components/ui/StatBar';
 import RoleIndicator from '@/components/battle/RoleIndicator';
 import TalentDisplay from '@/components/battle/TalentDisplay';
 import RevenantIndicator from '@/components/pokemon/RevenantIndicator';
+import StatDisplay from '@/components/pokemon/StatDisplay';
 
 const typeColors = {
   Normal: 'from-gray-400 to-gray-500',
@@ -176,67 +177,7 @@ function PokemonDetailView({ pokemon, onClose }) {
       </div>
 
       {/* Stats */}
-      <div className="glass rounded-xl p-4 mb-4">
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-          <Zap className="w-4 h-4 text-yellow-400" /> Base Stats
-        </h3>
-        <div className="space-y-3">
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-400 flex items-center gap-1"><Heart className="w-3 h-3 text-rose-400" /> HP</span>
-              <span className="text-white">{pokemon.stats?.hp || 0}/{pokemon.stats?.maxHp || 0}</span>
-            </div>
-            <StatBar value={pokemon.stats?.hp || 0} maxValue={pokemon.stats?.maxHp || 100} color="bg-rose-500" showValue={false} size="sm" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-400 flex items-center gap-1"><Swords className="w-3 h-3 text-orange-400" /> Attack</span>
-              <span className="text-white">{pokemon.stats?.atk || 0}</span>
-            </div>
-            <StatBar value={pokemon.stats?.atk || 0} maxValue={200} color="bg-orange-500" showValue={false} size="sm" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-400 flex items-center gap-1"><Shield className="w-3 h-3 text-blue-400" /> Defense</span>
-              <span className="text-white">{pokemon.stats?.def || 0}</span>
-            </div>
-            <StatBar value={pokemon.stats?.def || 0} maxValue={200} color="bg-blue-500" showValue={false} size="sm" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-400 flex items-center gap-1"><Sparkles className="w-3 h-3 text-pink-400" /> Sp. Atk</span>
-              <span className="text-white">{pokemon.stats?.spAtk || 0}</span>
-            </div>
-            <StatBar value={pokemon.stats?.spAtk || 0} maxValue={200} color="bg-pink-500" showValue={false} size="sm" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-400 flex items-center gap-1"><Shield className="w-3 h-3 text-green-400" /> Sp. Def</span>
-              <span className="text-white">{pokemon.stats?.spDef || 0}</span>
-            </div>
-            <StatBar value={pokemon.stats?.spDef || 0} maxValue={200} color="bg-green-500" showValue={false} size="sm" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-400 flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-400" /> Speed</span>
-              <span className="text-white">{pokemon.stats?.spd || 0}</span>
-            </div>
-            <StatBar value={pokemon.stats?.spd || 0} maxValue={200} color="bg-yellow-500" showValue={false} size="sm" />
-          </div>
-        </div>
-      </div>
-
-      {/* Nature & Abilities */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="glass rounded-xl p-4">
-          <h4 className="text-xs text-slate-400 mb-1">Nature</h4>
-          <p className="text-white font-medium">{pokemon.nature || 'Hardy'}</p>
-        </div>
-        <div className="glass rounded-xl p-4">
-          <h4 className="text-xs text-slate-400 mb-1">Experience</h4>
-          <p className="text-white font-medium">{pokemon.experience || 0} XP</p>
-        </div>
-      </div>
+      <StatDisplay pokemon={pokemon} />
 
       {/* Talents */}
       {pokemon.talents && pokemon.talents.length > 0 && (
