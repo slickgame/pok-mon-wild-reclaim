@@ -82,10 +82,10 @@ export default function StatsTab({ pokemon }) {
                     />
                   </div>
                   <div className="flex gap-1 text-xs">
-                    <Badge variant="outline" className="text-xs py-0 px-1">
+                    <Badge variant="outline" className="text-xs py-0 px-1 text-slate-300">
                       IV: {iv}
                     </Badge>
-                    <Badge variant="outline" className="text-xs py-0 px-1">
+                    <Badge variant="outline" className="text-xs py-0 px-1 text-slate-300">
                       EV: {ev}
                     </Badge>
                   </div>

@@ -62,9 +62,19 @@ export default function PartyManager() {
       moveMutation.mutate({ pokemonId: pokemon.id, toParty: false });
     }
 
-    // Swapping within party (just reordering, no DB change needed for now)
+    // Reordering within party - save new order
     if (source.droppableId === 'party' && destination.droppableId === 'party') {
-      // Could implement ordering logic here if needed
+      const reorderedParty = Array.from(partyPokemon);
+      const [removed] = reorderedParty.splice(source.index, 1);
+      reorderedParty.splice(destination.index, 0, removed);
+      
+      // Save order by updating a partyOrder array on player
+      const partyOrder = reorderedParty.map(p => p.id);
+      const players = await base44.entities.Player.list();
+      if (players[0]) {
+        await base44.entities.Player.update(players[0].id, { partyOrder });
+        queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+      }
     }
   };
 

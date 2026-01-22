@@ -45,16 +45,18 @@ export default function HomePage() {
     }
   }, [player, playerLoading]);
 
-  // Show tutorial if available (prioritized)
+  // Show tutorial if available (prioritized) - only trigger once
   useEffect(() => {
+    if (!player?.hasSeenIntro) return;
+    
     const pendingTutorials = tutorials
-      .filter(t => !t.isCompleted && !t.isSkipped)
+      .filter(t => !t.isCompleted && !t.isSkipped && t.trigger === 'onboarding')
       .sort((a, b) => (a.priority || 0) - (b.priority || 0));
     
     if (pendingTutorials.length > 0 && !currentTutorial) {
       setCurrentTutorial(pendingTutorials[0]);
     }
-  }, [tutorials, currentTutorial]);
+  }, [tutorials, currentTutorial, player]);
 
   const handleCompleteTutorial = async () => {
     if (!currentTutorial) return;
@@ -64,7 +66,12 @@ export default function HomePage() {
       completedAt: new Date().toISOString()
     });
     
+    // Fully clear and invalidate
     setCurrentTutorial(null);
+    
+    // Invalidate to prevent re-trigger
+    const queryClient = await import('@tanstack/react-query').then(m => m.useQueryClient);
+    queryClient().invalidateQueries({ queryKey: ['tutorials'] });
   };
 
   const handleSkipTutorials = async () => {

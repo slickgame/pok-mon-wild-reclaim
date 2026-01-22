@@ -71,7 +71,8 @@ export default function OnboardingPage() {
           craftingXp: 0,
           professionLevel: 1,
           professionXp: 0,
-          activeQuests: []
+          activeQuests: [],
+          hasSeenIntro: true
         });
 
         // Create starter Pokémon with IVs, EVs, and calculated stats
@@ -87,6 +88,16 @@ export default function OnboardingPage() {
           const baseStats = getBaseStats(starter.species);
           const stats = calculateAllStats({ level: 5, nature: starter.nature, ivs, evs }, baseStats);
 
+          // Auto-learn level-appropriate moves
+          let starterMoves = [];
+          if (starter.species === 'Charmander') {
+            starterMoves = ['Scratch', 'Growl', 'Ember'];
+          } else if (starter.species === 'Bulbasaur') {
+            starterMoves = ['Tackle', 'Growl', 'Vine Whip'];
+          } else if (starter.species === 'Squirtle') {
+            starterMoves = ['Tackle', 'Tail Whip', 'Water Gun'];
+          }
+
           return {
             species: starter.species,
             level: 5,
@@ -101,7 +112,8 @@ export default function OnboardingPage() {
             isInTeam: true,
             isStarter: true,
             experience: 0,
-            talents: []
+            talents: [],
+            abilities: starterMoves
           };
         });
 
