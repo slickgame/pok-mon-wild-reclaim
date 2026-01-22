@@ -5,32 +5,32 @@ import { Badge } from '@/components/ui/badge';
 const roleData = {
   Juggernaut: {
     icon: Shield,
-    color: 'bg-slate-700/30 text-slate-300 border-slate-600',
+    color: 'bg-slate-700/30 text-slate-200 border-slate-600',
     description: 'High defense, draws aggro'
   },
   Medic: {
     icon: Heart,
-    color: 'bg-emerald-600/30 text-emerald-300 border-emerald-500',
+    color: 'bg-emerald-600/30 text-emerald-200 border-emerald-500',
     description: 'Healing and support abilities'
   },
   Scout: {
     icon: Eye,
-    color: 'bg-cyan-600/30 text-cyan-300 border-cyan-500',
+    color: 'bg-cyan-600/30 text-cyan-200 border-cyan-500',
     description: 'Priority moves, high speed'
   },
   Tank: {
     icon: Shield,
-    color: 'bg-blue-700/30 text-blue-300 border-blue-600',
+    color: 'bg-blue-700/30 text-blue-200 border-blue-600',
     description: 'High HP and defense'
   },
   Striker: {
     icon: Swords,
-    color: 'bg-red-600/30 text-red-300 border-red-500',
+    color: 'bg-red-600/30 text-red-200 border-red-500',
     description: 'High offensive power'
   },
   Support: {
     icon: Users,
-    color: 'bg-purple-600/30 text-purple-300 border-purple-500',
+    color: 'bg-purple-600/30 text-purple-200 border-purple-500',
     description: 'Buffs and team synergy'
   },
 };
@@ -58,7 +58,7 @@ export default function RoleIndicator({ role, showDescription = false, size = 'm
         {role}
       </Badge>
       {showDescription && (
-        <span className="text-xs text-slate-400">{roleInfo.description}</span>
+        <span className="text-xs text-slate-300">{roleInfo.description}</span>
       )}
     </div>
   );
