@@ -226,7 +226,7 @@ export class BattleEngine {
     const superEffectiveMoves = movesWithData.filter(move => {
       // Simplified type effectiveness check
       const playerTypes = [playerPokemon.type1, playerPokemon.type2].filter(Boolean);
-      return this.isSuper Effective(move.type, playerTypes);
+      return this.isSuperEffective(move.type, playerTypes);
     });
     
     if (superEffectiveMoves.length > 0) {
