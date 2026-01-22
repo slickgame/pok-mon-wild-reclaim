@@ -1,8 +1,11 @@
+import { getPokemonStats } from '../pokemon/usePokemonStats';
+
 // Battle Engine - Core logic for turn-based combat
 export class BattleEngine {
   constructor(playerPokemon, enemyPokemon) {
-    this.playerPokemon = playerPokemon;
-    this.enemyPokemon = enemyPokemon;
+    // Ensure stats are calculated dynamically from base stats
+    this.playerPokemon = getPokemonStats(playerPokemon);
+    this.enemyPokemon = getPokemonStats(enemyPokemon);
   }
 
   // Calculate turn order based on Speed stat and priority

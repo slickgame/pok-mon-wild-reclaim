@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Heart, Swords, Shield, Zap, Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import RevenantIndicator from './RevenantIndicator';
+import { getPokemonStats } from './usePokemonStats';
 
 const typeColors = {
   Normal: 'from-gray-400 to-gray-500',
@@ -33,6 +34,8 @@ const gradeColors = {
 };
 
 export default function PokemonCard({ pokemon, onClick, compact = false }) {
+  const pokemonWithStats = getPokemonStats(pokemon);
+  const stats = pokemonWithStats.stats;
   const gradientClass = typeColors[pokemon.type1] || 'from-indigo-500 to-purple-600';
   
   if (compact) {
@@ -62,7 +65,7 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
           <div className="text-right">
             <div className="flex items-center gap-1 text-xs text-slate-400">
               <Heart className="w-3 h-3 text-rose-400" />
-              {pokemon.stats?.hp || 0}/{pokemon.stats?.maxHp || 0}
+              {stats.hp}/{stats.maxHp}
             </div>
           </div>
         </div>
@@ -131,28 +134,28 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-rose-400">
               <Heart className="w-3 h-3" />
-              <span className="text-xs font-medium">{pokemon.stats?.hp || 0}</span>
+              <span className="text-xs font-medium">{stats.hp}</span>
             </div>
             <span className="text-[10px] text-slate-500">HP</span>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-orange-400">
               <Swords className="w-3 h-3" />
-              <span className="text-xs font-medium">{pokemon.stats?.atk || 0}</span>
+              <span className="text-xs font-medium">{stats.atk}</span>
             </div>
             <span className="text-[10px] text-slate-500">ATK</span>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-blue-400">
               <Shield className="w-3 h-3" />
-              <span className="text-xs font-medium">{pokemon.stats?.def || 0}</span>
+              <span className="text-xs font-medium">{stats.def}</span>
             </div>
             <span className="text-[10px] text-slate-500">DEF</span>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-yellow-400">
               <Zap className="w-3 h-3" />
-              <span className="text-xs font-medium">{pokemon.stats?.spd || 0}</span>
+              <span className="text-xs font-medium">{stats.spd}</span>
             </div>
             <span className="text-[10px] text-slate-500">SPD</span>
           </div>
