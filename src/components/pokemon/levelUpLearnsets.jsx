@@ -18,15 +18,15 @@ export const LEVEL_UP_LEARNSETS = {
   
   Bulbasaur: {
     1: ['Tackle', 'Growl'],
-    7: ['Vine Whip'],
-    10: ['Leech Seed'],
-    13: ['Synthesis'], // Signature
-    16: ['Razor Leaf'],
-    19: ['Sleep Powder'],
-    22: ['Seed Bomb'],
-    25: ['Toxic'],
-    28: ['Solar Beam'],
-    32: ['Petal Dance'],
+    5: ['Leech Seed'],
+    8: ['Sap Bind'], // Signature: Drains 25% of damage to all allies, doubled if Medic role
+    12: ['Vine Whip'],
+    15: ['Sleep Powder'],
+    19: ['Synthesis'],
+    23: ['Poison Powder'],
+    27: ['Magical Leaf'],
+    32: ['Aromatherapy'],
+    38: ['Giga Drain'],
   },
   
   Squirtle: {

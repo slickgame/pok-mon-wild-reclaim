@@ -212,6 +212,98 @@ export const MOVE_DATA = {
     stages: 2
   },
 
+  // Bulbasaur's moves
+  'Leech Seed': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: 90,
+    pp: 10,
+    description: 'Seeds foe to sap HP each turn.',
+    effect: 'leechSeed',
+    drainPercentage: 0.125
+  },
+  'Sap Bind': {
+    type: 'Grass',
+    category: 'Special',
+    power: 35,
+    accuracy: 100,
+    pp: 10,
+    description: 'Drains 25% of damage to all allies. Doubled if user is Medic Role.',
+    signature: true,
+    effect: 'healAllies',
+    healPercentage: 0.25,
+    synergy: {
+      rolebonus: 'Medic',
+      roleHealMultiplier: 2,
+      description: 'Healing doubled when used by Medic role'
+    }
+  },
+  'Vine Whip': {
+    type: 'Grass',
+    category: 'Physical',
+    power: 45,
+    accuracy: 100,
+    pp: 25,
+    description: 'Whips target with vines.'
+  },
+  'Sleep Powder': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: 75,
+    pp: 15,
+    description: 'Puts target to sleep.',
+    effect: 'sleep'
+  },
+  'Synthesis': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 5,
+    description: "Heals user's HP.",
+    effect: 'healSelf',
+    healPercentage: 0.5
+  },
+  'Poison Powder': {
+    type: 'Poison',
+    category: 'Status',
+    power: 0,
+    accuracy: 75,
+    pp: 35,
+    description: 'Poisons the target.',
+    effect: 'poison'
+  },
+  'Magical Leaf': {
+    type: 'Grass',
+    category: 'Special',
+    power: 60,
+    accuracy: null,
+    pp: 20,
+    description: 'Always hits.',
+    neverMiss: true
+  },
+  'Aromatherapy': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 5,
+    description: 'Heals all allies of status conditions.',
+    effect: 'healStatusAllies'
+  },
+  'Giga Drain': {
+    type: 'Grass',
+    category: 'Special',
+    power: 75,
+    accuracy: 100,
+    pp: 10,
+    description: 'Deals damage and heals for 50% of it.',
+    effect: 'drain',
+    drainPercentage: 0.5
+  },
+
   // Common moves
   'Tackle': {
     type: 'Normal',
