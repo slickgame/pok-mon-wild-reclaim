@@ -18,6 +18,10 @@ import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 import { getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
 import MoveLearnModal from '@/components/battle/MoveLearnModal';
+import { checkEvolution, getEvolvedStats, getEvolvedRoles } from '@/components/pokemon/evolutionData';
+import EvolutionModal from '@/components/pokemon/EvolutionModal';
+import { calculateAllStats } from '@/components/pokemon/statCalculations';
+import { getBaseStats } from '@/components/pokemon/baseStats';
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
@@ -27,6 +31,7 @@ export default function BattlePage() {
   const [capturingPokemon, setCapturingPokemon] = useState(false);
   const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch'
   const [moveLearnState, setMoveLearnState] = useState(null); // { pokemon, newMoves, currentMoves, pendingUpdate }
+  const [evolutionState, setEvolutionState] = useState(null); // { pokemon, evolvesInto, pendingUpdate }
   const queryClient = useQueryClient();
   const { triggerTutorial } = useTutorialTrigger();
 
@@ -359,12 +364,26 @@ export default function BattlePage() {
       // Trigger first_victory tutorial
       triggerTutorial('first_victory');
       
-      // Check if we need to show move learning UI
-      if (movesLearned.length > 0) {
-        // Get current moves (default to first 4 from moveset if not set)
+      // Check for evolution first
+      const evolutionData = checkEvolution(newBattleState.playerPokemon, newLevel);
+      
+      if (evolutionData) {
+        // Store evolution state
+        setEvolutionState({
+          pokemon: newBattleState.playerPokemon,
+          evolvesInto: evolutionData.evolvesInto,
+          pendingUpdate: {
+            id: newBattleState.playerPokemon.id,
+            experience: newXP,
+            level: newLevel,
+            evs: evResult.newEVs,
+            movesLearned: movesLearned
+          }
+        });
+      } else if (movesLearned.length > 0) {
+        // No evolution, but has moves to learn
         const currentMoves = newBattleState.playerPokemon.abilities || [];
         
-        // Store the pending update and show move learn modal
         setMoveLearnState({
           pokemon: newBattleState.playerPokemon,
           newMoves: movesLearned,
@@ -377,7 +396,7 @@ export default function BattlePage() {
           }
         });
       } else {
-        // No moves to learn, just update stats
+        // No evolution or moves, just update stats
         base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
           experience: newXP,
           level: newLevel,
@@ -548,6 +567,90 @@ export default function BattlePage() {
     setMoveLearnState(null);
   };
 
+  // Handle evolution
+  const handleEvolution = async () => {
+    if (!evolutionState) return;
+
+    try {
+      const { pokemon, evolvesInto, pendingUpdate } = evolutionState;
+      
+      // Calculate new stats based on evolved form
+      const evolvedStats = getEvolvedStats(evolvesInto, pokemon.stats);
+      
+      // Get new roles
+      const evolvedRoles = getEvolvedRoles(evolvesInto, pokemon.roles || []);
+      
+      // Recalculate stats properly with new base stats
+      const baseStats = getBaseStats(evolvesInto);
+      const calculatedStats = calculateAllStats(
+        { level: pendingUpdate.level, nature: pokemon.nature, ivs: pokemon.ivs, evs: pendingUpdate.evs },
+        baseStats
+      );
+      
+      // Update Pokemon with evolution
+      await base44.entities.Pokemon.update(pendingUpdate.id, {
+        species: evolvesInto,
+        experience: pendingUpdate.experience,
+        level: pendingUpdate.level,
+        evs: pendingUpdate.evs,
+        stats: calculatedStats,
+        currentHp: calculatedStats.hp,
+        roles: evolvedRoles
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+      
+      // Check if there are moves to learn after evolution
+      if (pendingUpdate.movesLearned && pendingUpdate.movesLearned.length > 0) {
+        const currentMoves = pokemon.abilities || [];
+        setMoveLearnState({
+          pokemon: { ...pokemon, species: evolvesInto },
+          newMoves: pendingUpdate.movesLearned,
+          currentMoves: currentMoves,
+          pendingUpdate: {
+            id: pendingUpdate.id,
+            experience: pendingUpdate.experience,
+            level: pendingUpdate.level,
+            evs: pendingUpdate.evs
+          }
+        });
+      }
+      
+      setEvolutionState(null);
+    } catch (err) {
+      console.error('Failed to evolve Pokémon:', err);
+      setEvolutionState(null);
+    }
+  };
+
+  const handleCancelEvolution = async () => {
+    if (!evolutionState) return;
+
+    // Update Pokemon without evolving
+    try {
+      await base44.entities.Pokemon.update(evolutionState.pendingUpdate.id, {
+        experience: evolutionState.pendingUpdate.experience,
+        level: evolutionState.pendingUpdate.level,
+        evs: evolutionState.pendingUpdate.evs
+      });
+      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+      
+      // Check for moves to learn
+      if (evolutionState.pendingUpdate.movesLearned && evolutionState.pendingUpdate.movesLearned.length > 0) {
+        const currentMoves = evolutionState.pokemon.abilities || [];
+        setMoveLearnState({
+          pokemon: evolutionState.pokemon,
+          newMoves: evolutionState.pendingUpdate.movesLearned,
+          currentMoves: currentMoves,
+          pendingUpdate: evolutionState.pendingUpdate
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update Pokémon:', err);
+    }
+    setEvolutionState(null);
+  };
+
   if (loadingPokemon) {
     return (
       <div>
@@ -650,8 +753,18 @@ export default function BattlePage() {
             isPlayer
           />
 
+          {/* Evolution Modal */}
+          {evolutionState && (
+            <EvolutionModal
+              pokemon={evolutionState.pokemon}
+              evolvesInto={evolutionState.evolvesInto}
+              onComplete={handleEvolution}
+              onCancel={handleCancelEvolution}
+            />
+          )}
+
           {/* Move Learning Modal */}
-          {moveLearnState && (
+          {moveLearnState && !evolutionState && (
             <MoveLearnModal
               pokemon={moveLearnState.pokemon}
               newMoves={moveLearnState.newMoves}
@@ -662,7 +775,7 @@ export default function BattlePage() {
           )}
 
           {/* Battle Results Modal */}
-          {isBattleEnded && !moveLearnState && (
+          {isBattleEnded && !moveLearnState && !evolutionState && (
             <BattleOutcomeModal
               outcome={{
                 result: battleState.status === 'captured' ? 'captured' : 
