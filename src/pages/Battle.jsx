@@ -804,14 +804,46 @@ export default function BattlePage() {
               addedToParty={captureModalState.addedToParty}
               onComplete={async (nickname) => {
                 try {
+                  const species = captureModalState.pokemon.species;
+                  const level = captureModalState.pokemon.level;
+                  
                   // Update the captured Pokémon with correct placement and nickname
                   await base44.entities.Pokemon.update(wildPokemonId, {
                     isInTeam: captureModalState.addedToParty,
                     nickname: nickname || undefined
                   });
                   
+                  // Check if this species is already in Pokédex
+                  const existingEntry = await base44.entities.Pokedex.filter({ species });
+                  
+                  if (existingEntry.length === 0) {
+                    // New Pokédex entry - first time catching this species
+                    await base44.entities.Pokedex.create({
+                      species,
+                      status: 'Caught',
+                      firstCaughtAt: new Date().toISOString(),
+                      firstCaughtLocation: returnTo || 'Unknown Zone',
+                      firstCaughtLevel: level,
+                      captureMethod: 'Pokéball',
+                      timesCaught: 1,
+                      highestLevelSeen: level
+                    });
+                    
+                    // Show success notification
+                    alert(`🎉 New Pokédex Entry!\n\n${species} was registered to your Pokédex!`);
+                  } else {
+                    // Update existing entry
+                    const entry = existingEntry[0];
+                    await base44.entities.Pokedex.update(entry.id, {
+                      status: 'Caught',
+                      timesCaught: (entry.timesCaught || 1) + 1,
+                      highestLevelSeen: Math.max(entry.highestLevelSeen || 0, level)
+                    });
+                  }
+                  
                   queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
                   queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+                  queryClient.invalidateQueries({ queryKey: ['pokedex'] });
                   
                   setCaptureModalState(null);
                   
