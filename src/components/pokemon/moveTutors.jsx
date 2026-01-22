@@ -18,7 +18,7 @@ export const MOVE_TUTORS = {
       {
         name: 'Thunder Punch',
         cost: { gold: 750, materials: [{ name: 'Glowworm', quantity: 3 }] },
-        teachableTo: ['Pikachu', 'Raichu', 'Electabuzz', 'Jolteon', 'Luxray', 'Machop', 'Machoke', 'Machamp'],
+        teachableTo: ['Charmander', 'Charmeleon', 'Charizard', 'Pikachu', 'Raichu', 'Electabuzz', 'Jolteon', 'Luxray', 'Machop', 'Machoke', 'Machamp'],
         description: 'An electrified punch that may paralyze the target',
         trustRequired: 50
       },
@@ -28,6 +28,20 @@ export const MOVE_TUTORS = {
         teachableTo: ['Charmander', 'Charmeleon', 'Charizard', 'Magmar', 'Flareon', 'Machop', 'Machoke', 'Machamp'],
         description: 'A fiery punch that may burn the target',
         trustRequired: 50
+      },
+      {
+        name: 'Heat Wave',
+        cost: { gold: 1000, materials: [{ name: 'Silk Fragment', quantity: 5 }] },
+        teachableTo: ['Charmander', 'Charmeleon', 'Charizard', 'Vulpix', 'Ninetales', 'Magmar', 'Flareon', 'Moltres'],
+        description: 'Hits all foes, may burn',
+        trustRequired: 75
+      },
+      {
+        name: 'Blast Burn',
+        cost: { gold: 2000, materials: [{ name: 'Ember Stone', quantity: 10 }] },
+        teachableTo: ['Charmander', 'Charmeleon', 'Charizard'],
+        description: 'Very strong fire move. Must recharge next turn.',
+        trustRequired: 100
       }
     ]
   },
@@ -50,6 +64,20 @@ export const MOVE_TUTORS = {
         cost: { gold: 1200, materials: [{ name: 'Moonleaf', quantity: 5 }] },
         teachableTo: ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Chansey', 'Blissey', 'Miltank'],
         description: 'The user makes a soothing sound that heals all status conditions of allies',
+        trustRequired: 100
+      },
+      {
+        name: 'Grass Pledge',
+        cost: { gold: 800, materials: [{ name: 'Moonleaf', quantity: 3 }] },
+        teachableTo: ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Oddish', 'Gloom', 'Vileplume', 'Bellsprout', 'Weepinbell', 'Victreebel'],
+        description: 'Combo move if used with Fire/Water Pledge',
+        trustRequired: 60
+      },
+      {
+        name: 'Frenzy Plant',
+        cost: { gold: 2000, materials: [{ name: 'Moonleaf', quantity: 10 }] },
+        teachableTo: ['Bulbasaur', 'Ivysaur', 'Venusaur'],
+        description: 'Ultimate move. Requires recharge.',
         trustRequired: 100
       }
     ]
@@ -74,6 +102,27 @@ export const MOVE_TUTORS = {
         teachableTo: ['Squirtle', 'Wartortle', 'Blastoise', 'Horsea', 'Seadra', 'Lapras', 'Vaporeon'],
         description: 'Traps the target in a whirlpool for several turns',
         trustRequired: 60
+      },
+      {
+        name: 'Aqua Tail',
+        cost: { gold: 900, materials: [{ name: 'River Stone', quantity: 5 }] },
+        teachableTo: ['Squirtle', 'Wartortle', 'Blastoise', 'Psyduck', 'Golduck', 'Poliwag', 'Poliwhirl', 'Poliwrath', 'Gyarados', 'Lapras', 'Vaporeon'],
+        description: 'Slams target with a big tail',
+        trustRequired: 70
+      },
+      {
+        name: 'Zen Headbutt',
+        cost: { gold: 1000, materials: [{ name: 'River Stone', quantity: 6 }] },
+        teachableTo: ['Squirtle', 'Wartortle', 'Blastoise', 'Psyduck', 'Golduck', 'Slowpoke', 'Slowbro'],
+        description: 'May cause flinch',
+        trustRequired: 80
+      },
+      {
+        name: 'Hydro Cannon',
+        cost: { gold: 2000, materials: [{ name: 'River Stone', quantity: 10 }] },
+        teachableTo: ['Squirtle', 'Wartortle', 'Blastoise'],
+        description: 'Ultimate move. Requires recharge.',
+        trustRequired: 100
       }
     ]
   }

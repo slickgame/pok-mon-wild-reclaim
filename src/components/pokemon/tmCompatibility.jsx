@@ -5,13 +5,18 @@ export const TM_COMPATIBILITY = {
   // Fire Moves
   'Flamethrower': ['Charmander', 'Charmeleon', 'Charizard', 'Vulpix', 'Ninetales', 'Growlithe', 'Arcanine', 'Ponyta', 'Rapidash', 'Magmar', 'Flareon', 'Moltres'],
   'Fire Blast': ['Charmander', 'Charmeleon', 'Charizard', 'Ninetales', 'Arcanine', 'Rapidash', 'Magmar', 'Flareon', 'Moltres'],
+  'Will-O-Wisp': ['Charmander', 'Charmeleon', 'Charizard', 'Vulpix', 'Ninetales', 'Growlithe', 'Arcanine', 'Magmar', 'Flareon', 'Gastly', 'Haunter', 'Gengar', 'Moltres'],
+  'Sunny Day': ['Charmander', 'Charmeleon', 'Charizard', 'Bulbasaur', 'Ivysaur', 'Venusaur', 'Vulpix', 'Ninetales', 'Oddish', 'Gloom', 'Vileplume', 'Bellsprout', 'Weepinbell', 'Victreebel', 'Exeggcute', 'Exeggutor'],
   
   // Water Moves
   'Surf': ['Squirtle', 'Wartortle', 'Blastoise', 'Psyduck', 'Golduck', 'Poliwag', 'Poliwhirl', 'Poliwrath', 'Tentacool', 'Tentacruel', 'Slowpoke', 'Slowbro', 'Seel', 'Dewgong', 'Shellder', 'Cloyster', 'Krabby', 'Kingler', 'Horsea', 'Seadra', 'Goldeen', 'Seaking', 'Staryu', 'Starmie', 'Magikarp', 'Gyarados', 'Lapras', 'Vaporeon', 'Omanyte', 'Omastar', 'Kabuto', 'Kabutops'],
   'Hydro Pump': ['Squirtle', 'Wartortle', 'Blastoise', 'Golduck', 'Poliwrath', 'Tentacruel', 'Slowbro', 'Cloyster', 'Kingler', 'Seadra', 'Starmie', 'Gyarados', 'Lapras', 'Vaporeon'],
+  'Rain Dance': ['Squirtle', 'Wartortle', 'Blastoise', 'Psyduck', 'Golduck', 'Poliwag', 'Poliwhirl', 'Poliwrath', 'Tentacool', 'Tentacruel', 'Slowpoke', 'Slowbro', 'Goldeen', 'Seaking', 'Horsea', 'Seadra', 'Lapras', 'Vaporeon'],
   
   // Grass Moves
   'Solar Beam': ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Oddish', 'Gloom', 'Vileplume', 'Paras', 'Parasect', 'Bellsprout', 'Weepinbell', 'Victreebel', 'Exeggcute', 'Exeggutor', 'Tangela', 'Moltres'],
+  'Energy Ball': ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Oddish', 'Gloom', 'Vileplume', 'Bellsprout', 'Weepinbell', 'Victreebel', 'Exeggcute', 'Exeggutor', 'Tangela'],
+  'Sludge Bomb': ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Ekans', 'Arbok', 'Oddish', 'Gloom', 'Vileplume', 'Grimer', 'Muk', 'Koffing', 'Weezing', 'Gastly', 'Haunter', 'Gengar'],
   
   // Electric Moves
   'Thunderbolt': ['Pikachu', 'Raichu', 'Magnemite', 'Magneton', 'Voltorb', 'Electrode', 'Electabuzz', 'Jolteon', 'Zapdos', 'Luxray'],
@@ -35,6 +40,22 @@ export const TM_COMPATIBILITY = {
   
   // Dragon Moves
   'Dragon Claw': ['Charmander', 'Charmeleon', 'Charizard', 'Dragonite'],
+  
+  // Flying Moves
+  'Aerial Ace': ['Charmander', 'Charmeleon', 'Charizard', 'Pidgey', 'Pidgeotto', 'Pidgeot', 'Spearow', 'Fearow', 'Zubat', 'Golbat', 'Farfetch\'d', 'Doduo', 'Dodrio', 'Scyther', 'Aerodactyl', 'Dragonite', 'Moltres', 'Zapdos', 'Articuno'],
+  
+  // Ghost Moves
+  'Shadow Claw': ['Charmander', 'Charmeleon', 'Charizard', 'Gastly', 'Haunter', 'Gengar', 'Cubone', 'Marowak'],
+  
+  // Fighting Moves
+  'Brick Break': ['Squirtle', 'Wartortle', 'Blastoise', 'Mankey', 'Primeape', 'Machop', 'Machoke', 'Machamp', 'Hitmonlee', 'Hitmonchan', 'Rhydon', 'Kangaskhan', 'Pinsir'],
+  
+  // Steel Moves
+  'Iron Defense': ['Squirtle', 'Wartortle', 'Blastoise', 'Sandshrew', 'Sandslash', 'Geodude', 'Graveler', 'Golem', 'Magnemite', 'Magneton', 'Onix', 'Krabby', 'Kingler', 'Omanyte', 'Omastar', 'Kabuto', 'Kabutops'],
+  
+  // Psychic Screens
+  'Light Screen': ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Butterfree', 'Venonat', 'Venomoth', 'Psyduck', 'Golduck', 'Kadabra', 'Alakazam', 'Slowpoke', 'Slowbro', 'Drowzee', 'Hypno', 'Exeggcute', 'Exeggutor', 'Chansey', 'Mr. Mime', 'Jynx', 'Mewtwo', 'Mew'],
+  'Reflect': ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Butterfree', 'Kadabra', 'Alakazam', 'Slowpoke', 'Slowbro', 'Drowzee', 'Hypno', 'Chansey', 'Mr. Mime', 'Jynx', 'Mewtwo', 'Mew'],
   
   // Universal TMs (can be learned by many)
   'Toxic': ['Bulbasaur', 'Ivysaur', 'Venusaur', 'Ekans', 'Arbok', 'Nidoran', 'Nidorina', 'Nidoqueen', 'Nidorino', 'Nidoking', 'Zubat', 'Golbat', 'Oddish', 'Gloom', 'Vileplume', 'Venonat', 'Venomoth', 'Grimer', 'Muk', 'Gastly', 'Haunter', 'Gengar', 'Koffing', 'Weezing', 'Tentacool', 'Tentacruel'],

@@ -483,6 +483,155 @@ export const MOVE_DATA = {
     lockTurns: [2, 3]
   },
 
+  // Additional TM/HM and Tutor Moves
+  'Will-O-Wisp': {
+    type: 'Fire',
+    category: 'Status',
+    power: 0,
+    accuracy: 85,
+    pp: 15,
+    description: 'Burns the opponent.',
+    effect: 'burn'
+  },
+  'Sunny Day': {
+    type: 'Fire',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 5,
+    description: 'Boosts fire, weakens water for 5 turns.',
+    effect: 'weather',
+    weather: 'sun',
+    duration: 5
+  },
+  'Rain Dance': {
+    type: 'Water',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 5,
+    description: 'Boosts water-type moves, activates healing synergy.',
+    effect: 'weather',
+    weather: 'rain',
+    duration: 5
+  },
+  'Aerial Ace': {
+    type: 'Flying',
+    category: 'Physical',
+    power: 60,
+    accuracy: null,
+    pp: 20,
+    description: 'Never misses.',
+    neverMiss: true
+  },
+  'Shadow Claw': {
+    type: 'Ghost',
+    category: 'Physical',
+    power: 70,
+    accuracy: 100,
+    pp: 15,
+    description: 'High crit chance.',
+    critRate: 2
+  },
+  'Brick Break': {
+    type: 'Fighting',
+    category: 'Physical',
+    power: 75,
+    accuracy: 100,
+    pp: 15,
+    description: 'Breaks barriers like Light Screen, Reflect.',
+    effect: 'breakScreens'
+  },
+  'Sludge Bomb': {
+    type: 'Poison',
+    category: 'Special',
+    power: 90,
+    accuracy: 100,
+    pp: 10,
+    description: 'May poison target.',
+    effect: 'poison',
+    effectChance: 30
+  },
+  'Light Screen': {
+    type: 'Psychic',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 30,
+    description: 'Halves special damage for 5 turns.',
+    effect: 'setScreen',
+    screen: 'lightScreen',
+    duration: 5
+  },
+  'Reflect': {
+    type: 'Psychic',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'Halves physical damage for 5 turns.',
+    effect: 'setScreen',
+    screen: 'reflect',
+    duration: 5
+  },
+  'Heat Wave': {
+    type: 'Fire',
+    category: 'Special',
+    power: 95,
+    accuracy: 90,
+    pp: 10,
+    description: 'Hits all foes, may burn.',
+    aoe: true,
+    effect: 'burn',
+    effectChance: 10
+  },
+  'Blast Burn': {
+    type: 'Fire',
+    category: 'Special',
+    power: 150,
+    accuracy: 90,
+    pp: 5,
+    description: 'Very strong fire move. Must recharge next turn.',
+    effect: 'recharge'
+  },
+  'Zen Headbutt': {
+    type: 'Psychic',
+    category: 'Physical',
+    power: 80,
+    accuracy: 90,
+    pp: 15,
+    description: 'May cause flinch.',
+    effect: 'flinch',
+    effectChance: 20
+  },
+  'Hydro Cannon': {
+    type: 'Water',
+    category: 'Special',
+    power: 150,
+    accuracy: 90,
+    pp: 5,
+    description: 'Ultimate move. Requires recharge.',
+    effect: 'recharge'
+  },
+  'Grass Pledge': {
+    type: 'Grass',
+    category: 'Special',
+    power: 80,
+    accuracy: 100,
+    pp: 10,
+    description: 'Combo move if used with Fire/Water Pledge.',
+    effect: 'pledge'
+  },
+  'Frenzy Plant': {
+    type: 'Grass',
+    category: 'Special',
+    power: 150,
+    accuracy: 90,
+    pp: 5,
+    description: 'Ultimate move. Requires recharge.',
+    effect: 'recharge'
+  },
+
   // Common moves
   'Tackle': {
     type: 'Normal',
