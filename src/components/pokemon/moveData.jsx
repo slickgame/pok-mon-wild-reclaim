@@ -231,6 +231,8 @@ export const MOVE_DATA = {
     pp: 10,
     description: 'Drains 25% of damage to all allies. Doubled if user is Medic Role.',
     signature: true,
+    signatureFor: ['Medic', 'Support'],
+    tags: ['signature', 'healing', 'support'],
     effect: 'healAllies',
     healPercentage: 0.25,
     synergy: {
@@ -629,7 +631,114 @@ export const MOVE_DATA = {
     accuracy: 90,
     pp: 5,
     description: 'Ultimate move. Requires recharge.',
+    tags: ['ultimate', 'recharge'],
     effect: 'recharge'
+  },
+
+  // Egg Moves - Charmander line
+  'Dragon Dance': {
+    type: 'Dragon',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'Boosts Attack and Speed.',
+    tags: ['eggMove', 'statBoost', 'setup'],
+    effect: 'multiBoost',
+    boosts: {
+      attack: 1,
+      speed: 1
+    }
+  },
+  'Bite': {
+    type: 'Dark',
+    category: 'Physical',
+    power: 60,
+    accuracy: 100,
+    pp: 25,
+    description: 'May flinch target.',
+    tags: ['eggMove', 'flinch'],
+    effect: 'flinch',
+    effectChance: 30
+  },
+  'Metal Claw': {
+    type: 'Steel',
+    category: 'Physical',
+    power: 50,
+    accuracy: 95,
+    pp: 35,
+    description: 'May raise Attack.',
+    tags: ['eggMove', 'statBoost'],
+    effect: 'raiseAttack',
+    effectChance: 10
+  },
+
+  // Egg Moves - Squirtle line
+  'Mirror Coat': {
+    type: 'Psychic',
+    category: 'Special',
+    power: 0,
+    accuracy: 100,
+    pp: 20,
+    description: 'Reflects special attacks back.',
+    tags: ['eggMove', 'counterMove', 'priority'],
+    effect: 'mirrorCoat',
+    priority: -5
+  },
+  'Mud Sport': {
+    type: 'Ground',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 15,
+    description: 'Reduces Electric-type move power.',
+    tags: ['eggMove', 'fieldEffect'],
+    effect: 'mudSport',
+    duration: 5
+  },
+  'Aqua Jet': {
+    type: 'Water',
+    category: 'Physical',
+    power: 40,
+    accuracy: 100,
+    pp: 20,
+    description: 'Priority move (goes first).',
+    tags: ['eggMove', 'priority'],
+    priority: 1
+  },
+
+  // Egg Moves - Bulbasaur line
+  'Amnesia': {
+    type: 'Psychic',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'Sharply raises Sp. Def.',
+    tags: ['eggMove', 'statBoost', 'setup'],
+    effect: 'raiseSpDef',
+    stages: 2
+  },
+  'Ingrain': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'Plants roots to recover HP.',
+    tags: ['eggMove', 'healing', 'passive'],
+    effect: 'ingrain',
+    healPercentage: 0.0625
+  },
+  'Nature Power': {
+    type: 'Normal',
+    category: 'Varies',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'Converts to another move depending on terrain.',
+    tags: ['eggMove', 'terrainBoosted', 'versatile'],
+    effect: 'naturePower'
   },
 
   // Common moves
