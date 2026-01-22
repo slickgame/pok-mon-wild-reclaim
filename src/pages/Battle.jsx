@@ -14,6 +14,8 @@ import BattleLog from '@/components/battle/BattleLog';
 import TalentDisplay from '@/components/battle/TalentDisplay';
 import BattleOutcomeModal from '@/components/battle/BattleOutcomeModal';
 import { BattleEngine } from '@/components/battle/BattleEngine';
+import { applyEVGains } from '@/components/pokemon/evManager';
+import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
@@ -302,6 +304,10 @@ export default function BattlePage() {
       const newXP = (newBattleState.playerPokemon.experience || 0) + xpGained;
       const goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
       
+      // Apply EV gains
+      const currentEVs = newBattleState.playerPokemon.evs || { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 };
+      const evResult = applyEVGains(currentEVs, newBattleState.enemyPokemon.species);
+      
       // Generate material drops for wild battles
       const materialsDropped = [];
       if (newBattleState.isWildBattle) {
@@ -316,16 +322,19 @@ export default function BattlePage() {
       newBattleState.rewards = {
         xpGained,
         goldGained,
-        materialsDropped
+        materialsDropped,
+        evsGained: evResult.evsGained,
+        totalEVsGained: evResult.totalGained
       };
       
       // Trigger first_victory tutorial
       triggerTutorial('first_victory');
       
-      // Update player's Pokémon
+      // Update player's Pokémon with XP and EVs
       base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
-        experience: newXP
-      }).catch(err => console.error('Failed to update XP:', err));
+        experience: newXP,
+        evs: evResult.newEVs
+      }).catch(err => console.error('Failed to update Pokémon:', err));
 
       // Add materials to inventory
       if (materialsDropped.length > 0) {

@@ -106,9 +106,67 @@ export const EV_YIELDS = {
   Blastoise: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 3, spd: 0 },
   
   Pidgey: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 1 },
+  Pidgeotto: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 2 },
+  Pidgeot: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 3 },
+  
   Rattata: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 1 },
+  Raticate: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 2 },
+  
+  Caterpie: { hp: 1, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  Metapod: { hp: 0, atk: 0, def: 2, spAtk: 0, spDef: 0, spd: 0 },
+  Butterfree: { hp: 0, atk: 0, def: 0, spAtk: 2, spDef: 1, spd: 0 },
+  
+  Weedle: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 1 },
+  Kakuna: { hp: 0, atk: 0, def: 2, spAtk: 0, spDef: 0, spd: 0 },
+  Beedrill: { hp: 0, atk: 2, def: 0, spAtk: 0, spDef: 0, spd: 1 },
+  
+  Pikachu: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 2 },
+  Raichu: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 3 },
+  
   Geodude: { hp: 0, atk: 0, def: 1, spAtk: 0, spDef: 0, spd: 0 },
+  Graveler: { hp: 0, atk: 0, def: 2, spAtk: 0, spDef: 0, spd: 0 },
+  Golem: { hp: 0, atk: 0, def: 3, spAtk: 0, spDef: 0, spd: 0 },
+  
   Magikarp: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 1 },
+  Gyarados: { hp: 0, atk: 2, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  
+  Eevee: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 1, spd: 0 },
+  Vaporeon: { hp: 2, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  Jolteon: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 2 },
+  Flareon: { hp: 0, atk: 2, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  
+  Dratini: { hp: 0, atk: 1, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  Dragonair: { hp: 0, atk: 2, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  Dragonite: { hp: 0, atk: 3, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  
+  Articuno: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 3, spd: 0 },
+  Zapdos: { hp: 0, atk: 0, def: 0, spAtk: 3, spDef: 0, spd: 0 },
+  Moltres: { hp: 0, atk: 0, def: 0, spAtk: 3, spDef: 0, spd: 0 },
+  Mewtwo: { hp: 0, atk: 0, def: 0, spAtk: 3, spDef: 0, spd: 0 },
+  Mew: { hp: 3, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  
+  Chikorita: { hp: 0, atk: 0, def: 1, spAtk: 0, spDef: 0, spd: 0 },
+  Bayleef: { hp: 0, atk: 0, def: 1, spAtk: 0, spDef: 1, spd: 0 },
+  Meganium: { hp: 0, atk: 0, def: 1, spAtk: 0, spDef: 2, spd: 0 },
+  
+  Cyndaquil: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 1 },
+  Quilava: { hp: 0, atk: 0, def: 0, spAtk: 1, spDef: 0, spd: 1 },
+  Typhlosion: { hp: 0, atk: 0, def: 0, spAtk: 3, spDef: 0, spd: 0 },
+  
+  Totodile: { hp: 0, atk: 1, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  Croconaw: { hp: 0, atk: 1, def: 1, spAtk: 0, spDef: 0, spd: 0 },
+  Feraligatr: { hp: 0, atk: 2, def: 1, spAtk: 0, spDef: 0, spd: 0 },
+  
+  Togepi: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 1, spd: 0 },
+  Togetic: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 2, spd: 0 },
+  
+  Ampharos: { hp: 0, atk: 0, def: 0, spAtk: 3, spDef: 0, spd: 0 },
+  Umbreon: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 2, spd: 0 },
+  Espeon: { hp: 0, atk: 0, def: 0, spAtk: 2, spDef: 0, spd: 0 },
+  
+  Tyranitar: { hp: 0, atk: 3, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+  Lugia: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 3, spd: 0 },
+  HoOh: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 3, spd: 0 },
 };
 
 export function getEVYield(species) {
