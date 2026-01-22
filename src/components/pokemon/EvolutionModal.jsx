@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Zap, ArrowRight, TrendingUp } from 'lucide-react';
 import { getEvolvedStats } from './evolutionData';
-import { POKEMON_SPRITES } from './baseStats';
 
 export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStats, onComplete, onCancel }) {
   const [stage, setStage] = useState('confirm'); // 'confirm', 'evolving', 'stats', 'complete'
@@ -30,7 +29,7 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
     }
   }, [stage]);
   
-  const evolvedSprite = POKEMON_SPRITES[evolvesInto] || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${Math.floor(Math.random() * 150) + 1}.png`;
+  const evolvedSprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${Math.floor(Math.random() * 150) + 1}.png`;
   
   const statDifferences = newStats && oldStats ? {
     hp: newStats.maxHp - oldStats.maxHp,
