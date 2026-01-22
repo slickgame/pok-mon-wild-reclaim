@@ -14,6 +14,7 @@ import StartScreen from './pages/StartScreen';
 import StoryCutscene from './pages/StoryCutscene';
 import TutorialLog from './pages/TutorialLog';
 import Zones from './pages/Zones';
+import Storage from './pages/Storage';
 import __Layout from './Layout.jsx';
 
 
@@ -34,6 +35,7 @@ export const PAGES = {
     "StoryCutscene": StoryCutscene,
     "TutorialLog": TutorialLog,
     "Zones": Zones,
+    "Storage": Storage,
 }
 
 export const pagesConfig = {

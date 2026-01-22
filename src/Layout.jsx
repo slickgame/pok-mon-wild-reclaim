@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown } from 'lucide-react';
+import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown, Box } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -10,6 +10,7 @@ import TimeWidget from '@/components/time/TimeWidget';
 const navItems = [
   { name: 'Home', icon: Home, page: 'Home' },
   { name: 'Pokémon', icon: PawPrint, page: 'Pokemon' },
+  { name: 'Storage', icon: Box, page: 'Storage' },
   { name: 'Battle', icon: Swords, page: 'Battle' },
   { name: 'Contests', icon: Trophy, page: 'Contests' },
   { name: 'Fishing', icon: Fish, page: 'Fishing' },
