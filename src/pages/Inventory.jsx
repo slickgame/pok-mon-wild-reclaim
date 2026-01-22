@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import PageHeader from '@/components/common/PageHeader';
 import ItemCard from '@/components/inventory/ItemCard';
+import TMUsageModal from '@/components/items/TMUsageModal';
 
 const itemTypes = [
   { value: 'all', label: 'All', icon: Package },
@@ -25,6 +26,7 @@ export default function InventoryPage() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [tmModalItem, setTmModalItem] = useState(null);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['items'],
@@ -152,15 +154,38 @@ export default function InventoryPage() {
       <Sheet open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
         <SheetContent className="bg-slate-900 border-slate-800 w-full sm:max-w-md">
           {selectedItem && (
-            <ItemDetailView item={selectedItem} onClose={() => setSelectedItem(null)} />
+            <ItemDetailView 
+              item={selectedItem} 
+              onClose={() => setSelectedItem(null)}
+              onUseTM={(item) => {
+                setTmModalItem(item);
+                setSelectedItem(null);
+              }}
+            />
           )}
         </SheetContent>
       </Sheet>
+
+      {/* TM Usage Modal */}
+      {tmModalItem && (
+        <TMUsageModal
+          tmItem={tmModalItem}
+          onUse={async (item) => {
+            // Consume TM
+            if (item.quantity > 1) {
+              await base44.entities.Item.update(item.id, { quantity: item.quantity - 1 });
+            } else {
+              await base44.entities.Item.delete(item.id);
+            }
+          }}
+          onClose={() => setTmModalItem(null)}
+        />
+      )}
     </div>
   );
 }
 
-function ItemDetailView({ item, onClose }) {
+function ItemDetailView({ item, onClose, onUseTM }) {
   const typeIcons = {
     'Potion': Beaker,
     'Bait': Target,
@@ -256,7 +281,18 @@ function ItemDetailView({ item, onClose }) {
         <Button variant="outline" className="flex-1 border-slate-700 text-slate-300">
           Drop
         </Button>
-        <Button className="flex-1 bg-gradient-to-r from-indigo-500 to-cyan-500">
+        <Button 
+          className="flex-1 bg-gradient-to-r from-indigo-500 to-cyan-500"
+          onClick={() => {
+            // Check if it's a TM item
+            if (item.name.match(/TM\d+/i)) {
+              onUseTM(item);
+            } else {
+              // Other item usage logic
+              alert('Item usage coming soon!');
+            }
+          }}
+        >
           Use
         </Button>
       </div>
