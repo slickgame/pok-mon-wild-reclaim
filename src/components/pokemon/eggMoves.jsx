@@ -2,9 +2,17 @@
 // Moves that can be passed from parents to offspring
 
 export const EGG_MOVES = {
-  Charmander: ['Dragon Dance', 'Outrage', 'Flare Blitz', 'Counter', 'Belly Drum'],
-  Bulbasaur: ['Giga Drain', 'Leaf Storm', 'Power Whip', 'Curse', 'Amnesia'],
-  Squirtle: ['Dragon Pulse', 'Aura Sphere', 'Aqua Ring', 'Mirror Coat', 'Yawn'],
+  Charmander: ['Dragon Dance', 'Bite', 'Metal Claw'],
+  Charmeleon: ['Dragon Dance', 'Bite', 'Metal Claw'],
+  Charizard: ['Dragon Dance', 'Bite', 'Metal Claw'],
+  
+  Bulbasaur: ['Amnesia', 'Ingrain', 'Nature Power'],
+  Ivysaur: ['Amnesia', 'Ingrain', 'Nature Power'],
+  Venusaur: ['Amnesia', 'Ingrain', 'Nature Power'],
+  
+  Squirtle: ['Mirror Coat', 'Mud Sport', 'Aqua Jet'],
+  Wartortle: ['Mirror Coat', 'Mud Sport', 'Aqua Jet'],
+  Blastoise: ['Mirror Coat', 'Mud Sport', 'Aqua Jet'],
   Pikachu: ['Volt Tackle', 'Wish', 'Fake Out', 'Encore', 'Present'],
   Eevee: ['Wish', 'Yawn', 'Curse', 'Tickle', 'Detect'],
   Machop: ['Close Combat', 'Bullet Punch', 'Ice Punch', 'Thunder Punch', 'Fire Punch'],

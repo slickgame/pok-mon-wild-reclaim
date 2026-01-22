@@ -1,5 +1,24 @@
 // Comprehensive move data including type, category, power, accuracy, PP, and descriptions
 // Used for battle calculations, UI displays, and move compatibility checks
+//
+// ⚙️ CENTRAL MOVE REGISTRY - Single source of truth for all move data
+// 
+// Structure:
+// {
+//   name: string,
+//   type: string,
+//   category: 'Physical' | 'Special' | 'Status',
+//   power: number (0 for status),
+//   accuracy: number | null (null = never misses),
+//   pp: number,
+//   description: string,
+//   effect?: string,
+//   effectChance?: number,
+//   signature?: boolean,
+//   signatureFor?: string[] (roles that benefit),
+//   tags?: string[] (eggMove, priority, multiHit, statusCure, terrainBoosted, etc),
+//   synergy?: object
+// }
 
 export const MOVE_DATA = {
   // Charmander's moves
@@ -38,6 +57,8 @@ export const MOVE_DATA = {
     pp: 15,
     description: '30% chance to Burn. Deals +30% damage if Role is Powerhouse. Guaranteed Burn if used after Growl.',
     signature: true,
+    signatureFor: ['Powerhouse'],
+    tags: ['signature', 'combo', 'burn'],
     effect: 'burn',
     effectChance: 30,
     synergy: {
@@ -135,6 +156,8 @@ export const MOVE_DATA = {
     pp: 10,
     description: 'Hits twice if HP > 75%. 20% chance to lower enemy Attack.',
     signature: true,
+    signatureFor: ['Juggernaut', 'Tank'],
+    tags: ['signature', 'multiHit', 'statLower'],
     effect: 'lowerAttack',
     effectChance: 20,
     synergy: {
@@ -169,6 +192,7 @@ export const MOVE_DATA = {
     accuracy: null,
     pp: 10,
     description: 'Prevents all damage that turn.',
+    tags: ['priority', 'protect'],
     effect: 'protect',
     priority: 4
   },
@@ -189,6 +213,7 @@ export const MOVE_DATA = {
     accuracy: 100,
     pp: 25,
     description: 'May cause flinch.',
+    tags: ['flinch'],
     effect: 'flinch',
     effectChance: 30
   },
@@ -594,6 +619,7 @@ export const MOVE_DATA = {
     accuracy: 90,
     pp: 5,
     description: 'Very strong fire move. Must recharge next turn.',
+    tags: ['ultimate', 'recharge'],
     effect: 'recharge'
   },
   'Zen Headbutt': {
@@ -613,6 +639,7 @@ export const MOVE_DATA = {
     accuracy: 90,
     pp: 5,
     description: 'Ultimate move. Requires recharge.',
+    tags: ['ultimate', 'recharge'],
     effect: 'recharge'
   },
   'Grass Pledge': {
@@ -766,11 +793,15 @@ export const MOVE_DATA = {
     accuracy: 100,
     pp: 30,
     description: 'Always strikes first.',
+    tags: ['priority'],
     priority: 1
   },
 
   // Add more moves as needed
 };
+
+// Alias for backward compatibility
+export const MOVES = MOVE_DATA;
 
 /**
  * Get move data by name
@@ -826,4 +857,40 @@ export function calculateSynergyDamage(moveName, pokemon, previousMoves = []) {
   }
 
   return Math.floor(power);
+}
+
+/**
+ * Get all moves with a specific tag
+ * @param {string} tag - Tag to filter by
+ * @returns {Array} Array of move objects with names
+ */
+export function getMovesByTag(tag) {
+  const moves = [];
+  for (const [name, data] of Object.entries(MOVE_DATA)) {
+    if (data.tags && data.tags.includes(tag)) {
+      moves.push({ name, ...data });
+    }
+  }
+  return moves;
+}
+
+/**
+ * Check if a move is an egg move
+ * @param {string} moveName - Move name
+ * @returns {boolean}
+ */
+export function isEggMove(moveName) {
+  const move = MOVE_DATA[moveName];
+  return move?.tags?.includes('eggMove') || false;
+}
+
+/**
+ * Check if a move is a signature move for a specific role
+ * @param {string} moveName - Move name
+ * @param {string} role - Role name
+ * @returns {boolean}
+ */
+export function isSignatureForRole(moveName, role) {
+  const move = MOVE_DATA[moveName];
+  return move?.signatureFor?.includes(role) || false;
 }
