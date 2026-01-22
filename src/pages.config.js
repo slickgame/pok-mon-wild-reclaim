@@ -16,6 +16,7 @@ import TutorialLog from './pages/TutorialLog';
 import Zones from './pages/Zones';
 import Storage from './pages/Storage';
 import Pokedex from './pages/Pokedex';
+import PartyManager from './pages/PartyManager';
 import __Layout from './Layout.jsx';
 
 
@@ -38,6 +39,7 @@ export const PAGES = {
     "Zones": Zones,
     "Storage": Storage,
     "Pokedex": Pokedex,
+    "PartyManager": PartyManager,
 }
 
 export const pagesConfig = {
