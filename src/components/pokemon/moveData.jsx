@@ -304,6 +304,185 @@ export const MOVE_DATA = {
     drainPercentage: 0.5
   },
 
+  // Charmeleon's additional moves
+  'Dragon Breath': {
+    type: 'Dragon',
+    category: 'Special',
+    power: 60,
+    accuracy: 100,
+    pp: 20,
+    description: '30% chance to paralyze.',
+    effect: 'paralyze',
+    effectChance: 30
+  },
+  'Flamethrower': {
+    type: 'Fire',
+    category: 'Special',
+    power: 90,
+    accuracy: 100,
+    pp: 15,
+    description: 'Powerful STAB.',
+    effect: 'burn',
+    effectChance: 10
+  },
+  'Scary Face': {
+    type: 'Normal',
+    category: 'Status',
+    power: 0,
+    accuracy: 100,
+    pp: 10,
+    description: 'Sharply lowers Speed.',
+    effect: 'lowerSpeed',
+    stages: 2
+  },
+  'Fire Blast': {
+    type: 'Fire',
+    category: 'Special',
+    power: 110,
+    accuracy: 85,
+    pp: 5,
+    description: 'Very strong STAB.',
+    effect: 'burn',
+    effectChance: 10
+  },
+  'Flare Blitz': {
+    type: 'Fire',
+    category: 'Physical',
+    power: 120,
+    accuracy: 100,
+    pp: 15,
+    description: 'Recoil damage.',
+    effect: 'recoil',
+    recoilPercentage: 0.33
+  },
+
+  // Wartortle's additional moves
+  'Rapid Spin': {
+    type: 'Normal',
+    category: 'Physical',
+    power: 50,
+    accuracy: 100,
+    pp: 40,
+    description: 'Removes hazards.',
+    effect: 'removeHazards'
+  },
+  'Water Pulse': {
+    type: 'Water',
+    category: 'Special',
+    power: 60,
+    accuracy: 100,
+    pp: 20,
+    description: 'May confuse.',
+    effect: 'confuse',
+    effectChance: 20
+  },
+  'Aqua Tail': {
+    type: 'Water',
+    category: 'Physical',
+    power: 90,
+    accuracy: 90,
+    pp: 10,
+    description: 'Strong STAB.'
+  },
+  'Crunch': {
+    type: 'Dark',
+    category: 'Physical',
+    power: 80,
+    accuracy: 100,
+    pp: 15,
+    description: 'May lower Defense.',
+    effect: 'lowerDefense',
+    effectChance: 20
+  },
+  'Muddy Water': {
+    type: 'Water',
+    category: 'Special',
+    power: 90,
+    accuracy: 85,
+    pp: 10,
+    description: 'Hits all, may lower accuracy.',
+    aoe: true,
+    effect: 'lowerAccuracy',
+    effectChance: 30
+  },
+  'Hydro Pump': {
+    type: 'Water',
+    category: 'Special',
+    power: 110,
+    accuracy: 80,
+    pp: 5,
+    description: 'Big damage.'
+  },
+
+  // Ivysaur's additional moves
+  'Sweet Scent': {
+    type: 'Normal',
+    category: 'Status',
+    power: 0,
+    accuracy: 100,
+    pp: 20,
+    description: 'Lowers enemy evasion.',
+    effect: 'lowerEvasion',
+    stages: 1
+  },
+  'Seed Bomb': {
+    type: 'Grass',
+    category: 'Physical',
+    power: 80,
+    accuracy: 100,
+    pp: 15,
+    description: 'Reliable STAB.'
+  },
+  'Heal Pulse': {
+    type: 'Psychic',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 10,
+    description: 'Heals target for 50% HP.',
+    effect: 'healTarget',
+    healPercentage: 0.5
+  },
+  'Energy Ball': {
+    type: 'Grass',
+    category: 'Special',
+    power: 90,
+    accuracy: 100,
+    pp: 10,
+    description: 'Chance to lower Sp. Def.',
+    effect: 'lowerSpDef',
+    effectChance: 10
+  },
+  'Toxic': {
+    type: 'Poison',
+    category: 'Status',
+    power: 0,
+    accuracy: 90,
+    pp: 10,
+    description: 'Badly poisons foe.',
+    effect: 'badlyPoison'
+  },
+  'Grassy Terrain': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 10,
+    description: 'Heals grass types & boosts moves.',
+    effect: 'setTerrain',
+    terrain: 'grassy'
+  },
+  'Petal Dance': {
+    type: 'Grass',
+    category: 'Special',
+    power: 120,
+    accuracy: 100,
+    pp: 10,
+    description: '2–3 turns; confusion after.',
+    effect: 'confuseAfter',
+    lockTurns: [2, 3]
+  },
+
   // Common moves
   'Tackle': {
     type: 'Normal',

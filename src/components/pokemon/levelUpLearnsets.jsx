@@ -16,6 +16,17 @@ export const LEVEL_UP_LEARNSETS = {
     40: ['Fire Fang'],
   },
   
+  Charmeleon: {
+    1: ['Flame Pulse'],
+    16: ['Dragon Breath'],
+    22: ['Fire Fang'],
+    28: ['Slash'],
+    34: ['Flamethrower'],
+    40: ['Scary Face'],
+    46: ['Fire Blast'],
+    52: ['Flare Blitz'],
+  },
+  
   Bulbasaur: {
     1: ['Tackle', 'Growl'],
     5: ['Leech Seed'],
@@ -29,6 +40,17 @@ export const LEVEL_UP_LEARNSETS = {
     38: ['Giga Drain'],
   },
   
+  Ivysaur: {
+    1: ['Sap Bind'],
+    16: ['Sweet Scent'],
+    22: ['Seed Bomb'],
+    28: ['Heal Pulse'],
+    34: ['Energy Ball'],
+    40: ['Toxic'],
+    46: ['Grassy Terrain'],
+    52: ['Petal Dance'],
+  },
+  
   Squirtle: {
     1: ['Tackle', 'Tail Whip'],
     6: ['Bubble'],
@@ -40,6 +62,17 @@ export const LEVEL_UP_LEARNSETS = {
     28: ['Bite'],
     33: ['Surf'],
     38: ['Iron Defense'],
+  },
+  
+  Wartortle: {
+    1: ['Shell Slam'],
+    16: ['Rapid Spin'],
+    22: ['Water Pulse'],
+    28: ['Aqua Tail'],
+    34: ['Iron Defense'],
+    40: ['Crunch'],
+    46: ['Muddy Water'],
+    52: ['Hydro Pump'],
   },
 
   // Common Wild Pokémon
