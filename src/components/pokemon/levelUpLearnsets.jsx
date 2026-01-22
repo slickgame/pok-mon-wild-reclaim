@@ -6,14 +6,14 @@ export const LEVEL_UP_LEARNSETS = {
   Charmander: {
     1: ['Scratch', 'Growl'],
     7: ['Ember'],
-    10: ['Smokescreen'],
-    13: ['Flame Pulse'], // Signature
+    10: ['Flame Pulse'], // Signature: 30% Burn, +30% damage if Powerhouse role, Guaranteed Burn after Growl
+    13: ['Smokescreen'],
     16: ['Dragon Rage'],
-    19: ['Slash'],
-    22: ['Flamethrower'],
-    25: ['Fire Fang'],
-    28: ['Dragon Claw'],
-    32: ['Inferno'],
+    20: ['Flame Burst'],
+    26: ['Slash'],
+    30: ['Inferno'],
+    34: ['Fire Spin'],
+    40: ['Fire Fang'],
   },
   
   Bulbasaur: {
