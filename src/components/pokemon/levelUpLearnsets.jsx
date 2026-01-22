@@ -27,6 +27,17 @@ export const LEVEL_UP_LEARNSETS = {
     52: ['Flare Blitz'],
   },
   
+  Charizard: {
+    1: ['Infernal Cyclone'],
+    36: ['Infernal Cyclone'],
+    40: ['Air Slash'],
+    44: ['Dragon Claw'],
+    48: ['Fire Blast'],
+    52: ['Flare Blitz'],
+    56: ['Blast Burn'],
+    60: ['Dragon Dance'],
+  },
+  
   Bulbasaur: {
     1: ['Tackle', 'Growl'],
     5: ['Leech Seed'],
@@ -51,6 +62,17 @@ export const LEVEL_UP_LEARNSETS = {
     52: ['Petal Dance'],
   },
   
+  Venusaur: {
+    1: ['Verdant Sanctuary'],
+    32: ['Verdant Sanctuary'],
+    36: ['Petal Blizzard'],
+    40: ['Synthesis'],
+    44: ['Solar Beam'],
+    48: ['Sludge Bomb'],
+    52: ['Earthquake'],
+    56: ['Frenzy Plant'],
+  },
+  
   Squirtle: {
     1: ['Tackle', 'Tail Whip'],
     6: ['Bubble'],
@@ -73,6 +95,17 @@ export const LEVEL_UP_LEARNSETS = {
     40: ['Crunch'],
     46: ['Muddy Water'],
     52: ['Hydro Pump'],
+  },
+  
+  Blastoise: {
+    1: ['Shell Fortress'],
+    36: ['Shell Fortress'],
+    40: ['Skull Bash'],
+    44: ['Flash Cannon'],
+    48: ['Hydro Pump'],
+    52: ['Ice Beam'],
+    56: ['Hydro Cannon'],
+    60: ['Mirror Coat'],
   },
 
   // Common Wild Pokémon
