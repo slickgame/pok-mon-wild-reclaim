@@ -51,65 +51,47 @@ export default function StatDisplay({ pokemon }) {
 
   return (
     <div className="space-y-4">
-      {/* Nature */}
-      <div className="glass p-4 rounded-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 text-sm">Nature</p>
-            <p className="text-white font-semibold">{pokemon.nature || 'Hardy'}</p>
-            <p className="text-slate-500 text-xs">{getNatureDescription(pokemon.nature || 'Hardy')}</p>
-          </div>
-          <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
-            Lv. {pokemon.level}
-          </Badge>
+      {/* Header with Nature */}
+      <div className="glass rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-white">Stats Overview</h3>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="border-slate-700"
+          >
+            {showAdvanced ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+            {showAdvanced ? 'Hide' : 'Show'} Advanced
+          </Button>
         </div>
-      </div>
-
-      {/* Toggle buttons */}
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          variant={showIVs ? "default" : "outline"}
-          onClick={() => setShowIVs(!showIVs)}
-          className="flex-1"
-        >
-          {showIVs ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-          IVs
-        </Button>
-        <Button
-          size="sm"
-          variant={showEVs ? "default" : "outline"}
-          onClick={() => setShowEVs(!showEVs)}
-          className="flex-1"
-        >
-          {showEVs ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-          EVs
-        </Button>
-      </div>
-
-      {showEVs && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass p-4 rounded-xl"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-white font-semibold flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              Effort Values
-            </p>
-            <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-              {totalEVs} / 510
+        
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge className="bg-purple-500/20 text-purple-300 font-semibold">
+              Nature: {pokemon.nature || 'Hardy'}
+            </Badge>
+            <Badge className="bg-indigo-500/20 text-indigo-300">
+              Lv. {pokemon.level}
             </Badge>
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-2 mb-3">
-            <div
-              className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all"
-              style={{ width: `${(totalEVs / 510) * 100}%` }}
-            />
+          <p className="text-xs text-slate-400">
+            {getNatureDescription(pokemon.nature || 'Hardy')}
+          </p>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-slate-500">Total EVs:</span>
+            <Badge className="bg-emerald-500/20 text-emerald-300">
+              {totalEVs} / 510
+            </Badge>
+            <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full transition-all"
+                style={{ width: `${(totalEVs / 510) * 100}%` }}
+              />
+            </div>
           </div>
-        </motion.div>
-      )}
+        </div>
+      </div>
 
       {/* Advanced Stat Table */}
       {showAdvanced ? (
