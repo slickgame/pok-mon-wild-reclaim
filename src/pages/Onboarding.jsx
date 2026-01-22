@@ -5,6 +5,8 @@ import { Sparkles, MapPin, Zap, Heart } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
+import { generateRandomIVs, getRandomNature, calculateAllStats } from '@/components/pokemon/statCalculations';
+import { getBaseStats } from '@/components/pokemon/baseStats';
 
 const storySteps = [
   {
@@ -72,67 +74,36 @@ export default function OnboardingPage() {
           activeQuests: []
         });
 
-        // Create starter Pokémon
-        const starters = [
-          {
-            species: 'Charmander',
-            level: 5,
-            stats: {
-              hp: 39,
-              maxHp: 39,
-              atk: 52,
-              def: 43,
-              spAtk: 60,
-              spDef: 50,
-              spd: 65
-            },
-            type1: 'Fire',
-            roles: ['Striker'],
-            isInTeam: true,
-            isStarter: true,
-            experience: 0,
-            talents: []
-          },
-          {
-            species: 'Bulbasaur',
-            level: 5,
-            stats: {
-              hp: 45,
-              maxHp: 45,
-              atk: 49,
-              def: 49,
-              spAtk: 65,
-              spDef: 65,
-              spd: 45
-            },
-            type1: 'Grass',
-            type2: 'Poison',
-            roles: ['Medic', 'Support'],
-            isInTeam: true,
-            isStarter: true,
-            experience: 0,
-            talents: []
-          },
-          {
-            species: 'Squirtle',
-            level: 5,
-            stats: {
-              hp: 44,
-              maxHp: 44,
-              atk: 48,
-              def: 65,
-              spAtk: 50,
-              spDef: 64,
-              spd: 43
-            },
-            type1: 'Water',
-            roles: ['Tank'],
-            isInTeam: true,
-            isStarter: true,
-            experience: 0,
-            talents: []
-          }
+        // Create starter Pokémon with IVs, EVs, and calculated stats
+        const starterSpecies = [
+          { species: 'Charmander', type1: 'Fire', nature: 'Adamant', roles: ['Striker'] },
+          { species: 'Bulbasaur', type1: 'Grass', type2: 'Poison', nature: 'Modest', roles: ['Medic', 'Support'] },
+          { species: 'Squirtle', type1: 'Water', nature: 'Bold', roles: ['Tank'] }
         ];
+
+        const starters = starterSpecies.map(starter => {
+          const ivs = generateRandomIVs();
+          const evs = { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 };
+          const baseStats = getBaseStats(starter.species);
+          const stats = calculateAllStats({ level: 5, nature: starter.nature, ivs, evs }, baseStats);
+
+          return {
+            species: starter.species,
+            level: 5,
+            nature: starter.nature,
+            ivs,
+            evs,
+            stats,
+            currentHp: stats.hp,
+            type1: starter.type1,
+            type2: starter.type2,
+            roles: starter.roles,
+            isInTeam: true,
+            isStarter: true,
+            experience: 0,
+            talents: []
+          };
+        });
 
         await base44.entities.Pokemon.bulkCreate(starters);
 
