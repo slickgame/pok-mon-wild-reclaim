@@ -16,6 +16,8 @@ import BattleOutcomeModal from '@/components/battle/BattleOutcomeModal';
 import { BattleEngine } from '@/components/battle/BattleEngine';
 import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
+import { getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
+import MoveLearnModal from '@/components/battle/MoveLearnModal';
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
@@ -24,6 +26,7 @@ export default function BattlePage() {
   const [returnTo, setReturnTo] = useState(null);
   const [capturingPokemon, setCapturingPokemon] = useState(false);
   const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch'
+  const [moveLearnState, setMoveLearnState] = useState(null); // { pokemon, newMoves, currentMoves, pendingUpdate }
   const queryClient = useQueryClient();
   const { triggerTutorial } = useTutorialTrigger();
 
@@ -301,8 +304,32 @@ export default function BattlePage() {
 
       // Award XP and calculate rewards
       const xpGained = Math.floor(newBattleState.enemyPokemon.level * 25);
-      const newXP = (newBattleState.playerPokemon.experience || 0) + xpGained;
+      const currentXP = newBattleState.playerPokemon.experience || 0;
+      const newXP = currentXP + xpGained;
       const goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
+      
+      // Calculate level ups and new level
+      const currentLevel = newBattleState.playerPokemon.level;
+      const xpForNextLevel = currentLevel * 100;
+      let newLevel = currentLevel;
+      let remainingXP = newXP;
+      const levelsGained = [];
+      
+      // Check for level ups
+      while (remainingXP >= (newLevel * 100)) {
+        remainingXP -= (newLevel * 100);
+        newLevel++;
+        levelsGained.push(newLevel);
+      }
+      
+      // Check for moves learned from level ups
+      const movesLearned = [];
+      levelsGained.forEach(level => {
+        const moves = getMovesLearnedAtLevel(newBattleState.playerPokemon.species, level);
+        if (moves.length > 0) {
+          movesLearned.push(...moves);
+        }
+      });
       
       // Apply EV gains
       const currentEVs = newBattleState.playerPokemon.evs || { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 };
@@ -324,17 +351,39 @@ export default function BattlePage() {
         goldGained,
         materialsDropped,
         evsGained: evResult.evsGained,
-        totalEVsGained: evResult.totalGained
+        totalEVsGained: evResult.totalGained,
+        levelsGained: levelsGained.length,
+        newLevel: newLevel
       };
       
       // Trigger first_victory tutorial
       triggerTutorial('first_victory');
       
-      // Update player's Pokémon with XP and EVs
-      base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
-        experience: newXP,
-        evs: evResult.newEVs
-      }).catch(err => console.error('Failed to update Pokémon:', err));
+      // Check if we need to show move learning UI
+      if (movesLearned.length > 0) {
+        // Get current moves (default to first 4 from moveset if not set)
+        const currentMoves = newBattleState.playerPokemon.abilities || [];
+        
+        // Store the pending update and show move learn modal
+        setMoveLearnState({
+          pokemon: newBattleState.playerPokemon,
+          newMoves: movesLearned,
+          currentMoves: currentMoves,
+          pendingUpdate: {
+            id: newBattleState.playerPokemon.id,
+            experience: newXP,
+            level: newLevel,
+            evs: evResult.newEVs
+          }
+        });
+      } else {
+        // No moves to learn, just update stats
+        base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
+          experience: newXP,
+          level: newLevel,
+          evs: evResult.newEVs
+        }).catch(err => console.error('Failed to update Pokémon:', err));
+      }
 
       // Add materials to inventory
       if (materialsDropped.length > 0) {
@@ -441,6 +490,64 @@ export default function BattlePage() {
     queryClient.invalidateQueries({ queryKey: ['inventory'] });
   };
 
+  // Handle move learning
+  const handleLearnMove = async (newMove, replaceMove) => {
+    if (!moveLearnState) return;
+
+    let updatedMoves = [...moveLearnState.currentMoves];
+    
+    if (replaceMove) {
+      // Replace existing move
+      const replaceIndex = updatedMoves.indexOf(replaceMove);
+      if (replaceIndex !== -1) {
+        updatedMoves[replaceIndex] = newMove;
+      }
+    } else {
+      // Add new move
+      updatedMoves.push(newMove);
+    }
+
+    // Remove the learned move from the pending list
+    const remainingNewMoves = moveLearnState.newMoves.filter(m => m !== newMove);
+
+    if (remainingNewMoves.length > 0) {
+      // More moves to learn
+      setMoveLearnState({
+        ...moveLearnState,
+        newMoves: remainingNewMoves,
+        currentMoves: updatedMoves
+      });
+    } else {
+      // All moves processed, update Pokemon
+      try {
+        await base44.entities.Pokemon.update(moveLearnState.pendingUpdate.id, {
+          ...moveLearnState.pendingUpdate,
+          abilities: updatedMoves
+        });
+        queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+      } catch (err) {
+        console.error('Failed to update Pokémon moves:', err);
+      }
+      setMoveLearnState(null);
+    }
+  };
+
+  const handleCancelMoveLearn = async () => {
+    if (!moveLearnState) return;
+
+    // Update Pokemon without learning new moves
+    try {
+      await base44.entities.Pokemon.update(moveLearnState.pendingUpdate.id, {
+        ...moveLearnState.pendingUpdate,
+        abilities: moveLearnState.currentMoves
+      });
+      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+    } catch (err) {
+      console.error('Failed to update Pokémon:', err);
+    }
+    setMoveLearnState(null);
+  };
+
   if (loadingPokemon) {
     return (
       <div>
@@ -543,8 +650,19 @@ export default function BattlePage() {
             isPlayer
           />
 
+          {/* Move Learning Modal */}
+          {moveLearnState && (
+            <MoveLearnModal
+              pokemon={moveLearnState.pokemon}
+              newMoves={moveLearnState.newMoves}
+              currentMoves={moveLearnState.currentMoves}
+              onLearn={handleLearnMove}
+              onCancel={handleCancelMoveLearn}
+            />
+          )}
+
           {/* Battle Results Modal */}
-          {isBattleEnded && (
+          {isBattleEnded && !moveLearnState && (
             <BattleOutcomeModal
               outcome={{
                 result: battleState.status === 'captured' ? 'captured' : 
