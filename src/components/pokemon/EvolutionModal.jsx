@@ -289,8 +289,8 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
                 HP: { old: oldStats.maxHp, new: newStats.maxHp, diff: statDifferences.hp },
                 ATK: { old: oldStats.atk, new: newStats.atk, diff: statDifferences.atk },
                 DEF: { old: oldStats.def, new: newStats.def, diff: statDifferences.def },
-                SP.ATK: { old: oldStats.spAtk, new: newStats.spAtk, diff: statDifferences.spAtk },
-                SP.DEF: { old: oldStats.spDef, new: newStats.spDef, diff: statDifferences.spDef },
+                'SP.ATK': { old: oldStats.spAtk, new: newStats.spAtk, diff: statDifferences.spAtk },
+                'SP.DEF': { old: oldStats.spDef, new: newStats.spDef, diff: statDifferences.spDef },
                 SPD: { old: oldStats.spd, new: newStats.spd, diff: statDifferences.spd }
               }).map(([stat, values], idx) => (
                 <motion.div
