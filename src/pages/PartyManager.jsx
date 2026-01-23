@@ -47,13 +47,42 @@ useEffect(() => {
   const storagePokemon = allPokemon.filter(p => !p.isInTeam);
 
   const moveMutation = useMutation({
-    mutationFn: async ({ pokemonId, toParty }) => {
+    mutationFn: async ({ pokemonId, toParty, atIndex }) => {
       await base44.entities.Pokemon.update(pokemonId, { isInTeam: toParty });
+      
+      // Update party order when moving to party
+      if (toParty && player) {
+        const players = await base44.entities.Player.list();
+        if (players[0]) {
+          const currentOrder = players[0].partyOrder || [];
+          const newOrder = [...currentOrder];
+          
+          // Insert at specific position or append
+          if (atIndex !== undefined) {
+            newOrder.splice(atIndex, 0, pokemonId);
+          } else {
+            newOrder.push(pokemonId);
+          }
+          
+          await base44.entities.Player.update(players[0].id, { partyOrder: newOrder });
+        }
+      }
+      
+      // Remove from party order when moving to storage
+      if (!toParty && player) {
+        const players = await base44.entities.Player.list();
+        if (players[0]) {
+          const currentOrder = players[0].partyOrder || [];
+          const newOrder = currentOrder.filter(id => id !== pokemonId);
+          await base44.entities.Player.update(players[0].id, { partyOrder: newOrder });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['pokemon'] });
+      queryClient.invalidateQueries({ queryKey: ['player'] });
     }
   });
 
@@ -72,7 +101,7 @@ useEffect(() => {
         alert('Party is full! Maximum 6 Pokémon allowed.');
         return;
       }
-      moveMutation.mutate({ pokemonId: pokemon.id, toParty: true });
+      moveMutation.mutate({ pokemonId: pokemon.id, toParty: true, atIndex: destination.index });
     }
 
     // Moving to storage
