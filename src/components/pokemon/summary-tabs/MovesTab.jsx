@@ -22,7 +22,7 @@ export default function MovesTab({ pokemon }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (moveName) => {
-      const updatedMoves = (pokemon.abilities || []).filter(m => m !== moveName);
+      const updatedMoves = (pokemon.abilities || []).filter((m) => m !== moveName);
       await base44.entities.Pokemon.update(pokemon.id, {
         abilities: updatedMoves
       });
@@ -39,7 +39,7 @@ export default function MovesTab({ pokemon }) {
           gold: player.gold - cost
         });
       }
-      
+
       let updatedMoves = [...(pokemon.abilities || [])];
       if (forgetMove) {
         const index = updatedMoves.indexOf(forgetMove);
@@ -49,11 +49,11 @@ export default function MovesTab({ pokemon }) {
       } else {
         updatedMoves.push(moveName);
       }
-      
+
       await base44.entities.Pokemon.update(pokemon.id, {
         abilities: updatedMoves
       });
-      
+
       queryClient.invalidateQueries({ queryKey: ['pokemon'] });
       queryClient.invalidateQueries({ queryKey: ['player'] });
       setShowMoveReminder(false);
@@ -78,16 +78,16 @@ export default function MovesTab({ pokemon }) {
           <Brain className="w-4 h-4 mr-2" />
           Learn Moves
         </Button>
-        {showMoveReminder && (
-          <MoveReminderModal
-            pokemon={pokemon}
-            playerGold={player?.gold || 0}
-            onClose={() => setShowMoveReminder(false)}
-            onRelearn={handleRelearn}
-          />
-        )}
-      </div>
-    );
+        {showMoveReminder &&
+        <MoveReminderModal
+          pokemon={pokemon}
+          playerGold={player?.gold || 0}
+          onClose={() => setShowMoveReminder(false)}
+          onRelearn={handleRelearn} />
+
+        }
+      </div>);
+
   }
 
   return (
@@ -100,8 +100,8 @@ export default function MovesTab({ pokemon }) {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => setShowMoveReminder(true)}
-        >
+          onClick={() => setShowMoveReminder(true)}>
+
           <Brain className="w-3 h-3 mr-1" />
           Relearn
         </Button>
@@ -110,67 +110,67 @@ export default function MovesTab({ pokemon }) {
       <div className="space-y-3">
         {pokemon.abilities.map((moveName) => {
           const moveData = getMoveData(moveName);
-          
+
           return (
             <div key={moveName} className="glass rounded-lg p-4">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
                   <h4 className="font-semibold text-white">{moveName}</h4>
-                  {moveData && (
-                    <div className="flex gap-2 mt-1 flex-wrap">
+                  {moveData &&
+                  <div className="flex gap-2 mt-1 flex-wrap">
                       <Badge className="text-xs bg-slate-700">
                         {moveData.type}
                       </Badge>
                       <Badge className="text-xs bg-slate-700">
                         {moveData.category}
                       </Badge>
-                      {moveData.power && (
-                        <Badge variant="outline" className="text-xs">
+                      {moveData.power &&
+                    <Badge variant="outline" className="text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
                           Power: {moveData.power}
                         </Badge>
-                      )}
-                      {moveData.accuracy && (
-                        <Badge variant="outline" className="text-xs">
+                    }
+                      {moveData.accuracy &&
+                    <Badge variant="outline" className="text-xs">
                           Acc: {moveData.accuracy}%
                         </Badge>
-                      )}
-                      {moveData.pp && (
-                        <Badge variant="outline" className="text-xs">
+                    }
+                      {moveData.pp &&
+                    <Badge variant="outline" className="text-xs">
                           PP: {moveData.pp}
                         </Badge>
-                      )}
+                    }
                     </div>
-                  )}
+                  }
                 </div>
                 <button
                   onClick={() => handleForgetMove(moveName)}
-                  className="p-1 hover:bg-red-500/20 rounded transition-colors"
-                >
+                  className="p-1 hover:bg-red-500/20 rounded transition-colors">
+
                   <Trash2 className="w-4 h-4 text-red-400" />
                 </button>
               </div>
-              {moveData?.description && (
-                <p className="text-xs text-slate-400 mt-2">{moveData.description}</p>
-              )}
-              {moveData?.effect && (
-                <div className="mt-2 flex items-start gap-1">
+              {moveData?.description &&
+              <p className="text-xs text-slate-400 mt-2">{moveData.description}</p>
+              }
+              {moveData?.effect &&
+              <div className="mt-2 flex items-start gap-1">
                   <Info className="w-3 h-3 text-indigo-400 mt-0.5" />
                   <p className="text-xs text-indigo-300">{moveData.effect}</p>
                 </div>
-              )}
-            </div>
-          );
+              }
+            </div>);
+
         })}
       </div>
 
-      {showMoveReminder && (
-        <MoveReminderModal
-          pokemon={pokemon}
-          playerGold={player?.gold || 0}
-          onClose={() => setShowMoveReminder(false)}
-          onRelearn={handleRelearn}
-        />
-      )}
-    </div>
-  );
+      {showMoveReminder &&
+      <MoveReminderModal
+        pokemon={pokemon}
+        playerGold={player?.gold || 0}
+        onClose={() => setShowMoveReminder(false)}
+        onRelearn={handleRelearn} />
+
+      }
+    </div>);
+
 }
