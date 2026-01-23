@@ -5,7 +5,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Box, Star, ArrowLeftRight, Info } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
-import PartyCard from '@/components/party/PartyCard';
+import PartyPokemonCard from '@/components/party/PartyPokemonCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -165,7 +165,7 @@ useEffect(() => {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        <PartyCard
+                        <PartyPokemonCard
                           pokemon={pokemon}
                           isDragging={snapshot.isDragging}
                           position={index + 1}
@@ -227,7 +227,7 @@ useEffect(() => {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        <PartyCard
+                        <PartyPokemonCard
                           pokemon={pokemon}
                           isDragging={snapshot.isDragging}
                           isDisabled={party.length >= 6 && !pokemon.isInTeam}
