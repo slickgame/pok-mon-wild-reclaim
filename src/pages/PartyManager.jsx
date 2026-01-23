@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -14,6 +14,14 @@ export default function PartyManager() {
   const [filter, setFilter] = useState('all');
   const queryClient = useQueryClient();
 
+  const { data: player } = useQuery({
+    queryKey: ['player'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    }
+  });
+
   const { data: allPokemon = [], isLoading } = useQuery({
     queryKey: ['allPokemon'],
     queryFn: async () => {
@@ -21,7 +29,21 @@ export default function PartyManager() {
     }
   });
 
-  const partyPokemon = allPokemon.filter(p => p.isInTeam);
+  // Sort party by saved order
+  const partyPokemon = React.useMemo(() => {
+    const party = allPokemon.filter(p => p.isInTeam);
+    if (player?.partyOrder) {
+      return party.sort((a, b) => {
+        const indexA = player.partyOrder.indexOf(a.id);
+        const indexB = player.partyOrder.indexOf(b.id);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    }
+    return party;
+  }, [allPokemon, player?.partyOrder]);
+
   const storagePokemon = allPokemon.filter(p => !p.isInTeam);
 
   const moveMutation = useMutation({
@@ -73,6 +95,7 @@ export default function PartyManager() {
       const players = await base44.entities.Player.list();
       if (players[0]) {
         await base44.entities.Player.update(players[0].id, { partyOrder });
+        queryClient.invalidateQueries({ queryKey: ['player'] });
         queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
       }
     }
