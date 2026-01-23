@@ -31,7 +31,7 @@ const typeColors = {
   Dragon: 'from-indigo-600 to-purple-700',
   Dark: 'from-gray-700 to-gray-900',
   Steel: 'from-slate-400 to-slate-600',
-  Fairy: 'from-pink-400 to-pink-500',
+  Fairy: 'from-pink-400 to-pink-500'
 };
 
 export default function PokemonSummary({ pokemon, onClose }) {
@@ -85,12 +85,12 @@ export default function PokemonSummary({ pokemon, onClose }) {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent" />
 
         {/* Close Button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onClose}
-          className="absolute top-4 right-4 text-white/70 hover:text-white hover:bg-white/20 z-10"
-        >
+          className="absolute top-4 right-4 text-white/70 hover:text-white hover:bg-white/20 z-10">
+
           <X className="w-5 h-5" />
         </Button>
 
@@ -99,36 +99,36 @@ export default function PokemonSummary({ pokemon, onClose }) {
           <Badge className="bg-black/30 text-white border-white/20 backdrop-blur-sm">
             Lv. {pokemon.level}
           </Badge>
-          {pokemon.isStarter && (
-            <Badge className="bg-yellow-500/30 text-yellow-300 border-yellow-500/50 backdrop-blur-sm">
+          {pokemon.isStarter &&
+          <Badge className="bg-yellow-500/30 text-yellow-300 border-yellow-500/50 backdrop-blur-sm">
               <Star className="w-3 h-3 mr-1" /> Starter
             </Badge>
-          )}
+          }
         </div>
 
         {/* Favorite Toggle */}
         <button
           onClick={handleToggleFavorite}
-          className="absolute top-4 right-16 z-10 p-2 rounded-lg bg-black/20 hover:bg-black/30 backdrop-blur-sm transition-all"
-        >
+          className="absolute top-4 right-16 z-10 p-2 rounded-lg bg-black/20 hover:bg-black/30 backdrop-blur-sm transition-all">
+
           <Heart
-            className={`w-5 h-5 ${pokemon.isFavorite ? 'fill-red-500 text-red-500' : 'text-white/70'}`}
-          />
+            className={`w-5 h-5 ${pokemon.isFavorite ? 'fill-red-500 text-red-500' : 'text-white/70'}`} />
+
         </button>
 
         {/* Sprite */}
         <div className="absolute inset-0 flex items-center justify-center">
-          {pokemon.spriteUrl ? (
-            <motion.img
-              src={pokemon.spriteUrl}
-              alt={pokemon.species}
-              className="w-40 h-40 object-contain drop-shadow-2xl"
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            />
-          ) : (
-            <Sparkles className="w-20 h-20 text-white/30" />
-          )}
+          {pokemon.spriteUrl ?
+          <motion.img
+            src={pokemon.spriteUrl}
+            alt={pokemon.species}
+            className="w-40 h-40 object-contain drop-shadow-2xl"
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} /> :
+
+
+          <Sparkles className="w-20 h-20 text-white/30" />
+          }
         </div>
       </div>
 
@@ -136,76 +136,76 @@ export default function PokemonSummary({ pokemon, onClose }) {
       <div className="mb-6">
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
-            {isEditingNickname ? (
-              <div className="flex gap-2">
+            {isEditingNickname ?
+            <div className="flex gap-2">
                 <Input
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="Enter nickname..."
-                  maxLength={12}
-                  className="bg-slate-800 border-slate-700"
-                  autoFocus
-                />
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="Enter nickname..."
+                maxLength={12}
+                className="bg-slate-800 border-slate-700"
+                autoFocus />
+
                 <Button size="sm" onClick={handleSaveNickname}>Save</Button>
                 <Button size="sm" variant="outline" onClick={() => setIsEditingNickname(false)}>
                   Cancel
                 </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
+              </div> :
+
+            <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-bold text-white">
                   {pokemon.nickname || pokemon.species}
                 </h2>
                 <button
-                  onClick={() => setIsEditingNickname(true)}
-                  className="p-1 hover:bg-slate-800 rounded transition-colors"
-                >
+                onClick={() => setIsEditingNickname(true)}
+                className="p-1 hover:bg-slate-800 rounded transition-colors">
+
                   <Edit2 className="w-4 h-4 text-slate-400" />
                 </button>
               </div>
-            )}
-            {pokemon.nickname && (
-              <p className="text-slate-400 text-sm">{pokemon.species}</p>
-            )}
+            }
+            {pokemon.nickname &&
+            <p className="text-slate-400 text-sm">{pokemon.species}</p>
+            }
           </div>
         </div>
 
         {/* Types */}
         <div className="flex gap-2 mb-3">
-          {pokemon.type1 && (
-            <Badge className={`bg-gradient-to-r ${typeColors[pokemon.type1]} text-white border-0`}>
+          {pokemon.type1 &&
+          <Badge className={`bg-gradient-to-r ${typeColors[pokemon.type1]} text-white border-0`}>
               {pokemon.type1}
             </Badge>
-          )}
-          {pokemon.type2 && (
-            <Badge className={`bg-gradient-to-r ${typeColors[pokemon.type2]} text-white border-0`}>
+          }
+          {pokemon.type2 &&
+          <Badge className={`bg-gradient-to-r ${typeColors[pokemon.type2]} text-white border-0`}>
               {pokemon.type2}
             </Badge>
-          )}
+          }
         </div>
 
         {/* Roles */}
-        {pokemon.roles && pokemon.roles.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
+        {pokemon.roles && pokemon.roles.length > 0 &&
+        <div className="flex gap-2 flex-wrap">
             {pokemon.roles.map((role) => {
-              const roleIcons = {
-                Tank: Shield,
-                Striker: Zap,
-                Support: Heart,
-                Medic: Heart,
-                Scout: Zap,
-                Juggernaut: Shield
-              };
-              const Icon = roleIcons[role];
-              return (
-                <Badge key={role} variant="outline" className="bg-indigo-500/10 border-indigo-500/30">
+            const roleIcons = {
+              Tank: Shield,
+              Striker: Zap,
+              Support: Heart,
+              Medic: Heart,
+              Scout: Zap,
+              Juggernaut: Shield
+            };
+            const Icon = roleIcons[role];
+            return (
+              <Badge key={role} variant="outline" className="bg-indigo-500/10 text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-indigo-500/30">
                   {Icon && <Icon className="w-3 h-3 mr-1" />}
                   {role}
-                </Badge>
-              );
-            })}
+                </Badge>);
+
+          })}
           </div>
-        )}
+        }
       </div>
 
       {/* Tabs */}
@@ -259,20 +259,20 @@ export default function PokemonSummary({ pokemon, onClose }) {
         <Button
           onClick={handleToggleTeam}
           className="w-full"
-          variant="outline"
-        >
+          variant="outline">
+
           <ArrowLeftRight className="w-4 h-4 mr-2" />
           {pokemon.isInTeam ? 'Move to Storage' : 'Add to Party'}
         </Button>
         <Button
           onClick={handleRelease}
           className="w-full"
-          variant="destructive"
-        >
+          variant="destructive">
+
           <Trash2 className="w-4 h-4 mr-2" />
           Release Pokémon
         </Button>
       </div>
-    </div>
-  );
+    </div>);
+
 }
