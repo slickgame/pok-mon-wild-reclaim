@@ -30,19 +30,19 @@ export default function PartyManager() {
   });
 
   // Sort party by saved order
-  const party = React.useMemo(() => {
-    const party = allPokemon.filter(p => p.isInTeam);
-    if (player?.partyOrder) {
-      return party.sort((a, b) => {
-        const indexA = player.partyOrder.indexOf(a.id);
-        const indexB = player.partyOrder.indexOf(b.id);
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
+  const [party, setParty] = useState([]);
+useEffect(() => {
+  if (player && allPokemon.length) {
+    const sorted = allPokemon
+      .filter(p => p.isInTeam)
+      .sort((a, b) => {
+        const indexA = player.partyOrder?.indexOf(a.id) ?? 999;
+        const indexB = player.partyOrder?.indexOf(b.id) ?? 999;
         return indexA - indexB;
       });
-    }
-    return party;
-  }, [allPokemon, player?.partyOrder]);
+    setParty(sorted);
+  }
+}, [player, allPokemon]);
 
   const storagePokemon = allPokemon.filter(p => !p.isInTeam);
 
