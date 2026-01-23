@@ -89,16 +89,20 @@ useEffect(() => {
       const reorderedParty = Array.from(party);
       const [removed] = reorderedParty.splice(source.index, 1);
       reorderedParty.splice(destination.index, 0, removed);
-      
-      // Save order by updating a partyOrder array on player
-      const partyOrder = reorderedParty.map(p => p.id);
-      const players = await base44.entities.Player.list();
-      if (players[0]) {
-        await base44.entities.Player.update(players[0].id, { partyOrder });
-        queryClient.invalidateQueries({ queryKey: ['player'] });
-        queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-      }
-    }
+
+    // Update local state immediately
+    setParty(reorderedParty);
+
+    // Save new order to Player
+    const partyOrder = reorderedParty.map(p => p.id);
+    const players = await base44.entities.Player.list();
+    if (players[0]) {
+    await base44.entities.Player.update(players[0].id, { partyOrder });
+
+    // Re-fetch player after update to trigger useEffect
+    await queryClient.invalidateQueries({ queryKey: ['player'] });
+  }
+}
   };
 
   const filteredStorage = storagePokemon.filter(p => {
