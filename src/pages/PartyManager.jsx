@@ -5,7 +5,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Box, Star, ArrowLeftRight, Info } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
-import PartyPokemonCard from '@/components/party/PartyPokemonCard';
+import PartyCard from '@/components/party/PartyCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,7 +30,7 @@ export default function PartyManager() {
   });
 
   // Sort party by saved order
-  const partyPokemon = React.useMemo(() => {
+  const party = React.useMemo(() => {
     const party = allPokemon.filter(p => p.isInTeam);
     if (player?.partyOrder) {
       return party.sort((a, b) => {
@@ -68,7 +68,7 @@ export default function PartyManager() {
 
     // Moving to party
     if (destination.droppableId === 'party' && source.droppableId === 'storage') {
-      if (partyPokemon.length >= 6) {
+      if (party.length >= 6) {
         alert('Party is full! Maximum 6 Pokémon allowed.');
         return;
       }
@@ -77,7 +77,7 @@ export default function PartyManager() {
 
     // Moving to storage
     if (destination.droppableId === 'storage' && source.droppableId === 'party') {
-      if (partyPokemon.length <= 1) {
+      if (party.length <= 1) {
         alert('You must keep at least 1 Pokémon in your party!');
         return;
       }
@@ -86,7 +86,7 @@ export default function PartyManager() {
 
     // Reordering within party - save new order
     if (source.droppableId === 'party' && destination.droppableId === 'party') {
-      const reorderedParty = Array.from(partyPokemon);
+      const reorderedParty = Array.from(party);
       const [removed] = reorderedParty.splice(source.index, 1);
       reorderedParty.splice(destination.index, 0, removed);
       
@@ -130,7 +130,7 @@ export default function PartyManager() {
               <Users className="w-5 h-5 text-indigo-400" />
               <h2 className="text-xl font-bold text-white">Active Party</h2>
               <Badge className="bg-indigo-600">
-                {partyPokemon.length}/6
+                {party.length}/6
               </Badge>
             </div>
           </div>
@@ -146,14 +146,14 @@ export default function PartyManager() {
                     : 'border-slate-700 bg-slate-800/30'
                 }`}
               >
-                {partyPokemon.length === 0 && !snapshot.isDraggingOver && (
+                {party.length === 0 && !snapshot.isDraggingOver && (
                   <div className="col-span-full flex flex-col items-center justify-center py-12 text-slate-500">
                     <Users className="w-16 h-16 mb-3" />
                     <p>Drag Pokémon here to build your party</p>
                   </div>
                 )}
 
-                {partyPokemon.map((pokemon, index) => (
+                {party.map((pokemon, index) => (
                   <Draggable key={pokemon.id} draggableId={pokemon.id} index={index}>
                     {(provided, snapshot) => (
                       <div
@@ -161,7 +161,7 @@ export default function PartyManager() {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        <PartyPokemonCard
+                        <PartyCard
                           pokemon={pokemon}
                           isDragging={snapshot.isDragging}
                           position={index + 1}
@@ -223,10 +223,10 @@ export default function PartyManager() {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        <PartyPokemonCard
+                        <PartyCard
                           pokemon={pokemon}
                           isDragging={snapshot.isDragging}
-                          isDisabled={partyPokemon.length >= 6 && !pokemon.isInTeam}
+                          isDisabled={party.length >= 6 && !pokemon.isInTeam}
                         />
                       </div>
                     )}
