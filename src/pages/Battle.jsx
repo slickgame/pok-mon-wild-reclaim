@@ -581,7 +581,11 @@ export default function BattlePage() {
   const switchPokemon = async (newPokemon) => {
     if (!battleState || !newPokemon) return;
 
-    const newStats = getPokemonStats(newPokemon).stats;
+    const newStats = getPokemonStats(newPokemon)?.stats || newPokemon.stats;
+    if (!newStats) {
+      console.error('Failed to get stats for switching Pokemon');
+      return;
+    }
 
     const newBattleState = {
       ...battleState,
@@ -609,7 +613,11 @@ export default function BattlePage() {
     if (item.name === 'Potion') healAmount = 50;
     if (item.name === 'Super Potion') healAmount = 100;
 
-    const playerStats = getPokemonStats(battleState.playerPokemon).stats;
+    const playerStats = getPokemonStats(battleState.playerPokemon)?.stats || battleState.playerPokemon.stats;
+    if (!playerStats) {
+      console.error('Failed to get stats for item use');
+      return;
+    }
     const newHP = Math.min(battleState.playerHP + healAmount, playerStats.maxHp);
 
     const newBattleState = {
@@ -856,7 +864,7 @@ export default function BattlePage() {
           <BattleHUD
             pokemon={battleState.enemyPokemon}
             hp={battleState.enemyHP}
-            maxHp={getPokemonStats(battleState.enemyPokemon).stats.maxHp}
+            maxHp={(getPokemonStats(battleState.enemyPokemon)?.stats || battleState.enemyPokemon.stats)?.maxHp || 100}
             status={battleState.enemyStatus}
             roles={battleState.enemyPokemon.roles || []}
           />
@@ -876,7 +884,7 @@ export default function BattlePage() {
           <BattleHUD
             pokemon={battleState.playerPokemon}
             hp={battleState.playerHP}
-            maxHp={getPokemonStats(battleState.playerPokemon).stats.maxHp}
+            maxHp={(getPokemonStats(battleState.playerPokemon)?.stats || battleState.playerPokemon.stats)?.maxHp || 100}
             status={battleState.playerStatus}
             roles={battleState.playerPokemon.roles || []}
             isPlayer
