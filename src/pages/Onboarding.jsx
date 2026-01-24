@@ -229,6 +229,18 @@ export default function OnboardingPage() {
         ];
 
         await base44.entities.Tutorial.bulkCreate(tutorials);
+
+        // Give starter inventory - 10 Pokéballs
+        await base44.entities.Item.create({
+          name: 'Pokéball',
+          type: 'Capture Gear',
+          tier: 1,
+          rarity: 'Common',
+          description: 'A device for catching wild Pokémon',
+          quantity: 10,
+          stackable: true,
+          sellValue: 50
+        });
       }
       
       // Navigate to home
