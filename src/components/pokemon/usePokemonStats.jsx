@@ -29,6 +29,15 @@ export function getPokemonStats(pokemon) {
   if (!pokemon) return null;
   
   const baseStats = getBaseStats(pokemon.species);
+  if (!baseStats) {
+    console.error(`No base stats found for species: ${pokemon.species}`);
+    return {
+      ...pokemon,
+      stats: pokemon.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 },
+      baseStats: null
+    };
+  }
+  
   const calculatedStats = calculateAllStats(pokemon, baseStats);
   
   return {
