@@ -101,12 +101,14 @@ export default function BattlePage() {
     if (playerPokemon.length === 0) return;
 
     const playerMon = playerPokemon[0];
+    const playerStats = getPokemonStats(playerMon).stats;
+    const wildStats = getPokemonStats(wildMon).stats;
     
     setBattleState({
       playerPokemon: playerMon,
       enemyPokemon: wildMon,
-      playerHP: playerMon.stats.maxHp,
-      enemyHP: wildMon.stats.maxHp,
+      playerHP: playerStats.maxHp,
+      enemyHP: wildStats.maxHp,
       turnNumber: 1,
       currentTurn: 'player',
       battleLog: [
@@ -124,6 +126,7 @@ export default function BattlePage() {
     if (playerPokemon.length === 0) return;
 
     const playerMon = playerPokemon[0];
+    const playerStats = getPokemonStats(playerMon).stats;
     
     const enemyMon = {
       id: 'enemy-1',
@@ -147,7 +150,7 @@ export default function BattlePage() {
     setBattleState({
       playerPokemon: playerMon,
       enemyPokemon: enemyMon,
-      playerHP: playerMon.stats.maxHp,
+      playerHP: playerStats.maxHp,
       enemyHP: enemyMon.stats.maxHp,
       turnNumber: 1,
       currentTurn: 'player',
@@ -465,10 +468,12 @@ export default function BattlePage() {
   const switchPokemon = async (newPokemon) => {
     if (!battleState || !newPokemon) return;
 
+    const newStats = getPokemonStats(newPokemon).stats;
+
     const newBattleState = {
       ...battleState,
       playerPokemon: newPokemon,
-      playerHP: newPokemon.stats.maxHp,
+      playerHP: newStats.maxHp,
       battleLog: [...battleState.battleLog, {
         turn: battleState.turnNumber,
         actor: 'System',
@@ -491,7 +496,8 @@ export default function BattlePage() {
     if (item.name === 'Potion') healAmount = 50;
     if (item.name === 'Super Potion') healAmount = 100;
 
-    const newHP = Math.min(battleState.playerHP + healAmount, battleState.playerPokemon.stats.maxHp);
+    const playerStats = getPokemonStats(battleState.playerPokemon).stats;
+    const newHP = Math.min(battleState.playerHP + healAmount, playerStats.maxHp);
 
     const newBattleState = {
       ...battleState,
