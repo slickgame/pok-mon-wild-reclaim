@@ -31,7 +31,8 @@ export default function BattlePage() {
   const [wildPokemonId, setWildPokemonId] = useState(null);
   const [returnTo, setReturnTo] = useState(null);
   const [capturingPokemon, setCapturingPokemon] = useState(false);
-  const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch'
+  const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch', 'pokeballs'
+  const [selectedPokeball, setSelectedPokeball] = useState(null);
   const [moveLearnState, setMoveLearnState] = useState(null); // { pokemon, newMoves, currentMoves, pendingUpdate }
   const [evolutionState, setEvolutionState] = useState(null); // { pokemon, evolvesInto, pendingUpdate }
   const [captureModalState, setCaptureModalState] = useState(null); // { pokemon, addedToParty }
@@ -60,8 +61,8 @@ export default function BattlePage() {
     }
   });
 
-  const pokeball = inventory.find(item => item.name === 'Pokéball');
-  const pokeballCount = pokeball?.quantity || 0;
+  const pokeballs = inventory.filter(item => item.type === 'Capture Gear');
+  const totalPokeballCount = pokeballs.reduce((sum, ball) => sum + (ball.quantity || 0), 0);
   const battleItems = inventory.filter(item => ['Potion', 'Battle Item'].includes(item.type));
 
   // Fetch player's team
@@ -192,10 +193,14 @@ export default function BattlePage() {
     });
   };
 
-  // Attempt capture
-  const attemptCapture = async () => {
+  // Attempt capture with selected Pokéball
+  const attemptCapture = async (ballType = null) => {
     if (!battleState || !battleState.isWildBattle || capturingPokemon) return;
-    if (pokeballCount <= 0) {
+    
+    // If no ball specified, check for default or first available
+    const ballToUse = ballType || pokeballs[0];
+    
+    if (!ballToUse || totalPokeballCount <= 0) {
       setBattleState({
         ...battleState,
         battleLog: [...battleState.battleLog, {
@@ -211,9 +216,22 @@ export default function BattlePage() {
 
     setCapturingPokemon(true);
 
+    // Ball type modifiers (lower is better)
+    const ballModifiers = {
+      'Pokéball': 0,
+      'Great Ball': -10,
+      'Ultra Ball': -20,
+      'Master Ball': -100, // Guaranteed catch
+      'Dusk Ball': -15, // Could add time/location logic
+      'Quick Ball': battleState.turnNumber === 1 ? -30 : 0,
+      'Net Ball': ['Water', 'Bug'].includes(battleState.enemyPokemon.type1) ? -20 : 0,
+      'Nest Ball': battleState.enemyPokemon.level <= 10 ? -25 : 0
+    };
+
     // Calculate catch rate
     const enemyStats = getPokemonStats(battleState.enemyPokemon).stats;
     const hpPercent = (battleState.enemyHP / enemyStats.maxHp) * 100;
+    
     const rarityModifier = {
       'common': 50,
       'uncommon': 35,
@@ -221,25 +239,24 @@ export default function BattlePage() {
       'legendary': 5
     }[battleState.enemyPokemon.rarity?.toLowerCase() || 'common'];
 
+    const ballModifier = ballModifiers[ballToUse.name] || 0;
     const baseChance = rarityModifier;
     const hpBonus = Math.max(0, 50 - hpPercent);
-    const catchChance = Math.min(95, baseChance + hpBonus);
+    const catchChance = Math.min(95, baseChance + hpBonus + Math.abs(ballModifier));
 
     const roll = Math.random() * 100;
     const success = roll < catchChance;
 
-    // Use a Pokéball
-    if (pokeball) {
-      try {
-        await base44.entities.Item.update(pokeball.id, { 
-          quantity: pokeballCount - 1 
-        });
-        queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      } catch (error) {
-        console.error('Failed to use Pokéball:', error);
-        setCapturingPokemon(false);
-        return;
-      }
+    // Use the Pokéball
+    try {
+      await base44.entities.Item.update(ballToUse.id, { 
+        quantity: ballToUse.quantity - 1 
+      });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    } catch (error) {
+      console.error('Failed to use Pokéball:', error);
+      setCapturingPokemon(false);
+      return;
     }
 
     if (success) {
@@ -1012,13 +1029,13 @@ export default function BattlePage() {
 
                   {battleState.isWildBattle && (
                     <Button
-                      onClick={attemptCapture}
-                      disabled={!isPlayerTurn || pokeballCount <= 0 || capturingPokemon}
+                      onClick={() => setActionMenu('pokeballs')}
+                      disabled={!isPlayerTurn || totalPokeballCount <= 0}
                       className="h-20 bg-gradient-to-br from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600"
                     >
                       <Trophy className="w-6 h-6 mr-2" />
                       Capture
-                      <Badge className="ml-2 bg-white/20">{pokeballCount}</Badge>
+                      <Badge className="ml-2 bg-white/20">{totalPokeballCount}</Badge>
                     </Button>
                   )}
 
@@ -1158,6 +1175,50 @@ export default function BattlePage() {
                           <Badge className="bg-slate-700">Lv. {pokemon.level}</Badge>
                         </Button>
                       ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pokéball Selection Menu */}
+              {actionMenu === 'pokeballs' && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Trophy className="w-4 h-4 text-purple-400" />
+                      Select Pokéball
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActionMenu('main')}
+                    >
+                      Back
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {pokeballs.map((ball) => (
+                      <Button
+                        key={ball.id}
+                        onClick={async () => {
+                          await attemptCapture(ball);
+                          setActionMenu('main');
+                        }}
+                        disabled={!isPlayerTurn || capturingPokemon}
+                        variant="outline"
+                        className="w-full justify-between hover:bg-purple-500/10"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Trophy className="w-4 h-4" />
+                          {ball.name}
+                        </span>
+                        <Badge className="bg-purple-700">×{ball.quantity || 1}</Badge>
+                      </Button>
+                    ))}
+                    {pokeballs.length === 0 && (
+                      <div className="text-center text-slate-400 py-4">
+                        No Pokéballs available
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
