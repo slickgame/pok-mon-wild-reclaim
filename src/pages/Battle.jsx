@@ -68,7 +68,11 @@ export default function BattlePage() {
     queryKey: ['playerPokemon'],
     queryFn: async () => {
       const pokemon = await base44.entities.Pokemon.filter({ isInTeam: true });
-      return pokemon;
+      // Ensure each Pokémon has moves loaded
+      return pokemon.map(p => ({
+        ...p,
+        abilities: p.abilities || []
+      }));
     }
   });
 
@@ -982,17 +986,35 @@ export default function BattlePage() {
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {moves.slice(0, 4).map((move) => (
-                      <MoveCard
-                        key={move.id}
-                        move={move}
-                        onUse={(m) => {
-                          useMove(m);
-                          setActionMenu('main');
-                        }}
-                        disabled={!isPlayerTurn}
-                      />
-                    ))}
+                    {battleState.playerPokemon.abilities && battleState.playerPokemon.abilities.length > 0 ? (
+                      battleState.playerPokemon.abilities.map((moveName, idx) => {
+                        const moveData = moves.find(m => m.name === moveName) || {
+                          id: idx,
+                          name: moveName,
+                          type: 'Normal',
+                          category: 'Physical',
+                          power: 40,
+                          accuracy: 100,
+                          description: 'A basic move'
+                        };
+                        return (
+                          <MoveCard
+                            key={idx}
+                            move={moveData}
+                            onUse={(m) => {
+                              useMove(m);
+                              setActionMenu('main');
+                            }}
+                            disabled={!isPlayerTurn}
+                          />
+                        );
+                      })
+                    ) : (
+                      <div className="col-span-2 text-center text-slate-400 py-4">
+                        <p>No moves learned yet!</p>
+                        <p className="text-xs mt-1">Level up to learn new moves</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

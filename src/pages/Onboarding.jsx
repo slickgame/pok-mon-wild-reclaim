@@ -119,31 +119,42 @@ export default function OnboardingPage() {
 
         await base44.entities.Pokemon.bulkCreate(starters);
 
-        // Create default zone with 0 discovery progress
-        const verdantHollow = await base44.entities.Zone.create({
-          name: 'Verdant Hollow',
-          biomeType: 'Forest',
-          description: 'A tranquil forest where your journey begins. Sunlight filters through ancient trees, and the air is filled with the songs of Pokémon.',
-          availableWildPokemon: [
-            { species: 'Pidgey', minLevel: 2, maxLevel: 5, rarity: 'Common' },
-            { species: 'Rattata', minLevel: 2, maxLevel: 4, rarity: 'Common' },
-            { species: 'Caterpie', minLevel: 2, maxLevel: 4, rarity: 'Common' }
-          ],
-          nodelets: [],
-          discoveryProgress: 0,
-          requiredLevel: 1
-        });
+        // Check if Verdant Hollow zone already exists
+        const existingZones = await base44.entities.Zone.filter({ name: 'Verdant Hollow' });
+        let verdantHollow;
+        
+        if (existingZones.length === 0) {
+          // Create default zone with 0 discovery progress
+          verdantHollow = await base44.entities.Zone.create({
+            name: 'Verdant Hollow',
+            biomeType: 'Forest',
+            description: 'A tranquil forest where your journey begins. Sunlight filters through ancient trees, and the air is filled with the songs of Pokémon.',
+            availableWildPokemon: [
+              { species: 'Pidgey', minLevel: 2, maxLevel: 5, rarity: 'Common' },
+              { species: 'Rattata', minLevel: 2, maxLevel: 4, rarity: 'Common' },
+              { species: 'Caterpie', minLevel: 2, maxLevel: 4, rarity: 'Common' }
+            ],
+            nodelets: [],
+            discoveryProgress: 0,
+            requiredLevel: 1
+          });
+        } else {
+          verdantHollow = existingZones[0];
+        }
 
-        // Create initial ZoneProgress with 0 discovery
-        await base44.entities.ZoneProgress.create({
-          zoneId: verdantHollow.id,
-          zoneName: 'Verdant Hollow',
-          discoveryProgress: 0,
-          discoveredPokemon: [],
-          discoveredPOIs: [],
-          discoveredMaterials: [],
-          explorationCount: 0
-        });
+        // Create initial ZoneProgress with 0 discovery (only if doesn't exist)
+        const existingProgress = await base44.entities.ZoneProgress.filter({ zoneId: verdantHollow.id });
+        if (existingProgress.length === 0) {
+          await base44.entities.ZoneProgress.create({
+            zoneId: verdantHollow.id,
+            zoneName: 'Verdant Hollow',
+            discoveryProgress: 0,
+            discoveredPokemon: [],
+            discoveredPOIs: [],
+            discoveredMaterials: [],
+            explorationCount: 0
+          });
+        }
 
         // Initialize tutorial sequence with Professor Maple's guidance
         const tutorials = [
