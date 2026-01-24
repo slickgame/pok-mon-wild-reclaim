@@ -120,6 +120,23 @@ useEffect(() => {
       }
       moveMutation.mutate({ pokemonId: pokemon.id, toParty: false });
     }
+
+    // Reordering within party
+    if (source.droppableId === 'party' && destination.droppableId === 'party') {
+      const reorderedParty = Array.from(party);
+      const [removed] = reorderedParty.splice(source.index, 1);
+      reorderedParty.splice(destination.index, 0, removed);
+
+      const partyOrder = reorderedParty.map(p => p.id);
+      
+      // Update database first
+      const players = await base44.entities.Player.list();
+      if (players[0]) {
+        await base44.entities.Player.update(players[0].id, { partyOrder });
+        // Then update local state
+        setParty(reorderedParty);
+      }
+    }
   };
 
   const moveUp = async (index) => {
