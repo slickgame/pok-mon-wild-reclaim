@@ -923,16 +923,16 @@ export default function BattlePage() {
                 try {
                   const species = captureModalState.pokemon.species;
                   const level = captureModalState.pokemon.level;
-                  
+
                   // Update the captured Pokémon with correct placement and nickname
                   await base44.entities.Pokemon.update(wildPokemonId, {
                     isInTeam: captureModalState.addedToParty,
                     nickname: nickname || undefined
                   });
-                  
+
                   // Check if this species is already in Pokédex
                   const existingEntry = await base44.entities.Pokedex.filter({ species });
-                  
+
                   if (existingEntry.length === 0) {
                     // New Pokédex entry - first time catching this species
                     await base44.entities.Pokedex.create({
@@ -945,7 +945,7 @@ export default function BattlePage() {
                       timesCaught: 1,
                       highestLevelSeen: level
                     });
-                    
+
                     // Show success notification
                     alert(`🎉 New Pokédex Entry!\n\n${species} was registered to your Pokédex!`);
                   } else {
@@ -957,15 +957,20 @@ export default function BattlePage() {
                       highestLevelSeen: Math.max(entry.highestLevelSeen || 0, level)
                     });
                   }
-                  
+
                   queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
                   queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
                   queryClient.invalidateQueries({ queryKey: ['pokedex'] });
-                  
+
                   setCaptureModalState(null);
-                  
+
                   // Trigger first_capture tutorial
                   triggerTutorial('first_capture');
+
+                  // Navigate back after successful capture
+                  if (returnTo) {
+                    navigate(`/${returnTo}`);
+                  }
                 } catch (err) {
                   console.error('Failed to update captured Pokémon:', err);
                   setCaptureModalState(null);
@@ -1033,7 +1038,7 @@ export default function BattlePage() {
                   
                   <Button
                     onClick={() => setActionMenu('items')}
-                    disabled={!isPlayerTurn || battleItems.length === 0}
+                    disabled={!isPlayerTurn || battleItems.length === 0 || isBattleEnded}
                     className="h-20 bg-gradient-to-br from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                   >
                     <Package className="w-6 h-6 mr-2" />
@@ -1054,7 +1059,7 @@ export default function BattlePage() {
 
                   <Button
                     onClick={() => setActionMenu('switch')}
-                    disabled={!isPlayerTurn || playerPokemon.length <= 1}
+                    disabled={!isPlayerTurn || playerPokemon.length <= 1 || isBattleEnded}
                     className="h-20 bg-gradient-to-br from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                   >
                     <Sparkles className="w-6 h-6 mr-2" />
@@ -1176,18 +1181,27 @@ export default function BattlePage() {
                   <div className="space-y-2">
                     {playerPokemon
                       .filter(p => p.id !== battleState.playerPokemon.id)
-                      .map((pokemon) => (
-                        <Button
-                          key={pokemon.id}
-                          onClick={() => switchPokemon(pokemon)}
-                          disabled={!isPlayerTurn || pokemon.stats.hp <= 0}
-                          variant="outline"
-                          className="w-full justify-between"
-                        >
-                          <span>{pokemon.nickname || pokemon.species}</span>
-                          <Badge className="bg-slate-700">Lv. {pokemon.level}</Badge>
-                        </Button>
-                      ))}
+                      .map((pokemon) => {
+                        const pokemonStats = getPokemonStats(pokemon);
+                        const currentHp = pokemonStats?.stats?.hp || pokemon.currentHp || pokemon.stats?.hp || 100;
+                        const isFainted = currentHp <= 0;
+
+                        return (
+                          <Button
+                            key={pokemon.id}
+                            onClick={() => switchPokemon(pokemon)}
+                            disabled={!isPlayerTurn || isFainted}
+                            variant="outline"
+                            className="w-full justify-between"
+                          >
+                            <span className={isFainted ? 'text-slate-500' : ''}>
+                              {pokemon.nickname || pokemon.species}
+                              {isFainted && ' (Fainted)'}
+                            </span>
+                            <Badge className="bg-slate-700">Lv. {pokemon.level}</Badge>
+                          </Button>
+                        );
+                      })}
                   </div>
                 </div>
               )}
