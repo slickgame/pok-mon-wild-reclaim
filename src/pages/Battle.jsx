@@ -184,7 +184,8 @@ export default function BattlePage() {
     setCapturingPokemon(true);
 
     // Calculate catch rate
-    const hpPercent = (battleState.enemyHP / battleState.enemyPokemon.stats.maxHp) * 100;
+    const enemyStats = getPokemonStats(battleState.enemyPokemon).stats;
+    const hpPercent = (battleState.enemyHP / enemyStats.maxHp) * 100;
     const rarityModifier = {
       'common': 50,
       'uncommon': 35,
@@ -743,7 +744,7 @@ export default function BattlePage() {
           <BattleHUD
             pokemon={battleState.enemyPokemon}
             hp={battleState.enemyHP}
-            maxHp={battleState.enemyPokemon.stats.maxHp}
+            maxHp={getPokemonStats(battleState.enemyPokemon).stats.maxHp}
             status={battleState.enemyStatus}
             roles={battleState.enemyPokemon.roles || []}
           />
@@ -763,7 +764,7 @@ export default function BattlePage() {
           <BattleHUD
             pokemon={battleState.playerPokemon}
             hp={battleState.playerHP}
-            maxHp={battleState.playerPokemon.stats.maxHp}
+            maxHp={getPokemonStats(battleState.playerPokemon).stats.maxHp}
             status={battleState.playerStatus}
             roles={battleState.playerPokemon.roles || []}
             isPlayer
