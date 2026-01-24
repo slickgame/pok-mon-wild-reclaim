@@ -341,7 +341,6 @@ export default function BattlePage() {
       const xpGained = Math.floor(newBattleState.enemyPokemon.level * 25);
       const currentXP = newBattleState.playerPokemon.experience || 0;
       const newXP = currentXP + xpGained;
-      const goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
       
       // Calculate level ups and new level
       const currentLevel = newBattleState.playerPokemon.level;
@@ -471,19 +470,18 @@ export default function BattlePage() {
 
       // Add materials to inventory
       if (materialsDropped.length > 0) {
-        // Check for existing materials and stack them
-        for (const material of materialsDropped) {
-          try {
-            const existingItems = await base44.entities.Item.filter({ name: material });
+        // Add materials asynchronously
+        materialsDropped.forEach(material => {
+          base44.entities.Item.filter({ name: material }).then(existingItems => {
             if (existingItems.length > 0) {
               // Stack with existing
               const existingItem = existingItems[0];
-              await base44.entities.Item.update(existingItem.id, {
+              base44.entities.Item.update(existingItem.id, {
                 quantity: (existingItem.quantity || 1) + 1
               });
             } else {
               // Create new item
-              await base44.entities.Item.create({
+              base44.entities.Item.create({
                 name: material,
                 type: 'Material',
                 tier: 1,
@@ -494,13 +492,10 @@ export default function BattlePage() {
                 sellValue: 10
               });
             }
-          } catch (err) {
-            console.error('Failed to add material:', err);
-          }
-        }
-        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          }).catch(err => console.error('Failed to add material:', err));
+        });
         
-        // Trigger first_material tutorial
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
         triggerTutorial('first_material');
       }
 
