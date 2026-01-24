@@ -128,8 +128,13 @@ export default function BattlePage() {
     // Always use first Pokémon in party as lead
     const sortedParty = [...playerPokemon].sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0));
     const playerMon = sortedParty[0];
-    const playerStats = getPokemonStats(playerMon).stats;
-    const wildStats = getPokemonStats(wildMon).stats;
+    const playerStats = getPokemonStats(playerMon)?.stats || playerMon.stats;
+    const wildStats = getPokemonStats(wildMon)?.stats || wildMon.stats;
+    
+    if (!playerStats || !wildStats) {
+      console.error('Failed to get stats for battle', { playerStats, wildStats });
+      return;
+    }
     
     setBattleState({
       playerPokemon: playerMon,
@@ -155,7 +160,12 @@ export default function BattlePage() {
     // Always use first Pokémon in party as lead
     const sortedParty = [...playerPokemon].sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0));
     const playerMon = sortedParty[0];
-    const playerStats = getPokemonStats(playerMon).stats;
+    const playerStats = getPokemonStats(playerMon)?.stats || playerMon.stats;
+    
+    if (!playerStats) {
+      console.error('Failed to get player stats for battle');
+      return;
+    }
     
     const enemyMon = {
       id: 'enemy-1',
@@ -229,7 +239,12 @@ export default function BattlePage() {
     };
 
     // Calculate catch rate
-    const enemyStats = getPokemonStats(battleState.enemyPokemon).stats;
+    const enemyStats = getPokemonStats(battleState.enemyPokemon)?.stats || battleState.enemyPokemon.stats;
+    if (!enemyStats || !enemyStats.maxHp) {
+      console.error('Enemy stats not available for capture');
+      setCapturingPokemon(false);
+      return;
+    }
     const hpPercent = (battleState.enemyHP / enemyStats.maxHp) * 100;
     
     const rarityModifier = {
