@@ -60,7 +60,8 @@ export default function BattlePage() {
     }
   });
 
-  const pokeballCount = inventory.filter(item => item.name === 'Pokéball').reduce((acc, item) => acc + (item.quantity || 1), 0);
+  const pokeball = inventory.find(item => item.name === 'Pokéball');
+  const pokeballCount = pokeball?.quantity || 0;
   const battleItems = inventory.filter(item => ['Potion', 'Battle Item'].includes(item.type));
 
   // Fetch player's team
@@ -228,14 +229,17 @@ export default function BattlePage() {
     const success = roll < catchChance;
 
     // Use a Pokéball
-    const pokeball = inventory.find(item => item.name === 'Pokéball' && (item.quantity || 1) > 0);
     if (pokeball) {
-      if (pokeball.quantity > 1) {
-        await base44.entities.Item.update(pokeball.id, { quantity: pokeball.quantity - 1 });
-      } else {
-        await base44.entities.Item.delete(pokeball.id);
+      try {
+        await base44.entities.Item.update(pokeball.id, { 
+          quantity: pokeballCount - 1 
+        });
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      } catch (error) {
+        console.error('Failed to use Pokéball:', error);
+        setCapturingPokemon(false);
+        return;
       }
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     }
 
     if (success) {
@@ -255,7 +259,7 @@ export default function BattlePage() {
       setBattleState(newBattleState);
       
       // Check if party has room
-      const addedToParty = partyPokemon.length < 6;
+      const addedToParty = playerPokemon.length < 6;
       
       setCaptureModalState({
         pokemon: battleState.enemyPokemon,

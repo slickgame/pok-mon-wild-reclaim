@@ -15,9 +15,9 @@ import SetBuilder from './pages/SetBuilder';
 import StartScreen from './pages/StartScreen';
 import Storage from './pages/Storage';
 import StoryCutscene from './pages/StoryCutscene';
+import Town from './pages/Town';
 import TutorialLog from './pages/TutorialLog';
 import Zones from './pages/Zones';
-import Town from './pages/Town';
 import __Layout from './Layout.jsx';
 
 
@@ -39,9 +39,9 @@ export const PAGES = {
     "StartScreen": StartScreen,
     "Storage": Storage,
     "StoryCutscene": StoryCutscene,
+    "Town": Town,
     "TutorialLog": TutorialLog,
     "Zones": Zones,
-    "Town": Town,
 }
 
 export const pagesConfig = {
