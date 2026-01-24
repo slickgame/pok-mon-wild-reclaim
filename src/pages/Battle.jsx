@@ -88,7 +88,15 @@ export default function BattlePage() {
     queryFn: async () => {
       if (!wildPokemonId) return null;
       const pokemon = await base44.entities.Pokemon.filter({ id: wildPokemonId });
-      return pokemon[0] || null;
+      const fetchedPokemon = pokemon[0] || null;
+      
+      // Ensure moves are loaded
+      if (fetchedPokemon && (!fetchedPokemon.abilities || fetchedPokemon.abilities.length === 0)) {
+        console.warn('Wild Pokémon has no moves, assigning default moves');
+        fetchedPokemon.abilities = ['Tackle', 'Growl'];
+      }
+      
+      return fetchedPokemon;
     },
     enabled: !!wildPokemonId
   });

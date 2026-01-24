@@ -74,6 +74,47 @@ export class BattleEngine {
     return synergies;
   }
 
+  // Calculate type effectiveness multiplier
+  getTypeEffectiveness(moveType, defenderTypes) {
+    const typeChart = {
+      Fire: { superEffective: ['Grass', 'Ice', 'Bug', 'Steel'], notVeryEffective: ['Fire', 'Water', 'Rock', 'Dragon'] },
+      Water: { superEffective: ['Fire', 'Ground', 'Rock'], notVeryEffective: ['Water', 'Grass', 'Dragon'] },
+      Grass: { superEffective: ['Water', 'Ground', 'Rock'], notVeryEffective: ['Fire', 'Grass', 'Poison', 'Flying', 'Bug', 'Dragon', 'Steel'] },
+      Electric: { superEffective: ['Water', 'Flying'], notVeryEffective: ['Electric', 'Grass', 'Dragon'], noEffect: ['Ground'] },
+      Ice: { superEffective: ['Grass', 'Ground', 'Flying', 'Dragon'], notVeryEffective: ['Fire', 'Water', 'Ice', 'Steel'] },
+      Fighting: { superEffective: ['Normal', 'Ice', 'Rock', 'Dark', 'Steel'], notVeryEffective: ['Poison', 'Flying', 'Psychic', 'Bug', 'Fairy'], noEffect: ['Ghost'] },
+      Poison: { superEffective: ['Grass', 'Fairy'], notVeryEffective: ['Poison', 'Ground', 'Rock', 'Ghost'], noEffect: ['Steel'] },
+      Ground: { superEffective: ['Fire', 'Electric', 'Poison', 'Rock', 'Steel'], notVeryEffective: ['Grass', 'Bug'], noEffect: ['Flying'] },
+      Flying: { superEffective: ['Grass', 'Fighting', 'Bug'], notVeryEffective: ['Electric', 'Rock', 'Steel'] },
+      Psychic: { superEffective: ['Fighting', 'Poison'], notVeryEffective: ['Psychic', 'Steel'], noEffect: ['Dark'] },
+      Bug: { superEffective: ['Grass', 'Psychic', 'Dark'], notVeryEffective: ['Fire', 'Fighting', 'Poison', 'Flying', 'Ghost', 'Steel', 'Fairy'] },
+      Rock: { superEffective: ['Fire', 'Ice', 'Flying', 'Bug'], notVeryEffective: ['Fighting', 'Ground', 'Steel'] },
+      Ghost: { superEffective: ['Psychic', 'Ghost'], notVeryEffective: ['Dark'], noEffect: ['Normal'] },
+      Dragon: { superEffective: ['Dragon'], notVeryEffective: ['Steel'], noEffect: ['Fairy'] },
+      Dark: { superEffective: ['Psychic', 'Ghost'], notVeryEffective: ['Fighting', 'Dark', 'Fairy'] },
+      Steel: { superEffective: ['Ice', 'Rock', 'Fairy'], notVeryEffective: ['Fire', 'Water', 'Electric', 'Steel'] },
+      Fairy: { superEffective: ['Fighting', 'Dragon', 'Dark'], notVeryEffective: ['Fire', 'Poison', 'Steel'] },
+      Normal: { notVeryEffective: ['Rock', 'Steel'], noEffect: ['Ghost'] }
+    };
+    
+    let multiplier = 1;
+    const chart = typeChart[moveType];
+    
+    if (!chart) return multiplier;
+    
+    defenderTypes.forEach(defType => {
+      if (chart.noEffect?.includes(defType)) {
+        multiplier = 0;
+      } else if (chart.superEffective?.includes(defType)) {
+        multiplier *= 2;
+      } else if (chart.notVeryEffective?.includes(defType)) {
+        multiplier *= 0.5;
+      }
+    });
+    
+    return multiplier;
+  }
+
   // Calculate damage
   calculateDamage(attacker, defender, move, synergies = []) {
     // Get move data from central registry
@@ -95,6 +136,23 @@ export class BattleEngine {
       ((2 * attacker.level / 5 + 2) * basePower * (attackStat / defenseStat)) / 50 + 2
     );
 
+    // STAB (Same Type Attack Bonus) - 1.5x if move type matches attacker's type
+    const attackerTypes = [attacker.type1, attacker.type2].filter(Boolean);
+    if (attackerTypes.includes(moveData.type)) {
+      damage = Math.floor(damage * 1.5);
+    }
+
+    // Type Effectiveness
+    const defenderTypes = [defender.type1, defender.type2].filter(Boolean);
+    const typeEffectiveness = this.getTypeEffectiveness(moveData.type, defenderTypes);
+    damage = Math.floor(damage * typeEffectiveness);
+
+    // Critical Hit (6.25% chance, 2x damage)
+    const isCritical = Math.random() < 0.0625;
+    if (isCritical) {
+      damage = Math.floor(damage * 2);
+    }
+
     // Apply synergy bonuses from move data
     if (moveData.synergy && moveData.synergy.rolebonus) {
       if (attacker.roles?.includes(moveData.synergy.rolebonus)) {
@@ -110,8 +168,8 @@ export class BattleEngine {
       }
     });
 
-    // Random factor (85-100%)
-    const randomFactor = (Math.random() * 0.15 + 0.85);
+    // Random damage variance (±15%)
+    const randomFactor = (Math.random() * 0.3 + 0.85);
     damage = Math.floor(damage * randomFactor);
 
     // Check for Talent defensive effects
@@ -122,7 +180,7 @@ export class BattleEngine {
       }
     });
 
-    return Math.max(1, damage);
+    return { damage: Math.max(1, damage), isCritical, typeEffectiveness };
   }
 
   // Apply status effects
@@ -359,7 +417,10 @@ export class BattleEngine {
     const hasSynergy = synergies.length > 0;
 
     // Calculate damage
-    const damage = this.calculateDamage(attacker.pokemon, defender.pokemon, move, synergies);
+    const damageResult = this.calculateDamage(attacker.pokemon, defender.pokemon, move, synergies);
+    const damage = damageResult.damage || damageResult;
+    const isCritical = damageResult.isCritical || false;
+    const typeEffectiveness = damageResult.typeEffectiveness !== undefined ? damageResult.typeEffectiveness : 1;
     
     if (damage > 0) {
       if (defender.key === 'player') {
@@ -368,11 +429,17 @@ export class BattleEngine {
         battleState.enemyHP = Math.max(0, battleState.enemyHP - damage);
       }
 
+      let resultText = `${damage} damage!`;
+      if (isCritical) resultText += ' Critical hit!';
+      if (typeEffectiveness > 1) resultText += ' Super effective!';
+      if (typeEffectiveness < 1 && typeEffectiveness > 0) resultText += ' Not very effective...';
+      if (typeEffectiveness === 0) resultText = "It doesn't affect " + (defender.pokemon.nickname || defender.pokemon.species) + "...";
+
       logs.push({
         turn: battleState.turnNumber,
         actor: attacker.pokemon.nickname || attacker.pokemon.species,
         action: `used ${move.name}`,
-        result: `${damage} damage!`,
+        result: resultText,
         synergyTriggered: hasSynergy
       });
     } else {
@@ -380,7 +447,7 @@ export class BattleEngine {
         turn: battleState.turnNumber,
         actor: attacker.pokemon.nickname || attacker.pokemon.species,
         action: `used ${move.name}`,
-        result: '',
+        result: typeEffectiveness === 0 ? "It doesn't affect " + (defender.pokemon.nickname || defender.pokemon.species) + "..." : '',
         synergyTriggered: hasSynergy
       });
     }
