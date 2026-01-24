@@ -17,6 +17,7 @@ import Storage from './pages/Storage';
 import StoryCutscene from './pages/StoryCutscene';
 import TutorialLog from './pages/TutorialLog';
 import Zones from './pages/Zones';
+import Town from './pages/Town';
 import __Layout from './Layout.jsx';
 
 
@@ -40,6 +41,7 @@ export const PAGES = {
     "StoryCutscene": StoryCutscene,
     "TutorialLog": TutorialLog,
     "Zones": Zones,
+    "Town": Town,
 }
 
 export const pagesConfig = {
