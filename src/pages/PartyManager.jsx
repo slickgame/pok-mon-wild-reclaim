@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Box, Star, ArrowLeftRight, Info } from 'lucide-react';
+import { Users, Box, Star, ArrowLeftRight, Info, ChevronUp, ChevronDown } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import PartyPokemonCard from '@/components/party/PartyPokemonCard';
 import { Button } from '@/components/ui/button';
@@ -112,26 +112,38 @@ useEffect(() => {
       }
       moveMutation.mutate({ pokemonId: pokemon.id, toParty: false });
     }
+  };
 
-    // Reordering within party - save new order
-    if (source.droppableId === 'party' && destination.droppableId === 'party') {
-      const reorderedParty = Array.from(party);
-      const [removed] = reorderedParty.splice(source.index, 1);
-      reorderedParty.splice(destination.index, 0, removed);
-
-    // Update local state immediately
+  const moveUp = async (index) => {
+    if (index === 0) return;
+    
+    const reorderedParty = Array.from(party);
+    [reorderedParty[index - 1], reorderedParty[index]] = [reorderedParty[index], reorderedParty[index - 1]];
+    
     setParty(reorderedParty);
-
-    // Save new order to Player
+    
     const partyOrder = reorderedParty.map(p => p.id);
     const players = await base44.entities.Player.list();
     if (players[0]) {
-    await base44.entities.Player.update(players[0].id, { partyOrder });
+      await base44.entities.Player.update(players[0].id, { partyOrder });
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+    }
+  };
 
-    // Re-fetch player after update to trigger useEffect
-    await queryClient.invalidateQueries({ queryKey: ['player'] });
-  }
-}
+  const moveDown = async (index) => {
+    if (index === party.length - 1) return;
+    
+    const reorderedParty = Array.from(party);
+    [reorderedParty[index], reorderedParty[index + 1]] = [reorderedParty[index + 1], reorderedParty[index]];
+    
+    setParty(reorderedParty);
+    
+    const partyOrder = reorderedParty.map(p => p.id);
+    const players = await base44.entities.Player.list();
+    if (players[0]) {
+      await base44.entities.Player.update(players[0].id, { partyOrder });
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+    }
   };
 
   const filteredStorage = storagePokemon.filter(p => {
@@ -193,12 +205,40 @@ useEffect(() => {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
+                        className="relative"
                       >
                         <PartyPokemonCard
                           pokemon={pokemon}
                           isDragging={snapshot.isDragging}
                           position={index + 1}
                         />
+                        {/* Reorder Buttons */}
+                        <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-8 w-8 bg-indigo-600 hover:bg-indigo-700 shadow-lg"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveUp(index);
+                            }}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-8 w-8 bg-indigo-600 hover:bg-indigo-700 shadow-lg"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveDown(index);
+                            }}
+                            disabled={index === party.length - 1}
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </Draggable>
