@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Map, Search, Compass, Eye, Sparkles, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -142,6 +143,7 @@ function ZoneDetailView({ zone, onClose }) {
   const [currentEncounter, setCurrentEncounter] = useState(null);
   const [zoneProgress, setZoneProgress] = useState(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: player } = useQuery({
     queryKey: ['player'],
@@ -379,8 +381,13 @@ function ZoneDetailView({ zone, onClose }) {
           rarity: 'uncommon'
         }, ...prev].slice(0, 10));
         
-        // Store battle data and navigate
-        window.location.href = `/Battle?wildPokemonId=${wildPokemon.id}&returnTo=Zones`;
+        // Navigate to battle using React Router
+        navigate('/Battle', {
+          state: {
+            wildPokemonId: wildPokemon.id,
+            returnTo: 'Zones'
+          }
+        });
         setCurrentEncounter(null);
       } catch (error) {
         console.error('Failed to create wild Pokémon:', error);

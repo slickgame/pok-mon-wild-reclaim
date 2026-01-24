@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTutorialTrigger } from '../components/tutorial/TutorialTrigger';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Trophy, Sparkles, AlertCircle, Package } from 'lucide-react';
@@ -35,21 +36,20 @@ export default function BattlePage() {
   const [evolutionState, setEvolutionState] = useState(null); // { pokemon, evolvesInto, pendingUpdate }
   const [captureModalState, setCaptureModalState] = useState(null); // { pokemon, addedToParty }
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { triggerTutorial } = useTutorialTrigger();
 
-  // Parse URL parameters for wild encounters
+  // Get battle state from React Router location
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const wildId = params.get('wildPokemonId');
-    const returnPage = params.get('returnTo');
+    const state = location.state;
     
-    if (wildId) {
-      setWildPokemonId(wildId);
-      setReturnTo(returnPage || 'Zones');
-      // Trigger first_battle tutorial
+    if (state?.wildPokemonId) {
+      setWildPokemonId(state.wildPokemonId);
+      setReturnTo(state.returnTo || 'Zones');
       triggerTutorial('first_battle');
     }
-  }, [triggerTutorial]);
+  }, [location.state, triggerTutorial]);
 
   // Fetch player inventory for Pokéballs and battle items
   const { data: inventory = [] } = useQuery({
@@ -68,11 +68,22 @@ export default function BattlePage() {
     queryKey: ['playerPokemon'],
     queryFn: async () => {
       const pokemon = await base44.entities.Pokemon.filter({ isInTeam: true });
-      // Ensure each Pokémon has moves loaded
-      return pokemon.map(p => ({
-        ...p,
-        abilities: p.abilities || []
-      }));
+      
+      // Validate party
+      if (pokemon.length === 0) {
+        console.error('No Pokémon in party!');
+        return [];
+      }
+      
+      // Sort by party order and ensure moves
+      const sortedParty = pokemon
+        .sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0))
+        .map(p => ({
+          ...p,
+          abilities: p.abilities || ['Tackle', 'Growl'] // Default moves if none
+        }));
+      
+      return sortedParty;
     }
   });
 
@@ -520,9 +531,9 @@ export default function BattlePage() {
   const fleeBattle = () => {
     if (!battleState || !battleState.isWildBattle) return;
     
-    // Return to zone
+    // Navigate back to zone using React Router
     if (returnTo) {
-      window.location.href = `/${returnTo}`;
+      navigate(`/${returnTo}`);
     } else {
       setBattleState(null);
       setWildPokemonId(null);
@@ -961,7 +972,7 @@ export default function BattlePage() {
                 
                 // Return to exploration if this was a wild battle
                 if (returnTo && battleState.isWildBattle) {
-                  window.location.href = `/${returnTo}`;
+                  navigate(`/${returnTo}`);
                 } else {
                   setBattleState(null);
                   setWildPokemonId(null);
