@@ -31,18 +31,26 @@ export default function PartyManager() {
 
   // Sort party by saved order
   const [party, setParty] = useState([]);
+  const [lastPartyOrder, setLastPartyOrder] = useState(null);
+
 useEffect(() => {
   if (player && allPokemon.length) {
-    const sorted = allPokemon
-      .filter(p => p.isInTeam)
-      .sort((a, b) => {
-        const indexA = player.partyOrder?.indexOf(a.id) ?? 999;
-        const indexB = player.partyOrder?.indexOf(b.id) ?? 999;
-        return indexA - indexB;
-      });
-    setParty(sorted);
+    const currentOrderKey = JSON.stringify(player.partyOrder || []);
+    
+    // Only update if party order actually changed
+    if (currentOrderKey !== lastPartyOrder) {
+      const sorted = allPokemon
+        .filter(p => p.isInTeam)
+        .sort((a, b) => {
+          const indexA = player.partyOrder?.indexOf(a.id) ?? 999;
+          const indexB = player.partyOrder?.indexOf(b.id) ?? 999;
+          return indexA - indexB;
+        });
+      setParty(sorted);
+      setLastPartyOrder(currentOrderKey);
+    }
   }
-}, [player, allPokemon]);
+}, [player, allPokemon, lastPartyOrder]);
 
   const storagePokemon = allPokemon.filter(p => !p.isInTeam);
 
@@ -120,13 +128,14 @@ useEffect(() => {
     const reorderedParty = Array.from(party);
     [reorderedParty[index - 1], reorderedParty[index]] = [reorderedParty[index], reorderedParty[index - 1]];
     
-    setParty(reorderedParty);
-    
     const partyOrder = reorderedParty.map(p => p.id);
+    
+    // Update database first
     const players = await base44.entities.Player.list();
     if (players[0]) {
       await base44.entities.Player.update(players[0].id, { partyOrder });
-      queryClient.invalidateQueries({ queryKey: ['player'] });
+      // Then update local state
+      setParty(reorderedParty);
     }
   };
 
@@ -136,13 +145,14 @@ useEffect(() => {
     const reorderedParty = Array.from(party);
     [reorderedParty[index], reorderedParty[index + 1]] = [reorderedParty[index + 1], reorderedParty[index]];
     
-    setParty(reorderedParty);
-    
     const partyOrder = reorderedParty.map(p => p.id);
+    
+    // Update database first
     const players = await base44.entities.Player.list();
     if (players[0]) {
       await base44.entities.Player.update(players[0].id, { partyOrder });
-      queryClient.invalidateQueries({ queryKey: ['player'] });
+      // Then update local state
+      setParty(reorderedParty);
     }
   };
 
