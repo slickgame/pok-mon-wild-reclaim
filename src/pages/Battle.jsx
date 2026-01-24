@@ -554,8 +554,18 @@ export default function BattlePage() {
   };
 
   // Flee from battle
-  const fleeBattle = () => {
+  const fleeBattle = async () => {
     if (!battleState || !battleState.isWildBattle) return;
+    
+    // Delete the wild Pokemon when fleeing
+    if (wildPokemonId) {
+      try {
+        await base44.entities.Pokemon.delete(wildPokemonId);
+        queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
+      } catch (err) {
+        console.error('Failed to delete wild Pokemon:', err);
+      }
+    }
     
     // Navigate back to zone using React Router
     if (returnTo) {
@@ -1013,19 +1023,19 @@ export default function BattlePage() {
               }}
               onClose={async () => {
                 // Clean up wild Pokémon
-                if (wildPokemonId) {
+                if (wildPokemonId && battleState.isWildBattle) {
                   try {
                     if (battleState.status === 'captured') {
                       // Captured Pokémon already handled by CaptureSuccessModal
-                    } else if (battleState.status === 'won') {
-                      // Delete defeated wild Pokémon
+                    } else {
+                      // Delete wild Pokémon if defeated or lost (not captured)
                       await base44.entities.Pokemon.delete(wildPokemonId);
                     }
                   } catch (err) {
-                    console.error('Failed to handle wild Pokémon:', err);
+                    console.error('Failed to delete wild Pokémon:', err);
                   }
                 }
-                
+
                 // Return to exploration if this was a wild battle
                 if (returnTo && battleState.isWildBattle) {
                   navigate(`/${returnTo}`);
@@ -1055,7 +1065,7 @@ export default function BattlePage() {
                   
                   <Button
                     onClick={() => setActionMenu('items')}
-                    disabled={!isPlayerTurn || battleItems.length === 0 || isBattleEnded}
+                    disabled={!isPlayerTurn || (battleItems.length === 0 && pokeballs.length === 0) || isBattleEnded}
                     className="h-20 bg-gradient-to-br from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                   >
                     <Package className="w-6 h-6 mr-2" />
