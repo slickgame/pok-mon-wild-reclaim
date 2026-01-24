@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Brain, X, AlertCircle, Coins } from 'lucide-react';
+import { Brain, X, AlertCircle, Coins, RotateCcw } from 'lucide-react';
 import { getLevelUpLearnset, getMovesLearnableUpToLevel } from '@/components/pokemon/levelUpLearnsets';
 import { getMoveData } from '@/components/pokemon/moveData';
 
