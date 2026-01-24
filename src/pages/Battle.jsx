@@ -112,7 +112,9 @@ export default function BattlePage() {
   const startWildBattle = (wildMon) => {
     if (playerPokemon.length === 0) return;
 
-    const playerMon = playerPokemon[0];
+    // Always use first Pokémon in party as lead
+    const sortedParty = [...playerPokemon].sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0));
+    const playerMon = sortedParty[0];
     const playerStats = getPokemonStats(playerMon).stats;
     const wildStats = getPokemonStats(wildMon).stats;
     
@@ -137,7 +139,9 @@ export default function BattlePage() {
   const startBattle = () => {
     if (playerPokemon.length === 0) return;
 
-    const playerMon = playerPokemon[0];
+    // Always use first Pokémon in party as lead
+    const sortedParty = [...playerPokemon].sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0));
+    const playerMon = sortedParty[0];
     const playerStats = getPokemonStats(playerMon).stats;
     
     const enemyMon = {
@@ -366,15 +370,50 @@ export default function BattlePage() {
       const currentEVs = newBattleState.playerPokemon.evs || { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 };
       const evResult = applyEVGains(currentEVs, newBattleState.enemyPokemon.species);
       
-      // Generate material drops for wild battles
+      // Generate material drops for wild battles (species-specific)
       const materialsDropped = [];
+      let goldGained = 0;
+      
       if (newBattleState.isWildBattle) {
-        const dropChance = Math.random() * 100;
-        if (dropChance > 40) {
-          const materials = ['Silk Fragment', 'Glowworm', 'Moonleaf', 'River Stone'];
-          const dropped = materials[Math.floor(Math.random() * materials.length)];
-          materialsDropped.push(dropped);
+        // Wild Pokémon drop items, not gold
+        const speciesDropTables = {
+          'Pidgey': [
+            { item: 'Feather', chance: 0.6 },
+            { item: 'Gust Essence', chance: 0.25 },
+            { item: 'Sky Shard', chance: 0.15 }
+          ],
+          'Rattata': [
+            { item: 'Fang Fragment', chance: 0.5 },
+            { item: 'Fiber Tail', chance: 0.4 },
+            { item: 'Quick Dust', chance: 0.2 }
+          ],
+          'Caterpie': [
+            { item: 'Silk Fragment', chance: 0.7 },
+            { item: 'Bug Dust', chance: 0.4 },
+            { item: 'String Fiber', chance: 0.3 }
+          ],
+          'default': [
+            { item: 'Monster Essence', chance: 0.5 },
+            { item: 'Wild Shard', chance: 0.3 },
+            { item: 'Berries', chance: 0.4 }
+          ]
+        };
+        
+        const dropTable = speciesDropTables[newBattleState.enemyPokemon.species] || speciesDropTables['default'];
+        
+        dropTable.forEach(drop => {
+          if (Math.random() < drop.chance) {
+            materialsDropped.push(drop.item);
+          }
+        });
+        
+        // Ensure at least one drop
+        if (materialsDropped.length === 0) {
+          materialsDropped.push(dropTable[0].item);
         }
+      } else {
+        // Practice battles still give gold
+        goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
       }
 
       newBattleState.rewards = {
@@ -432,18 +471,37 @@ export default function BattlePage() {
 
       // Add materials to inventory
       if (materialsDropped.length > 0) {
-        materialsDropped.forEach(material => {
-          base44.entities.Item.create({
-            name: material,
-            type: 'Material',
-            tier: 1,
-            rarity: 'Common',
-            description: 'A crafting material',
-            quantity: 1,
-            stackable: true,
-            sellValue: 10
-          }).catch(err => console.error('Failed to add material:', err));
-        });
+        // Check for existing materials and stack them
+        for (const material of materialsDropped) {
+          try {
+            const existingItems = await base44.entities.Item.filter({ name: material });
+            if (existingItems.length > 0) {
+              // Stack with existing
+              const existingItem = existingItems[0];
+              await base44.entities.Item.update(existingItem.id, {
+                quantity: (existingItem.quantity || 1) + 1
+              });
+            } else {
+              // Create new item
+              await base44.entities.Item.create({
+                name: material,
+                type: 'Material',
+                tier: 1,
+                rarity: 'Common',
+                description: 'A crafting material dropped from wild Pokémon',
+                quantity: 1,
+                stackable: true,
+                sellValue: 10
+              });
+            }
+          } catch (err) {
+            console.error('Failed to add material:', err);
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        
+        // Trigger first_material tutorial
+        triggerTutorial('first_material');
       }
 
     } else if (newBattleState.playerHP <= 0) {

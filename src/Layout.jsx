@@ -90,30 +90,41 @@ export default function Layout({ children, currentPageName }) {
         
         <nav className="flex-1 p-3 lg:p-4 space-y-2">
           {navItems.map((item) => {
-            const isActive = currentPageName === item.page;
-            return (
-              <Link
-                key={item.page}
-                to={createPageUrl(item.page)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${
-                  isActive 
-                    ? 'bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 text-white' 
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTab"
-                    className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-cyan-400 rounded-r-full"
-                    initial={false}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                )}
-                <item.icon className={`w-5 h-5 ${isActive ? 'text-indigo-400' : 'group-hover:text-indigo-400'} transition-colors`} />
-                <span className="hidden lg:block font-medium">{item.name}</span>
-              </Link>
-            );
-          })}
+              const isActive = currentPageName === item.page;
+              const isBattlePage = currentPageName === 'Battle';
+              const isDisabled = isBattlePage && item.page !== 'Battle';
+
+              return (
+                <Link
+                  key={item.page}
+                  to={createPageUrl(item.page)}
+                  onClick={(e) => {
+                    if (isDisabled) {
+                      e.preventDefault();
+                      alert('⚔️ You cannot leave during an active battle!');
+                    }
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${
+                    isDisabled
+                      ? 'text-slate-600 cursor-not-allowed opacity-50'
+                      : isActive 
+                      ? 'bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 text-white' 
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-cyan-400 rounded-r-full"
+                      initial={false}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  )}
+                  <item.icon className={`w-5 h-5 ${isActive ? 'text-indigo-400' : isDisabled ? 'text-slate-600' : 'group-hover:text-indigo-400'} transition-colors`} />
+                  <span className="hidden lg:block font-medium">{item.name}</span>
+                </Link>
+              );
+            })}
         </nav>
 
         <div className="p-4 border-t border-indigo-500/20 space-y-3">
@@ -159,13 +170,25 @@ export default function Layout({ children, currentPageName }) {
             <nav className="space-y-2">
               {navItems.map((item) => {
                 const isActive = currentPageName === item.page;
+                const isBattlePage = currentPageName === 'Battle';
+                const isDisabled = isBattlePage && item.page !== 'Battle';
+
                 return (
                   <Link
                     key={item.page}
                     to={createPageUrl(item.page)}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={(e) => {
+                      if (isDisabled) {
+                        e.preventDefault();
+                        alert('⚔️ You cannot leave during an active battle!');
+                      } else {
+                        setMobileMenuOpen(false);
+                      }
+                    }}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                      isActive 
+                      isDisabled
+                        ? 'text-slate-600 cursor-not-allowed opacity-50'
+                        : isActive 
                         ? 'bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 text-white' 
                         : 'text-slate-400'
                     }`}
