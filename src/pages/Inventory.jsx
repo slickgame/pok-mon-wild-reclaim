@@ -16,6 +16,7 @@ import TMUsageModal from '@/components/items/TMUsageModal';
 const itemTypes = [
   { value: 'all', label: 'All', icon: Package },
   { value: 'Potion', label: 'Potions', icon: Beaker },
+  { value: 'Capture Gear', label: 'Pokéballs', icon: Target },
   { value: 'Battle Item', label: 'Battle', icon: Swords },
   { value: 'Held Item', label: 'Held', icon: Sparkles },
   { value: 'Material', label: 'Materials', icon: Package },

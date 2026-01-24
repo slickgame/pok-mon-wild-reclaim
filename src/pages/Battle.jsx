@@ -597,12 +597,26 @@ export default function BattlePage() {
     if (!battleState) return;
 
     let healAmount = 0;
+    let itemEffect = '';
+    
+    // Potions
     if (item.name === 'Potion') healAmount = 50;
     if (item.name === 'Super Potion') healAmount = 100;
-
+    if (item.name === 'Hyper Potion') healAmount = 200;
+    if (item.name === 'Max Potion') healAmount = 9999;
+    
     const playerStatsResult = getPokemonStats(battleState.playerPokemon);
     const playerStats = playerStatsResult?.stats || battleState.playerPokemon.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
-    const newHP = Math.min(battleState.playerHP + healAmount, playerStats.maxHp || 100);
+    const maxHp = playerStats.maxHp || 100;
+    const healedAmount = Math.min(healAmount, maxHp - battleState.playerHP);
+    const newHP = Math.min(battleState.playerHP + healAmount, maxHp);
+
+    // Determine item type for log message
+    if (item.type === 'Potion' || item.name.toLowerCase().includes('potion')) {
+      itemEffect = `Restored ${healedAmount} HP`;
+    } else {
+      itemEffect = item.effects || 'Used item';
+    }
 
     const newBattleState = {
       ...battleState,
@@ -611,7 +625,7 @@ export default function BattlePage() {
         turn: battleState.turnNumber,
         actor: 'Player',
         action: `Used ${item.name}`,
-        result: `Restored ${newHP - battleState.playerHP} HP`,
+        result: itemEffect,
         synergyTriggered: false
       }],
       turnNumber: battleState.turnNumber + 1,
@@ -619,15 +633,18 @@ export default function BattlePage() {
     };
 
     setBattleState(newBattleState);
-    setActionMenu('main');
 
     // Consume item
-    if (item.quantity > 1) {
-      await base44.entities.Item.update(item.id, { quantity: item.quantity - 1 });
-    } else {
-      await base44.entities.Item.delete(item.id);
+    try {
+      if (item.quantity > 1) {
+        await base44.entities.Item.update(item.id, { quantity: item.quantity - 1 });
+      } else {
+        await base44.entities.Item.delete(item.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    } catch (err) {
+      console.error('Failed to consume item:', err);
     }
-    queryClient.invalidateQueries({ queryKey: ['inventory'] });
   };
 
   // Handle move learning
@@ -1134,7 +1151,7 @@ export default function BattlePage() {
               {actionMenu === 'items' && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-white">Battle Items</h3>
+                    <h3 className="text-sm font-semibold text-white">Items</h3>
                     <Button
                       size="sm"
                       variant="outline"
@@ -1143,22 +1160,69 @@ export default function BattlePage() {
                       Back
                     </Button>
                   </div>
-                  <div className="space-y-2">
-                    {battleItems.map((item) => (
-                      <Button
-                        key={item.id}
-                        onClick={() => useItem(item)}
-                        disabled={!isPlayerTurn}
-                        variant="outline"
-                        className="w-full justify-between"
-                      >
-                        <span>{item.name}</span>
-                        <Badge className="bg-slate-700">x{item.quantity || 1}</Badge>
-                      </Button>
-                    ))}
-                    {battleItems.length === 0 && (
+
+                  {/* Item Categories */}
+                  <div className="space-y-4">
+                    {/* Pokéballs */}
+                    {pokeballs.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-indigo-400 mb-2 flex items-center gap-2">
+                          <Trophy className="w-4 h-4" />
+                          Pokéballs
+                        </h4>
+                        <div className="space-y-2">
+                          {pokeballs.map((ball) => (
+                            <Button
+                              key={ball.id}
+                              onClick={async () => {
+                                await attemptCapture(ball);
+                                setActionMenu('main');
+                              }}
+                              disabled={!isPlayerTurn || capturingPokemon || !battleState.isWildBattle}
+                              variant="outline"
+                              className="w-full justify-between hover:bg-purple-500/10"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Trophy className="w-4 h-4" />
+                                {ball.name}
+                              </span>
+                              <Badge className="bg-purple-700">×{ball.quantity || 1}</Badge>
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Potions & Battle Items */}
+                    {battleItems.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-cyan-400 mb-2 flex items-center gap-2">
+                          <Package className="w-4 h-4" />
+                          Battle Items
+                        </h4>
+                        <div className="space-y-2">
+                          {battleItems.map((item) => (
+                            <Button
+                              key={item.id}
+                              onClick={() => {
+                                useItem(item);
+                                setActionMenu('main');
+                              }}
+                              disabled={!isPlayerTurn}
+                              variant="outline"
+                              className="w-full justify-between hover:bg-cyan-500/10"
+                            >
+                              <span>{item.name}</span>
+                              <Badge className="bg-cyan-700">×{item.quantity || 1}</Badge>
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {pokeballs.length === 0 && battleItems.length === 0 && (
                       <div className="text-center text-slate-400 py-4">
-                        No battle items available
+                        No items available
                       </div>
                     )}
                   </div>
