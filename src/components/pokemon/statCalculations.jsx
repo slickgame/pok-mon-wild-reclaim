@@ -50,6 +50,18 @@ export function calculateStat(base, iv, ev, level, natureModifier = 1.0) {
  * Calculate all stats for a Pokémon
  */
 export function calculateAllStats(pokemon, baseStats) {
+  if (!baseStats) {
+    return {
+      hp: 100,
+      maxHp: 100,
+      atk: 50,
+      def: 50,
+      spAtk: 50,
+      spDef: 50,
+      spd: 50
+    };
+  }
+  
   const nature = NATURES[pokemon.nature] || NATURES.Hardy;
   const level = pokemon.level || 5;
   
