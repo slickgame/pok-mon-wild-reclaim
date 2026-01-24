@@ -128,13 +128,11 @@ export default function BattlePage() {
     // Always use first Pokémon in party as lead
     const sortedParty = [...playerPokemon].sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0));
     const playerMon = sortedParty[0];
-    const playerStats = getPokemonStats(playerMon)?.stats || playerMon.stats;
-    const wildStats = getPokemonStats(wildMon)?.stats || wildMon.stats;
+    const playerStatsResult = getPokemonStats(playerMon);
+    const wildStatsResult = getPokemonStats(wildMon);
     
-    if (!playerStats || !wildStats) {
-      console.error('Failed to get stats for battle', { playerStats, wildStats });
-      return;
-    }
+    const playerStats = playerStatsResult?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
+    const wildStats = wildStatsResult?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     
     setBattleState({
       playerPokemon: playerMon,
@@ -160,12 +158,8 @@ export default function BattlePage() {
     // Always use first Pokémon in party as lead
     const sortedParty = [...playerPokemon].sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0));
     const playerMon = sortedParty[0];
-    const playerStats = getPokemonStats(playerMon)?.stats || playerMon.stats;
-    
-    if (!playerStats) {
-      console.error('Failed to get player stats for battle');
-      return;
-    }
+    const playerStatsResult = getPokemonStats(playerMon);
+    const playerStats = playerStatsResult?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     
     const enemyMon = {
       id: 'enemy-1',
@@ -239,13 +233,9 @@ export default function BattlePage() {
     };
 
     // Calculate catch rate
-    const enemyStats = getPokemonStats(battleState.enemyPokemon)?.stats || battleState.enemyPokemon.stats;
-    if (!enemyStats || !enemyStats.maxHp) {
-      console.error('Enemy stats not available for capture');
-      setCapturingPokemon(false);
-      return;
-    }
-    const hpPercent = (battleState.enemyHP / enemyStats.maxHp) * 100;
+    const enemyStatsResult = getPokemonStats(battleState.enemyPokemon);
+    const enemyStats = enemyStatsResult?.stats || battleState.enemyPokemon.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
+    const hpPercent = (battleState.enemyHP / (enemyStats.maxHp || 100)) * 100;
     
     const rarityModifier = {
       'common': 50,
@@ -581,11 +571,8 @@ export default function BattlePage() {
   const switchPokemon = async (newPokemon) => {
     if (!battleState || !newPokemon) return;
 
-    const newStats = getPokemonStats(newPokemon)?.stats || newPokemon.stats;
-    if (!newStats) {
-      console.error('Failed to get stats for switching Pokemon');
-      return;
-    }
+    const newStatsResult = getPokemonStats(newPokemon);
+    const newStats = newStatsResult?.stats || newPokemon.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
 
     const newBattleState = {
       ...battleState,
@@ -613,12 +600,9 @@ export default function BattlePage() {
     if (item.name === 'Potion') healAmount = 50;
     if (item.name === 'Super Potion') healAmount = 100;
 
-    const playerStats = getPokemonStats(battleState.playerPokemon)?.stats || battleState.playerPokemon.stats;
-    if (!playerStats) {
-      console.error('Failed to get stats for item use');
-      return;
-    }
-    const newHP = Math.min(battleState.playerHP + healAmount, playerStats.maxHp);
+    const playerStatsResult = getPokemonStats(battleState.playerPokemon);
+    const playerStats = playerStatsResult?.stats || battleState.playerPokemon.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
+    const newHP = Math.min(battleState.playerHP + healAmount, playerStats.maxHp || 100);
 
     const newBattleState = {
       ...battleState,
@@ -864,7 +848,10 @@ export default function BattlePage() {
           <BattleHUD
             pokemon={battleState.enemyPokemon}
             hp={battleState.enemyHP}
-            maxHp={(getPokemonStats(battleState.enemyPokemon)?.stats || battleState.enemyPokemon.stats)?.maxHp || 100}
+            maxHp={(() => {
+              const result = getPokemonStats(battleState.enemyPokemon);
+              return result?.stats?.maxHp || battleState.enemyPokemon?.stats?.maxHp || 100;
+            })()}
             status={battleState.enemyStatus}
             roles={battleState.enemyPokemon.roles || []}
           />
@@ -884,7 +871,10 @@ export default function BattlePage() {
           <BattleHUD
             pokemon={battleState.playerPokemon}
             hp={battleState.playerHP}
-            maxHp={(getPokemonStats(battleState.playerPokemon)?.stats || battleState.playerPokemon.stats)?.maxHp || 100}
+            maxHp={(() => {
+              const result = getPokemonStats(battleState.playerPokemon);
+              return result?.stats?.maxHp || battleState.playerPokemon?.stats?.maxHp || 100;
+            })()}
             status={battleState.playerStatus}
             roles={battleState.playerPokemon.roles || []}
             isPlayer
