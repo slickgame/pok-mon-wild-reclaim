@@ -117,7 +117,7 @@ export default function MovesTab({ pokemon }) {
                 <div className="flex-1">
                   <h4 className="font-semibold text-white">{moveName}</h4>
                   {moveData &&
-                  <div className="flex gap-2 mt-1 flex-wrap">
+                  <div className="text-slate-50 mt-1 rounded flex gap-2 flex-wrap">
                       <Badge className="text-xs bg-slate-700">
                         {moveData.type}
                       </Badge>
@@ -130,12 +130,12 @@ export default function MovesTab({ pokemon }) {
                         </Badge>
                     }
                       {moveData.accuracy &&
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
                           Acc: {moveData.accuracy}%
                         </Badge>
                     }
                       {moveData.pp &&
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
                           PP: {moveData.pp}
                         </Badge>
                     }
