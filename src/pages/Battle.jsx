@@ -448,8 +448,8 @@ export default function BattlePage() {
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
 
       // Handle active Pokemon's level up mechanics (moves, evolution, EVs)
-      const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
       let movesLearned = [];
+      const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
       if (activePokemonUpdate && activePokemonUpdate.level > newBattleState.playerPokemon.level) {
         const levelsGained = [];
         for (let lvl = newBattleState.playerPokemon.level + 1; lvl <= activePokemonUpdate.level; lvl++) {
@@ -527,12 +527,10 @@ export default function BattlePage() {
       triggerTutorial('first_victory');
 
       // Check for evolution first (only active Pokemon)
-      const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
       const evolutionData = activePokemonUpdate ? checkEvolution(newBattleState.playerPokemon, activePokemonUpdate.level) : null;
       
       if (evolutionData) {
         // Store evolution state
-        const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
         setEvolutionState({
           pokemon: newBattleState.playerPokemon,
           evolvesInto: evolutionData.evolvesInto,
@@ -547,7 +545,6 @@ export default function BattlePage() {
         } else if (movesLearned.length > 0) {
         // No evolution, but has moves to learn
         const currentMoves = newBattleState.playerPokemon.abilities || [];
-        const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
 
         setMoveLearnState({
           pokemon: newBattleState.playerPokemon,
