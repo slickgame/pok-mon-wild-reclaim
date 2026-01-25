@@ -47,12 +47,15 @@ export default function BattlePage() {
   // Get battle state from React Router location
   useEffect(() => {
     const state = location.state;
-    
+
     if (state?.wildPokemonId) {
-      setWildPokemonId(state.wildPokemonId);
-      setReturnTo(state.returnTo || 'Zones');
-      triggerTutorial('first_battle');
+    setWildPokemonId(state.wildPokemonId);
+    setReturnTo(state.returnTo || 'Zones');
+    triggerTutorial('first_battle');
     }
+
+    // Clean up navigation state to prevent reuse
+    window.history.replaceState({}, document.title);
   }, [location.state, triggerTutorial]);
 
   // Fetch player inventory for Pokéballs and battle items
@@ -389,7 +392,9 @@ export default function BattlePage() {
       for (const teamMember of playerPokemon) {
         const pokemonStats = getPokemonStats(teamMember);
         const maxHp = pokemonStats?.stats?.maxHp || teamMember.stats?.maxHp || 100;
-        const currentHp = teamMember.currentHp !== undefined ? teamMember.currentHp : maxHp;
+        // Check if this Pokemon is currently in battle and use battle HP, otherwise use stored HP
+        const isActivePokemon = teamMember.id === newBattleState.playerPokemon.id;
+        const currentHp = isActivePokemon ? newBattleState.playerHP : (teamMember.currentHp !== undefined ? teamMember.currentHp : maxHp);
         const isFainted = currentHp <= 0;
 
         if (isFainted) {
@@ -1156,19 +1161,16 @@ export default function BattlePage() {
                 wasCaptured: battleState.status === 'captured'
               }}
               onClose={async () => {
-                // Clean up wild Pokémon
-                if (wildPokemonId && battleState.isWildBattle) {
-                  try {
-                    if (battleState.status === 'captured') {
-                      // Captured Pokémon already handled by CaptureSuccessModal
-                    } else {
-                      // Delete wild Pokémon if defeated or lost (not captured)
+                  // Clean up wild Pokémon - always delete if not captured
+                  if (wildPokemonId && battleState.isWildBattle && battleState.status !== 'captured') {
+                    try {
                       await base44.entities.Pokemon.delete(wildPokemonId);
+                      queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
+                      queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+                    } catch (err) {
+                      console.error('Failed to delete wild Pokémon:', err);
                     }
-                  } catch (err) {
-                    console.error('Failed to delete wild Pokémon:', err);
                   }
-                }
 
                 // Return to exploration if this was a wild battle
                 if (returnTo && battleState.isWildBattle) {
