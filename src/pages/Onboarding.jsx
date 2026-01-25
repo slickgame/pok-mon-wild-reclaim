@@ -117,7 +117,15 @@ export default function OnboardingPage() {
           };
         });
 
-        await base44.entities.Pokemon.bulkCreate(starters);
+        const createdStarters = await base44.entities.Pokemon.bulkCreate(starters);
+        
+        // Initialize player's party order with starter Pokemon IDs
+        const players = await base44.entities.Player.filter({ created_by: user.email });
+        if (players[0] && createdStarters.length > 0) {
+          await base44.entities.Player.update(players[0].id, {
+            partyOrder: createdStarters.map(s => s.id)
+          });
+        }
 
         // Check if Verdant Hollow zone already exists
         const existingZones = await base44.entities.Zone.filter({ name: 'Verdant Hollow' });
