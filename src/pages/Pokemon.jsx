@@ -45,14 +45,34 @@ export default function PokemonPage() {
   const [filter, setFilter] = useState('team');
   const queryClient = useQueryClient();
 
+  const { data: player } = useQuery({
+    queryKey: ['player'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    }
+  });
+
   const { data: pokemon = [], isLoading } = useQuery({
     queryKey: ['pokemon'],
     queryFn: () => base44.entities.Pokemon.list()
   });
 
-  const filteredPokemon = filter === 'team' 
-    ? pokemon.filter(p => p.isInTeam) 
-    : pokemon;
+  const filteredPokemon = React.useMemo(() => {
+    if (filter === 'team') {
+      const teamPokemon = pokemon.filter(p => p.isInTeam && !p.isWildInstance);
+      
+      // Use player.partyOrder to maintain consistent order with PartyManager
+      if (!player?.partyOrder?.length) {
+        return teamPokemon;
+      }
+
+      return player.partyOrder
+        .map(id => teamPokemon.find(p => p.id === id))
+        .filter(Boolean);
+    }
+    return pokemon.filter(p => !p.isWildInstance);
+  }, [pokemon, filter, player]);
 
   return (
     <div>
