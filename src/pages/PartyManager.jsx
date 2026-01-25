@@ -31,7 +31,7 @@ export default function PartyManager() {
 
   // Use player.partyOrder as single source of truth
   const party = useMemo(() => {
-    const teamPokemon = allPokemon.filter(p => p.isInTeam);
+    const teamPokemon = allPokemon.filter(p => p.isInTeam && !p.isWildInstance);
     
     if (!player?.partyOrder?.length) {
       return teamPokemon;
@@ -42,7 +42,7 @@ export default function PartyManager() {
       .filter(Boolean);
   }, [allPokemon, player]);
 
-  const storagePokemon = allPokemon.filter(p => !p.isInTeam);
+  const storagePokemon = allPokemon.filter(p => !p.isInTeam && !p.isWildInstance);
 
   const moveMutation = useMutation({
     mutationFn: async ({ pokemonId, toParty, atIndex }) => {
