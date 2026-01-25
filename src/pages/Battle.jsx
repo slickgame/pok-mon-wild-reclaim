@@ -388,7 +388,8 @@ export default function BattlePage() {
       // Process each team member
       for (const teamMember of playerPokemon) {
         const pokemonStats = getPokemonStats(teamMember);
-        const currentHp = pokemonStats?.stats?.hp || teamMember.currentHp || teamMember.stats?.hp || 100;
+        const maxHp = pokemonStats?.stats?.maxHp || teamMember.stats?.maxHp || 100;
+        const currentHp = teamMember.currentHp !== undefined ? teamMember.currentHp : maxHp;
         const isFainted = currentHp <= 0;
 
         if (isFainted) {
