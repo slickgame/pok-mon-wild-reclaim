@@ -1101,11 +1101,32 @@ export default function BattlePage() {
                   const species = captureModalState.pokemon.species;
                   const level = captureModalState.pokemon.level;
 
-                  // Update the captured Pokémon with correct placement and nickname
+                  // Generate random nature and IVs
+                  const NATURES = [
+                    "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
+                    "Bold", "Docile", "Relaxed", "Impish", "Lax",
+                    "Timid", "Hasty", "Serious", "Jolly", "Naive",
+                    "Modest", "Mild", "Quiet", "Bashful", "Rash",
+                    "Calm", "Gentle", "Sassy", "Careful", "Quirky"
+                  ];
+
+                  const randomNature = NATURES[Math.floor(Math.random() * NATURES.length)];
+                  const randomIVs = {
+                    hp: Math.floor(Math.random() * 31) + 1,
+                    atk: Math.floor(Math.random() * 31) + 1,
+                    def: Math.floor(Math.random() * 31) + 1,
+                    spAtk: Math.floor(Math.random() * 31) + 1,
+                    spDef: Math.floor(Math.random() * 31) + 1,
+                    spd: Math.floor(Math.random() * 31) + 1
+                  };
+
+                  // Update the captured Pokémon with correct placement, nickname, nature, and IVs
                   await base44.entities.Pokemon.update(wildPokemonId, {
                     isInTeam: captureModalState.addedToParty,
                     isWildInstance: false,
-                    nickname: nickname || undefined
+                    nickname: nickname || undefined,
+                    nature: randomNature,
+                    ivs: randomIVs
                   });
 
                   // Check if this species is already in Pokédex
