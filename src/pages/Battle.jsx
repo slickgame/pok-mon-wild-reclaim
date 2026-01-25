@@ -15,6 +15,7 @@ import BattleLog from '@/components/battle/BattleLog';
 import TalentDisplay from '@/components/battle/TalentDisplay';
 import BattleOutcomeModal from '@/components/battle/BattleOutcomeModal';
 import CaptureSuccessModal from '@/components/battle/CaptureSuccessModal';
+import BattleSummaryModal from '@/components/battle/BattleSummaryModal';
 import { BattleEngine } from '@/components/battle/BattleEngine';
 import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
@@ -36,6 +37,8 @@ export default function BattlePage() {
   const [moveLearnState, setMoveLearnState] = useState(null); // { pokemon, newMoves, currentMoves, pendingUpdate }
   const [evolutionState, setEvolutionState] = useState(null); // { pokemon, evolvesInto, pendingUpdate }
   const [captureModalState, setCaptureModalState] = useState(null); // { pokemon, addedToParty }
+  const [itemsUsed, setItemsUsed] = useState([]); // Track items used in battle
+  const [battleSummary, setBattleSummary] = useState(null); // Battle summary data
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -374,35 +377,91 @@ export default function BattlePage() {
         synergyTriggered: false
       });
 
-      // Award XP and calculate rewards
-      const xpGained = Math.floor(newBattleState.enemyPokemon.level * 25);
-      const currentXP = newBattleState.playerPokemon.experience || 0;
-      const newXP = currentXP + xpGained;
-      
-      // Calculate level ups and new level
-      const currentLevel = newBattleState.playerPokemon.level;
-      const xpForNextLevel = currentLevel * 100;
-      let newLevel = currentLevel;
-      let remainingXP = newXP;
-      const levelsGained = [];
-      
-      // Check for level ups
-      while (remainingXP >= (newLevel * 100)) {
-        remainingXP -= (newLevel * 100);
-        newLevel++;
-        levelsGained.push(newLevel);
-      }
-      
-      // Check for moves learned from level ups
-      const movesLearned = [];
-      levelsGained.forEach(level => {
-        const moves = getMovesLearnedAtLevel(newBattleState.playerPokemon.species, level);
-        if (moves.length > 0) {
-          movesLearned.push(...moves);
+      // Award XP to all team members
+      const baseXpGained = Math.floor(newBattleState.enemyPokemon.level * 25);
+      const xpResults = [];
+      const pokemonToUpdate = [];
+
+      // Process each team member
+      for (const teamMember of playerPokemon) {
+        const pokemonStats = getPokemonStats(teamMember);
+        const currentHp = pokemonStats?.stats?.hp || teamMember.currentHp || teamMember.stats?.hp || 100;
+        const isFainted = currentHp <= 0;
+
+        if (isFainted) {
+          // Fainted Pokemon don't gain XP
+          xpResults.push({
+            name: teamMember.nickname || teamMember.species,
+            fainted: true,
+            xpGained: 0,
+            leveledUp: false
+          });
+          continue;
         }
-      });
-      
-      // Apply EV gains
+
+        // Award XP (active Pokemon gets full XP, others get 50%)
+        const xpMultiplier = teamMember.id === newBattleState.playerPokemon.id ? 1.0 : 0.5;
+        const xpGained = Math.floor(baseXpGained * xpMultiplier);
+        const currentXP = teamMember.experience || 0;
+        const newXP = currentXP + xpGained;
+
+        // Calculate level ups
+        const currentLevel = teamMember.level;
+        let newLevel = currentLevel;
+        let remainingXP = newXP;
+        const levelsGained = [];
+
+        while (remainingXP >= (newLevel * 100)) {
+          remainingXP -= (newLevel * 100);
+          newLevel++;
+          levelsGained.push(newLevel);
+        }
+
+        // Track for update
+        pokemonToUpdate.push({
+          id: teamMember.id,
+          experience: remainingXP,
+          level: newLevel,
+          species: teamMember.species
+        });
+
+        xpResults.push({
+          name: teamMember.nickname || teamMember.species,
+          fainted: false,
+          xpGained: xpGained,
+          leveledUp: levelsGained.length > 0,
+          newLevel: newLevel
+        });
+      }
+
+      // Update all Pokemon with XP
+      await Promise.all(pokemonToUpdate.map(p => 
+        base44.entities.Pokemon.update(p.id, {
+          experience: p.experience,
+          level: p.level
+        })
+      ));
+
+      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+
+      // Handle active Pokemon's level up mechanics (moves, evolution, EVs)
+      const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
+      let movesLearned = [];
+      if (activePokemonUpdate && activePokemonUpdate.level > newBattleState.playerPokemon.level) {
+        const levelsGained = [];
+        for (let lvl = newBattleState.playerPokemon.level + 1; lvl <= activePokemonUpdate.level; lvl++) {
+          levelsGained.push(lvl);
+        }
+
+        levelsGained.forEach(level => {
+          const moves = getMovesLearnedAtLevel(newBattleState.playerPokemon.species, level);
+          if (moves.length > 0) {
+            movesLearned.push(...moves);
+          }
+        });
+      }
+
+      // Apply EV gains (only to active Pokemon)
       const currentEVs = newBattleState.playerPokemon.evs || { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 };
       const evResult = applyEVGains(currentEVs, newBattleState.enemyPokemon.species);
       
@@ -453,57 +512,66 @@ export default function BattlePage() {
       }
 
       newBattleState.rewards = {
-        xpGained,
+        xpGained: baseXpGained,
         goldGained,
         materialsDropped,
         evsGained: evResult.evsGained,
         totalEVsGained: evResult.totalGained,
-        levelsGained: levelsGained.length,
-        newLevel: newLevel
+        xpResults
       };
-      
+
       // Trigger first_victory tutorial
       triggerTutorial('first_victory');
-      
-      // Check for evolution first
-      const evolutionData = checkEvolution(newBattleState.playerPokemon, newLevel);
+
+      // Check for evolution first (only active Pokemon)
+      const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
+      const evolutionData = activePokemonUpdate ? checkEvolution(newBattleState.playerPokemon, activePokemonUpdate.level) : null;
       
       if (evolutionData) {
         // Store evolution state
+        const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
         setEvolutionState({
           pokemon: newBattleState.playerPokemon,
           evolvesInto: evolutionData.evolvesInto,
           pendingUpdate: {
             id: newBattleState.playerPokemon.id,
-            experience: newXP,
-            level: newLevel,
+            experience: activePokemonUpdate.experience,
+            level: activePokemonUpdate.level,
             evs: evResult.newEVs,
             movesLearned: movesLearned
           }
         });
-      } else if (movesLearned.length > 0) {
+        } else if (movesLearned.length > 0) {
         // No evolution, but has moves to learn
         const currentMoves = newBattleState.playerPokemon.abilities || [];
-        
+        const activePokemonUpdate = pokemonToUpdate.find(p => p.id === newBattleState.playerPokemon.id);
+
         setMoveLearnState({
           pokemon: newBattleState.playerPokemon,
           newMoves: movesLearned,
           currentMoves: currentMoves,
           pendingUpdate: {
             id: newBattleState.playerPokemon.id,
-            experience: newXP,
-            level: newLevel,
+            experience: activePokemonUpdate.experience,
+            level: activePokemonUpdate.level,
             evs: evResult.newEVs
           }
         });
-      } else {
-        // No evolution or moves, just update stats
+        } else {
+        // No evolution or moves, update EVs for active Pokemon
         base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
-          experience: newXP,
-          level: newLevel,
           evs: evResult.newEVs
         }).catch(err => console.error('Failed to update Pokémon:', err));
-      }
+
+        // Show battle summary
+        setBattleSummary({
+          result: 'victory',
+          enemyName: newBattleState.enemyPokemon.species,
+          xpResults: xpResults,
+          itemsUsed: itemsUsed,
+          materialsDropped: materialsDropped
+        });
+        }
 
       // Add materials to inventory
       if (materialsDropped.length > 0) {
@@ -652,6 +720,9 @@ export default function BattlePage() {
         await base44.entities.Item.delete(item.id);
       }
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      
+      // Track item usage
+      setItemsUsed(prev => [...prev, item.name]);
     } catch (err) {
       console.error('Failed to consume item:', err);
     }
@@ -692,6 +763,17 @@ export default function BattlePage() {
           abilities: updatedMoves
         });
         queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+        
+        // Show battle summary after move learning
+        if (battleState.rewards) {
+          setBattleSummary({
+            result: 'victory',
+            enemyName: battleState.enemyPokemon.species,
+            xpResults: battleState.rewards.xpResults,
+            itemsUsed: itemsUsed,
+            materialsDropped: battleState.rewards.materialsDropped
+          });
+        }
       } catch (err) {
         console.error('Failed to update Pokémon moves:', err);
       }
@@ -709,6 +791,17 @@ export default function BattlePage() {
         abilities: moveLearnState.currentMoves
       });
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+      
+      // Show battle summary after canceling move learning
+      if (battleState.rewards) {
+        setBattleSummary({
+          result: 'victory',
+          enemyName: battleState.enemyPokemon.species,
+          xpResults: battleState.rewards.xpResults,
+          itemsUsed: itemsUsed,
+          materialsDropped: battleState.rewards.materialsDropped
+        });
+      }
     } catch (err) {
       console.error('Failed to update Pokémon:', err);
     }
@@ -762,6 +855,17 @@ export default function BattlePage() {
             evs: pendingUpdate.evs
           }
         });
+      } else {
+        // No moves to learn, show battle summary
+        if (battleState.rewards) {
+          setBattleSummary({
+            result: 'victory',
+            enemyName: battleState.enemyPokemon.species,
+            xpResults: battleState.rewards.xpResults,
+            itemsUsed: itemsUsed,
+            materialsDropped: battleState.rewards.materialsDropped
+          });
+        }
       }
       
       setEvolutionState(null);
@@ -792,6 +896,17 @@ export default function BattlePage() {
           currentMoves: currentMoves,
           pendingUpdate: evolutionState.pendingUpdate
         });
+      } else {
+        // No moves to learn, show battle summary
+        if (battleState.rewards) {
+          setBattleSummary({
+            result: 'victory',
+            enemyName: battleState.enemyPokemon.species,
+            xpResults: battleState.rewards.xpResults,
+            itemsUsed: itemsUsed,
+            materialsDropped: battleState.rewards.materialsDropped
+          });
+        }
       }
     } catch (err) {
       console.error('Failed to update Pokémon:', err);
@@ -1006,8 +1121,26 @@ export default function BattlePage() {
             />
           )}
 
+          {/* Battle Summary Modal */}
+          {battleSummary && !moveLearnState && !evolutionState && !captureModalState && (
+            <BattleSummaryModal
+              summary={battleSummary}
+              onClose={() => {
+                setBattleSummary(null);
+                if (returnTo && battleState?.isWildBattle) {
+                  navigate(`/${returnTo}`);
+                } else {
+                  setBattleState(null);
+                  setWildPokemonId(null);
+                  setReturnTo(null);
+                  setItemsUsed([]);
+                }
+              }}
+            />
+          )}
+
           {/* Battle Results Modal */}
-          {isBattleEnded && !moveLearnState && !evolutionState && !captureModalState && (
+          {isBattleEnded && !moveLearnState && !evolutionState && !captureModalState && !battleSummary && (
             <BattleOutcomeModal
               outcome={{
                 result: battleState.status === 'captured' ? 'captured' : 
