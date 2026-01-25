@@ -53,7 +53,8 @@ export default function PartyManager() {
         const players = await base44.entities.Player.list();
         if (players[0]) {
           const currentOrder = players[0].partyOrder || [];
-          const newOrder = [...currentOrder];
+          // Remove from current position if it exists to prevent duplication
+          const newOrder = currentOrder.filter(id => id !== pokemonId);
           
           // Insert at specific position or append
           if (atIndex !== undefined) {
