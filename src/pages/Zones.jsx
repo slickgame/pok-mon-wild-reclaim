@@ -363,6 +363,7 @@ function ZoneDetailView({ zone, onClose }) {
           level: encounter.pokemonLevel,
           isInTeam: false,
           isWildInstance: true,
+          abilities: ['Tackle', 'Growl'],
           stats: {
             hp: encounter.pokemonLevel * 10,
             maxHp: encounter.pokemonLevel * 10,

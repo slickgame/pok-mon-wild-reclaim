@@ -425,6 +425,11 @@ export default function BattlePage() {
           continue;
         }
 
+        // Skip wild Pokemon instances (shouldn't be in party anyway)
+        if (teamMember.isWildInstance) {
+          continue;
+        }
+
         // Award XP (active Pokemon gets full XP, others get 50%)
         const xpMultiplier = teamMember.id === newBattleState.playerPokemon.id ? 1.0 : 0.5;
         const xpGained = Math.floor(baseXpGained * xpMultiplier);
