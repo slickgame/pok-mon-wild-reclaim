@@ -345,7 +345,7 @@ export default function BattlePage() {
     };
 
   // Use a move
-  const useMove = (move) => {
+  const useMove = async (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
 
     // Initialize battle engine
