@@ -1161,7 +1161,18 @@ export default function BattlePage() {
           {battleSummary && !moveLearnState && !evolutionState && !captureModalState && (
             <BattleSummaryModal
               summary={battleSummary}
-              onClose={() => {
+              onClose={async () => {
+                // Clean up wild Pokémon if defeated (not captured)
+                if (wildPokemonId && battleState?.isWildBattle && battleState.status === 'won') {
+                  try {
+                    await base44.entities.Pokemon.delete(wildPokemonId);
+                    queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
+                    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+                  } catch (err) {
+                    console.error('Failed to delete defeated wild Pokémon:', err);
+                  }
+                }
+
                 setBattleSummary(null);
                 if (returnTo && battleState?.isWildBattle) {
                   navigate(`/${returnTo}`);
