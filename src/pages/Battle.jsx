@@ -658,10 +658,11 @@ export default function BattlePage() {
 
     const newStatsResult = getPokemonStats(newPokemon);
     const newStats = newStatsResult?.stats || newPokemon.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
+    const maxHp = newStats?.maxHp || 100;
 
     // Check if switched Pokemon is fainted
     const isFainted = faintedIds.includes(newPokemon.id);
-    const actualHP = isFainted ? 0 : (newPokemon.currentHp !== undefined ? newPokemon.currentHp : newStats.maxHp);
+    const actualHP = isFainted ? 0 : (newPokemon.currentHp !== undefined ? newPokemon.currentHp : maxHp);
 
     const newBattleState = {
       ...battleState,
