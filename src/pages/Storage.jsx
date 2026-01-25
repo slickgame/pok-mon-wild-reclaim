@@ -32,9 +32,9 @@ export default function StoragePage() {
     }
   });
 
-  // Separate party and storage
-  const partyPokemon = allPokemon.filter(p => p.isInTeam);
-  const storagePokemon = allPokemon.filter(p => !p.isInTeam);
+  // Separate party and storage - exclude wild instances
+  const partyPokemon = allPokemon.filter(p => p.isInTeam && !p.isWildInstance);
+  const storagePokemon = allPokemon.filter(p => !p.isInTeam && !p.isWildInstance);
 
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({

@@ -1169,13 +1169,21 @@ export default function BattlePage() {
               }}
               onClose={async () => {
                   // Clean up wild Pokémon - always delete if not captured
-                  if (wildPokemonId && battleState.isWildBattle && battleState.status !== 'captured') {
+                  if (wildPokemonId && battleState.isWildBattle) {
                     try {
-                      await base44.entities.Pokemon.delete(wildPokemonId);
+                      if (battleState.status === 'captured') {
+                        // Keep captured Pokemon, remove wild flag
+                        await base44.entities.Pokemon.update(wildPokemonId, {
+                          isWildInstance: false
+                        });
+                      } else {
+                        // Delete if not captured
+                        await base44.entities.Pokemon.delete(wildPokemonId);
+                      }
                       queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
                       queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
                     } catch (err) {
-                      console.error('Failed to delete wild Pokémon:', err);
+                      console.error('Failed to clean up wild Pokémon:', err);
                     }
                   }
 
