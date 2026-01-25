@@ -72,6 +72,15 @@ export default function BattlePage() {
   const totalPokeballCount = pokeballs.reduce((sum, ball) => sum + (ball.quantity || 0), 0);
   const battleItems = inventory.filter(item => ['Potion', 'Battle Item'].includes(item.type));
 
+  // Fetch player for party order
+  const { data: player } = useQuery({
+    queryKey: ['player'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    }
+  });
+
   // Fetch player's team
   const { data: playerPokemon = [], isLoading: loadingPokemon } = useQuery({
     queryKey: ['playerPokemon'],
@@ -84,16 +93,27 @@ export default function BattlePage() {
         return [];
       }
       
-      // Sort by party order and ensure moves
-      const sortedParty = pokemon
-        .sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0))
-        .map(p => ({
-          ...p,
-          abilities: p.abilities || ['Tackle', 'Growl'] // Default moves if none
-        }));
+      // Use player.partyOrder to sort party
+      if (player?.partyOrder?.length) {
+        const orderedParty = player.partyOrder
+          .map(id => pokemon.find(p => p.id === id))
+          .filter(Boolean)
+          .map(p => ({
+            ...p,
+            abilities: p.abilities || ['Tackle', 'Growl']
+          }));
+        return orderedParty;
+      }
+      
+      // Fallback to default sort
+      const sortedParty = pokemon.map(p => ({
+        ...p,
+        abilities: p.abilities || ['Tackle', 'Growl']
+      }));
       
       return sortedParty;
-    }
+    },
+    enabled: !!player
   });
 
   // Fetch available moves
@@ -1168,33 +1188,25 @@ export default function BattlePage() {
                 wasCaptured: battleState.status === 'captured'
               }}
               onClose={async () => {
-                  // Clean up wild Pokémon - always delete if not captured
-                  if (wildPokemonId && battleState.isWildBattle) {
-                    try {
-                      if (battleState.status === 'captured') {
-                        // Keep captured Pokemon, remove wild flag
-                        await base44.entities.Pokemon.update(wildPokemonId, {
-                          isWildInstance: false
-                        });
-                      } else {
-                        // Delete if not captured
-                        await base44.entities.Pokemon.delete(wildPokemonId);
-                      }
-                      queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
-                      queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-                    } catch (err) {
-                      console.error('Failed to clean up wild Pokémon:', err);
-                    }
-                  }
+                 // Clean up wild Pokémon only if NOT captured
+                 if (wildPokemonId && battleState.isWildBattle && battleState.status !== 'captured') {
+                   try {
+                     await base44.entities.Pokemon.delete(wildPokemonId);
+                     queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
+                     queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+                   } catch (err) {
+                     console.error('Failed to delete wild Pokémon:', err);
+                   }
+                 }
 
-                // Return to exploration if this was a wild battle
-                if (returnTo && battleState.isWildBattle) {
-                  navigate(`/${returnTo}`);
-                } else {
-                  setBattleState(null);
-                  setWildPokemonId(null);
-                  setReturnTo(null);
-                }
+               // Return to exploration if this was a wild battle
+               if (returnTo && battleState.isWildBattle) {
+                 navigate(`/${returnTo}`);
+               } else {
+                 setBattleState(null);
+                 setWildPokemonId(null);
+                 setReturnTo(null);
+               }
               }}
             />
           )}
