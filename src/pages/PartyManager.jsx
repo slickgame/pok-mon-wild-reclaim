@@ -128,11 +128,15 @@ useEffect(() => {
       reorderedParty.splice(destination.index, 0, removed);
 
       const partyOrder = reorderedParty.map(p => p.id);
-      
+
       // Update database first
       const players = await base44.entities.Player.list();
       if (players[0]) {
         await base44.entities.Player.update(players[0].id, { partyOrder });
+        // Invalidate queries to persist the change
+        queryClient.invalidateQueries({ queryKey: ['player'] });
+        queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+        queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
         // Then update local state
         setParty(reorderedParty);
       }
@@ -151,6 +155,10 @@ useEffect(() => {
     const players = await base44.entities.Player.list();
     if (players[0]) {
       await base44.entities.Player.update(players[0].id, { partyOrder });
+      // Invalidate queries to persist the change
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+      queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
       // Then update local state
       setParty(reorderedParty);
     }
@@ -168,6 +176,10 @@ useEffect(() => {
     const players = await base44.entities.Player.list();
     if (players[0]) {
       await base44.entities.Player.update(players[0].id, { partyOrder });
+      // Invalidate queries to persist the change
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+      queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
       // Then update local state
       setParty(reorderedParty);
     }
