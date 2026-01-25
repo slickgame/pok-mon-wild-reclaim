@@ -362,6 +362,7 @@ function ZoneDetailView({ zone, onClose }) {
           species: encounter.pokemon,
           level: encounter.pokemonLevel,
           isInTeam: false,
+          isWildInstance: true,
           stats: {
             hp: encounter.pokemonLevel * 10,
             maxHp: encounter.pokemonLevel * 10,

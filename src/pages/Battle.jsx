@@ -39,6 +39,7 @@ export default function BattlePage() {
   const [captureModalState, setCaptureModalState] = useState(null); // { pokemon, addedToParty }
   const [itemsUsed, setItemsUsed] = useState([]); // Track items used in battle
   const [battleSummary, setBattleSummary] = useState(null); // Battle summary data
+  const [faintedIds, setFaintedIds] = useState([]); // Track which Pokemon fainted in battle
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -392,10 +393,8 @@ export default function BattlePage() {
       for (const teamMember of playerPokemon) {
         const pokemonStats = getPokemonStats(teamMember);
         const maxHp = pokemonStats?.stats?.maxHp || teamMember.stats?.maxHp || 100;
-        // Check if this Pokemon is currently in battle and use battle HP, otherwise use stored HP
-        const isActivePokemon = teamMember.id === newBattleState.playerPokemon.id;
-        const currentHp = isActivePokemon ? newBattleState.playerHP : (teamMember.currentHp !== undefined ? teamMember.currentHp : maxHp);
-        const isFainted = currentHp <= 0;
+        // Check if this Pokemon fainted during battle (use battle session tracking)
+        const isFainted = faintedIds.includes(teamMember.id);
 
         if (isFainted) {
           // Fainted Pokemon don't gain XP
@@ -620,6 +619,8 @@ export default function BattlePage() {
         result: 'You lost the battle.',
         synergyTriggered: false
       });
+      // Mark active Pokemon as fainted
+      setFaintedIds(prev => [...prev, newBattleState.playerPokemon.id]);
     } else {
       newBattleState.currentTurn = 'player';
     }
@@ -658,10 +659,14 @@ export default function BattlePage() {
     const newStatsResult = getPokemonStats(newPokemon);
     const newStats = newStatsResult?.stats || newPokemon.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
 
+    // Check if switched Pokemon is fainted
+    const isFainted = faintedIds.includes(newPokemon.id);
+    const actualHP = isFainted ? 0 : (newPokemon.currentHp !== undefined ? newPokemon.currentHp : newStats.maxHp);
+
     const newBattleState = {
       ...battleState,
       playerPokemon: newPokemon,
-      playerHP: newStats.maxHp,
+      playerHP: actualHP,
       battleLog: [...battleState.battleLog, {
         turn: battleState.turnNumber,
         actor: 'System',
@@ -1075,6 +1080,7 @@ export default function BattlePage() {
                   // Update the captured Pokémon with correct placement and nickname
                   await base44.entities.Pokemon.update(wildPokemonId, {
                     isInTeam: captureModalState.addedToParty,
+                    isWildInstance: false,
                     nickname: nickname || undefined
                   });
 
@@ -1392,9 +1398,7 @@ export default function BattlePage() {
                     {playerPokemon
                       .filter(p => p.id !== battleState.playerPokemon.id)
                       .map((pokemon) => {
-                        const pokemonStats = getPokemonStats(pokemon);
-                        const currentHp = pokemonStats?.stats?.hp || pokemon.currentHp || pokemon.stats?.hp || 100;
-                        const isFainted = currentHp <= 0;
+                        const isFainted = faintedIds.includes(pokemon.id);
 
                         return (
                           <Button
