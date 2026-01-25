@@ -153,13 +153,12 @@ export default function BattlePage() {
     if (playerPokemon.length === 0) return;
 
     // Always use first Pokémon in party as lead
-    const sortedParty = [...playerPokemon].sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0));
-    const playerMon = sortedParty[0];
+    const playerMon = playerPokemon[0];
     const playerStatsResult = getPokemonStats(playerMon);
     const wildStatsResult = getPokemonStats(wildMon);
     
-    const playerStats = playerStatsResult?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
-    const wildStats = wildStatsResult?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
+    const playerStats = playerStatsResult?.stats || playerMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
+    const wildStats = wildStatsResult?.stats || wildMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     
     setBattleState({
       playerPokemon: playerMon,
@@ -183,10 +182,9 @@ export default function BattlePage() {
     if (playerPokemon.length === 0) return;
 
     // Always use first Pokémon in party as lead
-    const sortedParty = [...playerPokemon].sort((a, b) => (a.partyOrder || 0) - (b.partyOrder || 0));
-    const playerMon = sortedParty[0];
+    const playerMon = playerPokemon[0];
     const playerStatsResult = getPokemonStats(playerMon);
-    const playerStats = playerStatsResult?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
+    const playerStats = playerStatsResult?.stats || playerMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     
     const enemyMon = {
       id: 'enemy-1',
