@@ -29,28 +29,18 @@ export default function PartyManager() {
     }
   });
 
-  // Sort party by saved order
-  const [party, setParty] = useState([]);
-  const [lastPartyOrder, setLastPartyOrder] = useState(null);
-
-useEffect(() => {
-  if (player && allPokemon.length) {
-    const currentOrderKey = JSON.stringify(player.partyOrder || []);
+  // Use player.partyOrder as single source of truth
+  const party = useMemo(() => {
+    const teamPokemon = allPokemon.filter(p => p.isInTeam);
     
-    // Only update if party order actually changed
-    if (currentOrderKey !== lastPartyOrder) {
-      const sorted = allPokemon
-        .filter(p => p.isInTeam)
-        .sort((a, b) => {
-          const indexA = player.partyOrder?.indexOf(a.id) ?? 999;
-          const indexB = player.partyOrder?.indexOf(b.id) ?? 999;
-          return indexA - indexB;
-        });
-      setParty(sorted);
-      setLastPartyOrder(currentOrderKey);
+    if (!player?.partyOrder?.length) {
+      return teamPokemon;
     }
-  }
-}, [player, allPokemon, lastPartyOrder]);
+
+    return player.partyOrder
+      .map(id => teamPokemon.find(p => p.id === id))
+      .filter(Boolean);
+  }, [allPokemon, player]);
 
   const storagePokemon = allPokemon.filter(p => !p.isInTeam);
 
@@ -129,60 +119,43 @@ useEffect(() => {
 
       const partyOrder = reorderedParty.map(p => p.id);
 
-      // Update database first
-      const players = await base44.entities.Player.list();
-      if (players[0]) {
-        await base44.entities.Player.update(players[0].id, { partyOrder });
+      // Update database - partyOrder is source of truth
+      if (player) {
+        await base44.entities.Player.update(player.id, { partyOrder });
         // Invalidate queries to persist the change
         queryClient.invalidateQueries({ queryKey: ['player'] });
         queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
         queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
-        // Then update local state
-        setParty(reorderedParty);
       }
     }
   };
 
   const moveUp = async (index) => {
-    if (index === 0) return;
+    if (index === 0 || !player) return;
     
     const reorderedParty = Array.from(party);
     [reorderedParty[index - 1], reorderedParty[index]] = [reorderedParty[index], reorderedParty[index - 1]];
     
     const partyOrder = reorderedParty.map(p => p.id);
     
-    // Update database first
-    const players = await base44.entities.Player.list();
-    if (players[0]) {
-      await base44.entities.Player.update(players[0].id, { partyOrder });
-      // Invalidate queries to persist the change
-      queryClient.invalidateQueries({ queryKey: ['player'] });
-      queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
-      // Then update local state
-      setParty(reorderedParty);
-    }
+    await base44.entities.Player.update(player.id, { partyOrder });
+    queryClient.invalidateQueries({ queryKey: ['player'] });
+    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+    queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
   };
 
   const moveDown = async (index) => {
-    if (index === party.length - 1) return;
+    if (index === party.length - 1 || !player) return;
     
     const reorderedParty = Array.from(party);
     [reorderedParty[index], reorderedParty[index + 1]] = [reorderedParty[index + 1], reorderedParty[index]];
     
     const partyOrder = reorderedParty.map(p => p.id);
     
-    // Update database first
-    const players = await base44.entities.Player.list();
-    if (players[0]) {
-      await base44.entities.Player.update(players[0].id, { partyOrder });
-      // Invalidate queries to persist the change
-      queryClient.invalidateQueries({ queryKey: ['player'] });
-      queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
-      // Then update local state
-      setParty(reorderedParty);
-    }
+    await base44.entities.Player.update(player.id, { partyOrder });
+    queryClient.invalidateQueries({ queryKey: ['player'] });
+    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+    queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
   };
 
   const filteredStorage = storagePokemon.filter(p => {
