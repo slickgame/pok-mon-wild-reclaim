@@ -339,7 +339,10 @@ export default function BattlePage() {
     }
 
     setCapturingPokemon(false);
-  };
+
+    // Track pokeball usage
+    setItemsUsed(prev => [...prev, ballToUse.name]);
+    };
 
   // Use a move
   const useMove = (move) => {
