@@ -14,6 +14,7 @@ import StatBar from '@/components/ui/StatBar';
 import NPCScheduleCalendar from '@/components/time/NPCScheduleCalendar';
 import MoveTutorModal from '@/components/npc/MoveTutorModal';
 import { MOVE_TUTORS } from '@/components/pokemon/moveTutors';
+import ResearchQuestManager from '@/components/research/ResearchQuestManager';
 
 export default function NPCsPage() {
   const [selectedNPC, setSelectedNPC] = useState(null);
@@ -231,6 +232,11 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
           <TabsTrigger value="services" className="flex-1 data-[state=active]:bg-indigo-500">
             Services
           </TabsTrigger>
+          {npc.name === 'Professor Maple' && (
+            <TabsTrigger value="research" className="flex-1 data-[state=active]:bg-indigo-500">
+              Research
+            </TabsTrigger>
+          )}
           <TabsTrigger value="quests" className="flex-1 data-[state=active]:bg-indigo-500">
             Quests
           </TabsTrigger>
@@ -322,6 +328,12 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
             );
           })()}
         </TabsContent>
+
+        {npc.name === 'Professor Maple' && (
+          <TabsContent value="research" className="mt-4">
+            <ResearchQuestManager />
+          </TabsContent>
+        )}
 
         <TabsContent value="quests" className="mt-4">
           {npc.relationshipQuests && npc.relationshipQuests.length > 0 ? (
