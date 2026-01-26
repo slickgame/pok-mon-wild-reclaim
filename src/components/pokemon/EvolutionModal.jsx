@@ -37,15 +37,21 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
   // Handle B key press to cancel evolution
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if ((e.key === 'b' || e.key === 'B' || e.key === 'Escape') && stage === 'evolving') {
-        setBKeyPressed(true);
-        setStage('cancelled');
+      if ((e.key === 'b' || e.key === 'B' || e.key === 'Escape')) {
+        if (stage === 'confirm') {
+          // Allow cancel from confirmation screen
+          onCancel();
+        } else if (stage === 'evolving') {
+          // Cancel during evolution animation
+          setBKeyPressed(true);
+          setStage('cancelled');
+        }
       }
     };
     
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [stage]);
+  }, [stage, onCancel]);
   
   const evolvedSprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${Math.floor(Math.random() * 150) + 1}.png`;
   
@@ -163,21 +169,26 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                className="flex-1 border-slate-600 hover:bg-slate-800"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleStartEvolution}
-                className="flex-1 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Evolve
-              </Button>
+            <div className="space-y-2">
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  className="flex-1 border-slate-600 hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleStartEvolution}
+                  className="flex-1 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Evolve
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500 text-center">
+                Press <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">B</kbd> or <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">ESC</kbd> to cancel
+              </p>
             </div>
           </motion.div>
         )}
@@ -282,7 +293,7 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
               animate={{ opacity: 0.7 }}
               className="text-sm text-slate-400 mt-4"
             >
-              Press <kbd className="px-2 py-1 bg-slate-700 rounded text-white">B</kbd> to cancel
+              Press <kbd className="px-2 py-1 bg-slate-700 rounded text-white">B</kbd> or <kbd className="px-2 py-1 bg-slate-700 rounded text-white">ESC</kbd> to cancel
             </motion.p>
           </motion.div>
         )}

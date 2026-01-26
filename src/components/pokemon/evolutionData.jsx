@@ -251,3 +251,36 @@ export function getEvolvedStats(evolvedSpecies, currentStats) {
 export function getEvolvedRoles(evolvedSpecies, currentRoles) {
   return EVOLUTION_ROLE_CHANGES[evolvedSpecies] || currentRoles;
 }
+
+/**
+ * Evolve a Pokémon and update all relevant data
+ * @param {Object} pokemon - Pokemon object to evolve
+ * @param {string} evolvesInto - Species name to evolve into
+ * @returns {Object} Updated Pokemon with evolved data
+ */
+export function evolvePokemon(pokemon, evolvesInto) {
+  const currentStats = {
+    hp: pokemon.currentHp,
+    maxHp: pokemon.stats?.hp || pokemon.level * 2 + 60,
+    atk: pokemon.stats?.atk || 50,
+    def: pokemon.stats?.def || 50,
+    spAtk: pokemon.stats?.spAtk || 50,
+    spDef: pokemon.stats?.spDef || 50,
+    spd: pokemon.stats?.spd || 50
+  };
+
+  const newStats = getEvolvedStats(evolvesInto, currentStats);
+  const newRoles = getEvolvedRoles(evolvesInto, pokemon.roles || []);
+
+  return {
+    ...pokemon,
+    species: evolvesInto,
+    roles: newRoles,
+    stats: newStats,
+    currentHp: newStats.maxHp, // Heal to full on evolution
+    // Preserve talents from pre-evolution
+    talents: [...(pokemon.talents || [])],
+    // Flag for future NPC talent teaching
+    canLearnNewTalents: true
+  };
+}
