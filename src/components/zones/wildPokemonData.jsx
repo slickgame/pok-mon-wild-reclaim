@@ -213,9 +213,10 @@ export function generateWildPokemon(encounterTable) {
   // Take last 4 moves
   const moves = availableMoves.slice(-4);
   
-  // Select random talent
-  const talents = speciesData.talentPool && speciesData.talentPool.length > 0
-    ? [{ name: randomTalent(speciesData.talentPool), grade: "Bronze" }]
+  // Select random talent (use id, not name)
+  const talentId = randomTalent(speciesData.talentPool);
+  const talents = talentId
+    ? [{ id: talentId, grade: "Bronze" }]
     : [];
   
   return {

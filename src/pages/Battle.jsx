@@ -246,6 +246,8 @@ export default function BattlePage() {
     }
 
     setCapturingPokemon(true);
+    
+    try {
 
     // Ball type modifiers (lower is better)
     const ballModifiers = {
@@ -279,17 +281,11 @@ export default function BattlePage() {
     const roll = Math.random() * 100;
     const success = roll < catchChance;
 
-    // Use the Pokéball
-    try {
+      // Use the Pokéball
       await base44.entities.Item.update(ballToUse.id, { 
         quantity: ballToUse.quantity - 1 
       });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
-    } catch (error) {
-      console.error('Failed to use Pokéball:', error);
-      setCapturingPokemon(false);
-      return;
-    }
 
     if (success) {
       // Capture successful
@@ -362,11 +358,24 @@ export default function BattlePage() {
       setBattleState(newBattleState);
     }
 
-    setCapturingPokemon(false);
-
-    // Track pokeball usage
-    setItemsUsed(prev => [...prev, ballToUse.name]);
-    };
+    } catch (error) {
+      console.error('Capture attempt failed:', error);
+      setBattleState({
+        ...battleState,
+        battleLog: [...battleState.battleLog, {
+          turn: battleState.turnNumber,
+          actor: 'System',
+          action: 'Error!',
+          result: 'Capture failed due to an error.',
+          synergyTriggered: false
+        }]
+      });
+    } finally {
+      setCapturingPokemon(false);
+      // Track pokeball usage
+      setItemsUsed(prev => [...prev, ballToUse.name]);
+    }
+  };
 
   // Use a move
   const useMove = async (move) => {

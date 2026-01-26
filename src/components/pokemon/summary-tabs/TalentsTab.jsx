@@ -53,7 +53,7 @@ export default function TalentsTab({ pokemon }) {
         <h4 className="text-xs font-semibold text-white mb-2">About Talents</h4>
         <div className="space-y-1 text-xs text-slate-400">
           <p><strong className="text-slate-300">Talents</strong> provide unique battle effects and synergies.</p>
-          <p><strong className="text-slate-300">Grade:</strong> Basic → Rare → Epic → Diamond</p>
+          <p><strong className="text-slate-300">Grade:</strong> Bronze → Silver → Gold</p>
           <p>Higher grades unlock more powerful effects.</p>
         </div>
       </div>
