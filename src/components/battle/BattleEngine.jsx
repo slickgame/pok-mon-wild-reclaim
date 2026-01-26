@@ -933,18 +933,19 @@ export class BattleEngine {
         const statChanges = move.effect.targetStatChange;
         Object.entries(statChanges).forEach(([stat, stages]) => {
           const statKey = stat === 'Speed' ? 'spd' : stat.toLowerCase();
-          this.applyStatChange(defender.pokemon, statKey, stages, battleState);
+          const stagesValue = typeof stages === 'number' ? stages : 0;
+          this.applyStatChange(defender.pokemon, statKey, stagesValue, battleState);
           
           // Track for Echo Thread
           if (!battleState.lastTurnStatChanges) battleState.lastTurnStatChanges = { player: [], enemy: [] };
           battleState.lastTurnStatChanges[defender.key] = battleState.lastTurnStatChanges[defender.key] || [];
-          battleState.lastTurnStatChanges[defender.key].push({ stat: statKey, stages });
+          battleState.lastTurnStatChanges[defender.key].push({ stat: statKey, stages: stagesValue });
           
           logs.push({
             turn: battleState.turnNumber,
             actor: defender.pokemon.nickname || defender.pokemon.species,
-            action: stages > 0 ? 'gained' : 'lost',
-            result: `${stat} ${stages > 0 ? '+' : ''}${stages}`,
+            action: stagesValue > 0 ? 'gained' : 'lost',
+            result: `${stat} ${stagesValue > 0 ? '+' : ''}${stagesValue}`,
             synergyTriggered: false
           });
         });
