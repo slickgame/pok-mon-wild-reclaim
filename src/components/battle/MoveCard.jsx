@@ -72,9 +72,9 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true }) 
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="text-xs text-slate-300 mb-2 pb-2 border-b border-slate-700"
+          className="text-xs text-slate-300 mb-2 pb-2 border-b border-slate-700 italic"
         >
-          {move.description}
+          {move.description || "No description available."}
         </motion.div>
       )}
 
