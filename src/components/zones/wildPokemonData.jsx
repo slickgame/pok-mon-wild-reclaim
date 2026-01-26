@@ -23,7 +23,14 @@ export const wildPokemonData = {
     learnset: {
       1: ["Tackle", "String Shot"],
       5: ["Bug Bite"],
-      7: ["Sticky Thread"]
+      7: ["Sticky Thread"],
+      10: ["Infestation"],
+      13: ["Camouflage"],
+      16: ["Skitter Smack"],
+      20: ["Safeguard"],
+      24: ["Silk Bomb"],
+      28: ["Echo Thread"],
+      30: ["Cocoon Shield"]
     },
     catchRate: 0.45,
     genderRatio: { male: 0.5, female: 0.5 }
