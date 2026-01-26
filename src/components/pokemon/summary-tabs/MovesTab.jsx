@@ -156,7 +156,23 @@ export default function MovesTab({ pokemon }) {
               <div className="mt-2 flex items-start gap-1">
                   <Info className="w-3 h-3 text-indigo-400 mt-0.5" />
                   <p className="text-xs text-indigo-300">
-                    {typeof moveData.effect === 'string' ? moveData.effect : JSON.stringify(moveData.effect)}
+                    {(() => {
+                      if (typeof moveData.effect === 'string') {
+                        return moveData.effect;
+                      } else if (typeof moveData.effect === 'object' && moveData.effect !== null) {
+                        if (moveData.effect.targetStatChange) {
+                          const changes = Object.entries(moveData.effect.targetStatChange)
+                            .map(([stat, stages]) => {
+                              const direction = stages > 0 ? 'raises' : 'lowers';
+                              const absStages = Math.abs(stages);
+                              return `${direction} target's ${stat} by ${absStages} stage${absStages > 1 ? 's' : ''}`;
+                            });
+                          return changes.join(', ');
+                        }
+                        return JSON.stringify(moveData.effect);
+                      }
+                      return '';
+                    })()}
                   </p>
                 </div>
               }
