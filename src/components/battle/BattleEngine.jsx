@@ -3,6 +3,7 @@ import { getMoveData } from '@/components/utils/getMoveData';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 import { applyMoveEffect } from '@/components/data/MoveEffectRegistry';
+import { TalentEffectHandlers } from './TalentEffectHandlers';
 
 // Battle Engine - Core logic for turn-based combat
 // INTEGRATION: Uses centralized MOVE_DATA for all move metadata
@@ -198,7 +199,71 @@ export class BattleEngine {
     return { damage: Math.max(1, damage), isCritical, typeEffectiveness };
   }
 
-  // Apply talent effects based on trigger
+  // Trigger talent effects for all combatants
+  triggerTalentEffects(trigger, context) {
+    const { battleState, user, target, attacker } = context;
+    const logs = [];
+
+    // Check both player and enemy talents
+    const allCombatants = [
+      { pokemon: this.playerPokemon, key: 'player' },
+      { pokemon: this.enemyPokemon, key: 'enemy' }
+    ];
+
+    allCombatants.forEach(({ pokemon, key }) => {
+      const talents = pokemon.talents || [];
+      
+      talents.forEach(talent => {
+        const talentId = talent.id;
+        const talentDef = TalentRegistry[talentId];
+        
+        if (talentDef && talentDef.trigger === trigger) {
+          const grade = normalizeTalentGrade(talent.grade);
+          const handler = TalentEffectHandlers[talentId]?.[grade];
+          
+          if (handler) {
+            const effectContext = {
+              user: pokemon,
+              target: target || (key === 'player' ? this.enemyPokemon : this.playerPokemon),
+              attacker: attacker || (key === 'player' ? this.enemyPokemon : this.playerPokemon),
+              battleState,
+              turnCount: battleState.turnNumber,
+              weather: battleState.weather,
+              terrain: battleState.terrain,
+              isFirstTurn: battleState.turnNumber === 1,
+              addBattleLog: (message) => {
+                logs.push({
+                  turn: battleState.turnNumber,
+                  actor: pokemon.nickname || pokemon.species,
+                  action: talentDef.name,
+                  result: message,
+                  synergyTriggered: true
+                });
+              },
+              modifyStat: (targetPokemon, stat, stages) => {
+                this.applyStatChange(targetPokemon, stat, stages, battleState);
+              }
+            };
+            
+            try {
+              const result = handler(effectContext);
+              if (result) {
+                // Store talent effect results for later use
+                if (!battleState.talentEffects) battleState.talentEffects = {};
+                battleState.talentEffects[`${key}_${talentId}`] = result;
+              }
+            } catch (error) {
+              console.error(`Error applying talent ${talentId}:`, error);
+            }
+          }
+        }
+      });
+    });
+
+    return logs;
+  }
+
+  // Apply talent effects based on trigger (legacy support)
   applyTalentEffects(pokemon, trigger, context) {
     const talents = pokemon.talents || [];
     const results = [];
@@ -455,6 +520,10 @@ export class BattleEngine {
     const enemyPassiveLogs = this.processPassiveEffects(this.enemyPokemon, 'enemy', battleState);
     turnLog.push(...playerPassiveLogs, ...enemyPassiveLogs);
 
+    // Trigger onTurnStart talents
+    const turnStartLogs = this.triggerTalentEffects('onTurnStart', { battleState });
+    turnLog.push(...turnStartLogs);
+
     const firstAttacker = turnOrder === 'player' ? 
       { pokemon: this.playerPokemon, move: playerMove, key: 'player' } :
       { pokemon: this.enemyPokemon, move: enemyMove, key: 'enemy' };
@@ -528,30 +597,33 @@ export class BattleEngine {
     const synergies = this.checkSynergies(attacker.pokemon, move, defender.pokemon);
     const hasSynergy = synergies.length > 0;
 
-    // Apply onContact talents
+    // Apply onContactReceived talents for physical moves
     if (move.category === 'Physical') {
-      const contactTalents = this.applyTalentEffects(attacker.pokemon, 'onContact', { 
-        attacker: attacker.pokemon, 
-        defender: defender.pokemon,
-        move 
+      const contactLogs = this.triggerTalentEffects('onContactReceived', {
+        battleState,
+        user: defender.pokemon,
+        attacker: attacker.pokemon,
+        move
       });
-      
-      contactTalents.forEach(({ talent, gradeData }) => {
-        logs.push({
-          turn: battleState.turnNumber,
-          actor: attacker.pokemon.nickname || attacker.pokemon.species,
-          action: `${talent.name} activated`,
-          result: talent.description,
-          synergyTriggered: true
-        });
+      logs.push(...contactLogs);
+    }
+
+    // Trigger onElementHit talents for super effective moves
+    const typeEffectiveness = damageResult?.typeEffectiveness !== undefined ? damageResult.typeEffectiveness : 1;
+    if (typeEffectiveness > 1) {
+      const elementHitLogs = this.triggerTalentEffects('onElementHit', {
+        battleState,
+        user: defender.pokemon,
+        target: attacker.pokemon,
+        typeEffectiveness
       });
+      logs.push(...elementHitLogs);
     }
 
     // Calculate damage
     const damageResult = this.calculateDamage(attacker.pokemon, defender.pokemon, move, synergies);
     const damage = damageResult.damage || damageResult;
     const isCritical = damageResult.isCritical || false;
-    const typeEffectiveness = damageResult.typeEffectiveness !== undefined ? damageResult.typeEffectiveness : 1;
     
     if (damage > 0) {
       if (defender.key === 'player') {
@@ -560,10 +632,11 @@ export class BattleEngine {
         battleState.enemyHP = Math.max(0, battleState.enemyHP - damage);
       }
 
-      // Apply onHit talents for defender
-      const hitTalents = this.applyTalentEffects(defender.pokemon, 'onHit', {
-        attacker: attacker.pokemon,
-        defender: defender.pokemon,
+      // Trigger onHit talents
+      const hitLogs = this.triggerTalentEffects('onHit', {
+        battleState,
+        user: attacker.pokemon,
+        target: defender.pokemon,
         damage
       });
 
@@ -581,16 +654,48 @@ export class BattleEngine {
         synergyTriggered: hasSynergy
       });
 
-      // Log onHit talent activations
-      hitTalents.forEach(({ talent }) => {
-        logs.push({
-          turn: battleState.turnNumber,
-          actor: defender.pokemon.nickname || defender.pokemon.species,
-          action: `${talent.name} activated`,
-          result: talent.description,
-          synergyTriggered: true
+      logs.push(...hitLogs);
+      
+      // Check for faint and trigger onFaintCheck
+      if (defender.key === 'player' && battleState.playerHP <= 0) {
+        const faintLogs = this.triggerTalentEffects('onFaintCheck', {
+          battleState,
+          user: defender.pokemon
         });
-      });
+        logs.push(...faintLogs);
+        
+        // Check if survived
+        if (defender.pokemon.currentHp > 0) {
+          if (defender.key === 'player') battleState.playerHP = 1;
+          else battleState.enemyHP = 1;
+        } else {
+          // Trigger onKill for attacker
+          const killLogs = this.triggerTalentEffects('onKill', {
+            battleState,
+            user: attacker.pokemon,
+            target: defender.pokemon
+          });
+          logs.push(...killLogs);
+        }
+      } else if (defender.key === 'enemy' && battleState.enemyHP <= 0) {
+        const faintLogs = this.triggerTalentEffects('onFaintCheck', {
+          battleState,
+          user: defender.pokemon
+        });
+        logs.push(...faintLogs);
+        
+        if (defender.pokemon.currentHp > 0) {
+          if (defender.key === 'player') battleState.playerHP = 1;
+          else battleState.enemyHP = 1;
+        } else {
+          const killLogs = this.triggerTalentEffects('onKill', {
+            battleState,
+            user: attacker.pokemon,
+            target: defender.pokemon
+          });
+          logs.push(...killLogs);
+        }
+      }
     } else {
       logs.push({
         turn: battleState.turnNumber,
