@@ -1,5 +1,7 @@
 import { getPokemonStats } from '../pokemon/usePokemonStats';
 import { getMoveData } from '@/components/utils/getMoveData';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
+import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 
 // Battle Engine - Core logic for turn-based combat
 // INTEGRATION: Uses centralized MOVE_DATA for all move metadata
@@ -189,6 +191,33 @@ export class BattleEngine {
     });
 
     return { damage: Math.max(1, damage), isCritical, typeEffectiveness };
+  }
+
+  // Apply talent effects based on trigger
+  applyTalentEffects(pokemon, trigger, context) {
+    const talents = pokemon.talents || [];
+    const results = [];
+
+    talents.forEach(talent => {
+      const talentId = talent.id || talent.name;
+      const handler = TalentRegistry[talentId];
+      
+      if (handler && handler.trigger === trigger) {
+        const grade = normalizeTalentGrade(talent.grade);
+        const gradeData = handler.grades[grade];
+        
+        if (gradeData) {
+          results.push({
+            talent: handler,
+            grade,
+            gradeData,
+            applied: true
+          });
+        }
+      }
+    });
+
+    return results;
   }
 
   // Apply status effects
@@ -431,6 +460,25 @@ export class BattleEngine {
     const synergies = this.checkSynergies(attacker.pokemon, move, defender.pokemon);
     const hasSynergy = synergies.length > 0;
 
+    // Apply onContact talents
+    if (move.category === 'Physical') {
+      const contactTalents = this.applyTalentEffects(attacker.pokemon, 'onContact', { 
+        attacker: attacker.pokemon, 
+        defender: defender.pokemon,
+        move 
+      });
+      
+      contactTalents.forEach(({ talent, gradeData }) => {
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: attacker.pokemon.nickname || attacker.pokemon.species,
+          action: `${talent.name} activated`,
+          result: talent.description,
+          synergyTriggered: true
+        });
+      });
+    }
+
     // Calculate damage
     const damageResult = this.calculateDamage(attacker.pokemon, defender.pokemon, move, synergies);
     const damage = damageResult.damage || damageResult;
@@ -444,6 +492,13 @@ export class BattleEngine {
         battleState.enemyHP = Math.max(0, battleState.enemyHP - damage);
       }
 
+      // Apply onHit talents for defender
+      const hitTalents = this.applyTalentEffects(defender.pokemon, 'onHit', {
+        attacker: attacker.pokemon,
+        defender: defender.pokemon,
+        damage
+      });
+
       let resultText = `${damage} damage!`;
       if (isCritical) resultText += ' Critical hit!';
       if (typeEffectiveness > 1) resultText += ' Super effective!';
@@ -456,6 +511,17 @@ export class BattleEngine {
         action: `used ${move.name}`,
         result: resultText,
         synergyTriggered: hasSynergy
+      });
+
+      // Log onHit talent activations
+      hitTalents.forEach(({ talent }) => {
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: defender.pokemon.nickname || defender.pokemon.species,
+          action: `${talent.name} activated`,
+          result: talent.description,
+          synergyTriggered: true
+        });
       });
     } else {
       logs.push({
