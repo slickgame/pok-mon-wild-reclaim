@@ -18,6 +18,12 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
+import { 
+  verdantHollowEncounters, 
+  generateWildPokemon,
+  rollItemDrops,
+  calculateWildXP 
+} from '@/components/zones/wildPokemonData';
 
 export default function ZonesPage() {
   const [selectedZone, setSelectedZone] = useState(null);
@@ -199,12 +205,36 @@ function ZoneDetailView({ zone, onClose }) {
     const currentProgress = zoneProgress?.discoveryProgress || 0;
     const progressGain = Math.floor(Math.random() * 11) + 5; // 5-15
     
-    // Weighted random encounter
+    // Determine encounter type - 30% chance for wild Pokémon
     const roll = Math.random() * 100;
     let encounterType, result;
     let actualProgressGain = 0;
 
-    if (roll < 50) {
+    if (roll < 30 && zone.name === "Verdant Hollow") {
+      // Wild Pokémon encounter using new system
+      const wildPokemon = generateWildPokemon(verdantHollowEncounters);
+      
+      if (wildPokemon) {
+        const firstDiscovery = !(zoneProgress?.discoveredPokemon || []).includes(wildPokemon.species);
+        actualProgressGain = firstDiscovery ? progressGain + 5 : 0;
+        
+        encounterType = 'pokemon';
+        result = {
+          type: 'pokemon',
+          title: firstDiscovery ? '🆕 New Pokémon Discovered!' : 'Wild Pokémon Encountered',
+          description: `A wild ${wildPokemon.species} appeared!`,
+          pokemon: wildPokemon.species,
+          pokemonLevel: wildPokemon.level,
+          pokemonNature: wildPokemon.nature,
+          pokemonRole: wildPokemon.roles[0],
+          wildPokemonData: wildPokemon,
+          progressGained: actualProgressGain,
+          firstDiscovery,
+          rarity: wildPokemon._speciesData.catchRate > 0.4 ? 'common' : 
+                  wildPokemon._speciesData.catchRate > 0.3 ? 'uncommon' : 'rare'
+        };
+      }
+    } else if (roll < 55) {
       // Material Discovery
       const materials = ['Silk Fragment', 'Glowworm', 'Moonleaf', 'River Stone', 'Ancient Shard'];
       const material = materials[Math.floor(Math.random() * materials.length)];
@@ -223,24 +253,6 @@ function ZoneDetailView({ zone, onClose }) {
         materialName: material
       };
     } else if (roll < 80) {
-      // Wild Pokémon
-      const availablePokemon = zone.availableWildPokemon || [];
-      const pokemon = availablePokemon[Math.floor(Math.random() * availablePokemon.length)];
-      const firstDiscovery = pokemon && !(zoneProgress?.discoveredPokemon || []).includes(pokemon.species);
-      actualProgressGain = firstDiscovery ? progressGain : 0;
-      
-      encounterType = 'pokemon';
-      result = {
-        type: 'pokemon',
-        title: firstDiscovery ? '🆕 New Pokémon Discovered!' : 'Wild Pokémon Encountered',
-        description: `A ${pokemon?.species || 'Pokémon'} appeared!`,
-        pokemon: pokemon?.species || 'Unknown',
-        pokemonLevel: pokemon?.minLevel || 5,
-        progressGained: actualProgressGain,
-        firstDiscovery,
-        rarity: pokemon?.rarity?.toLowerCase() || 'common'
-      };
-    } else if (roll < 95) {
       // Point of Interest
       const undiscoveredPOIs = (zone.nodelets || []).filter(
         n => !(zoneProgress?.discoveredPOIs || []).includes(n.id)
@@ -358,21 +370,21 @@ function ZoneDetailView({ zone, onClose }) {
     if (action === 'battle' && encounter.pokemon) {
       // Create wild Pokémon and navigate to battle
       try {
+        const wildData = encounter.wildPokemonData;
         const wildPokemon = await base44.entities.Pokemon.create({
-          species: encounter.pokemon,
-          level: encounter.pokemonLevel,
+          species: wildData.species,
+          level: wildData.level,
+          nature: wildData.nature,
+          ivs: wildData.ivs,
+          evs: wildData.evs,
+          type1: wildData.type1,
+          type2: wildData.type2,
+          abilities: wildData.abilities,
+          talents: wildData.talents,
+          roles: wildData.roles,
+          signatureMove: wildData.signatureMove,
           isInTeam: false,
-          isWildInstance: true,
-          abilities: ['Tackle', 'Growl'],
-          stats: {
-            hp: encounter.pokemonLevel * 10,
-            maxHp: encounter.pokemonLevel * 10,
-            atk: encounter.pokemonLevel * 5,
-            def: encounter.pokemonLevel * 4,
-            spAtk: encounter.pokemonLevel * 5,
-            spDef: encounter.pokemonLevel * 4,
-            spd: encounter.pokemonLevel * 6
-          }
+          isWild: true
         });
 
         logEntry.details = `Started battle with ${encounter.pokemon}`;
