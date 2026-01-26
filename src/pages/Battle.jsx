@@ -25,6 +25,7 @@ import { checkEvolution, getEvolvedStats, getEvolvedRoles } from '@/components/p
 import EvolutionModal from '@/components/pokemon/EvolutionModal';
 import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
+import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zones/wildPokemonData';
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
@@ -403,7 +404,10 @@ export default function BattlePage() {
       });
 
       // Award XP to all team members
-      const baseXpGained = Math.floor(newBattleState.enemyPokemon.level * 25);
+      const speciesData = wildPokemonData[newBattleState.enemyPokemon.species];
+      const baseXpGained = speciesData 
+        ? calculateWildXP(speciesData, newBattleState.enemyPokemon.level, false)
+        : Math.floor(newBattleState.enemyPokemon.level * 25);
       const xpResults = [];
       const pokemonToUpdate = [];
 
@@ -501,41 +505,19 @@ export default function BattlePage() {
       let goldGained = 0;
       
       if (newBattleState.isWildBattle) {
-        // Wild Pokémon drop items, not gold
-        const speciesDropTables = {
-          'Pidgey': [
-            { item: 'Feather', chance: 0.6 },
-            { item: 'Gust Essence', chance: 0.25 },
-            { item: 'Sky Shard', chance: 0.15 }
-          ],
-          'Rattata': [
-            { item: 'Fang Fragment', chance: 0.5 },
-            { item: 'Fiber Tail', chance: 0.4 },
-            { item: 'Quick Dust', chance: 0.2 }
-          ],
-          'Caterpie': [
-            { item: 'Silk Fragment', chance: 0.7 },
-            { item: 'Bug Dust', chance: 0.4 },
-            { item: 'String Fiber', chance: 0.3 }
-          ],
-          'default': [
-            { item: 'Monster Essence', chance: 0.5 },
-            { item: 'Wild Shard', chance: 0.3 },
-            { item: 'Berries', chance: 0.4 }
-          ]
-        };
+        // Wild Pokémon drop items using species data
+        const speciesData = wildPokemonData[newBattleState.enemyPokemon.species];
         
-        const dropTable = speciesDropTables[newBattleState.enemyPokemon.species] || speciesDropTables['default'];
+        if (speciesData) {
+          const droppedItems = rollItemDrops(speciesData);
+          materialsDropped.push(...droppedItems);
+        }
         
-        dropTable.forEach(drop => {
-          if (Math.random() < drop.chance) {
-            materialsDropped.push(drop.item);
-          }
-        });
-        
-        // Ensure at least one drop
+        // Fallback to generic drops if no species data
         if (materialsDropped.length === 0) {
-          materialsDropped.push(dropTable[0].item);
+          if (Math.random() < 0.5) {
+            materialsDropped.push('Monster Essence');
+          }
         }
       } else {
         // Practice battles still give gold
@@ -603,9 +585,11 @@ export default function BattlePage() {
 
       // Add materials to inventory
       if (materialsDropped.length > 0) {
+        const speciesData = wildPokemonData[newBattleState.enemyPokemon.species];
+        
         // Add materials asynchronously
-        materialsDropped.forEach(material => {
-          base44.entities.Item.filter({ name: material }).then(existingItems => {
+        materialsDropped.forEach(materialName => {
+          base44.entities.Item.filter({ name: materialName }).then(existingItems => {
             if (existingItems.length > 0) {
               // Stack with existing
               const existingItem = existingItems[0];
@@ -613,22 +597,26 @@ export default function BattlePage() {
                 quantity: (existingItem.quantity || 1) + 1
               });
             } else {
+              // Get item data from species data if available
+              const dropData = speciesData?.dropItems?.find(d => d.item === materialName);
+              
               // Create new item
               base44.entities.Item.create({
-                name: material,
+                name: materialName,
                 type: 'Material',
                 tier: 1,
-                rarity: 'Common',
-                description: 'A crafting material dropped from wild Pokémon',
+                rarity: dropData?.rarity || 'Common',
+                description: dropData ? `A crafting material from ${speciesData.species}` : 'A crafting material dropped from wild Pokémon',
                 quantity: 1,
                 stackable: true,
-                sellValue: 10
+                sellValue: dropData?.sellValue || 10
               });
             }
           }).catch(err => console.error('Failed to add material:', err));
         });
         
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
         triggerTutorial('first_material');
       }
 
