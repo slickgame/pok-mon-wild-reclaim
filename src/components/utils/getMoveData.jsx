@@ -1,32 +1,20 @@
 import { MOVE_DATA } from '@/components/pokemon/moveData';
 import { wildPokemonData } from '@/components/zones/wildPokemonData';
+import { caterpieMoves } from '@/components/zones/caterpieMoves';
 
 /**
  * Unified move data resolver
- * Checks pokemon learnset first, then global registry
+ * Priority: Species custom moves > Global registry > Default fallback
  * @param {string} moveName - Name of the move to look up
- * @param {Object} pokemon - Pokemon instance (optional, for learnset lookup)
+ * @param {Object} pokemon - Pokemon instance (optional, for species lookup)
  * @returns {Object} Move data with all properties
  */
 export function getMoveData(moveName, pokemon = null) {
-  // Check pokemon's learnset first (for species-specific moves)
-  if (pokemon?.species) {
-    const speciesData = wildPokemonData[pokemon.species];
-    if (speciesData?.learnset) {
-      // Handle both array and object formats
-      if (Array.isArray(speciesData.learnset)) {
-        const moveFromLearnset = speciesData.learnset.find(m => m.name === moveName);
-        if (moveFromLearnset) {
-          return moveFromLearnset;
-        }
-      } else if (typeof speciesData.learnset === 'object') {
-        // Learnset is an object with move names as keys
-        const moveFromLearnset = speciesData.learnset[moveName];
-        if (moveFromLearnset) {
-          return { name: moveName, ...moveFromLearnset };
-        }
-      }
-    }
+  if (!moveName) return null;
+
+  // Check species-specific custom moves first (e.g., Caterpie moves)
+  if (pokemon?.species === 'Caterpie' && caterpieMoves[moveName]) {
+    return caterpieMoves[moveName];
   }
 
   // Check global move registry
@@ -35,14 +23,15 @@ export function getMoveData(moveName, pokemon = null) {
     return { name: moveName, ...globalMove };
   }
 
-  // Fallback for unknown moves
+  // Default fallback with N/A handling
   return {
     name: moveName,
-    type: "Normal",
-    category: "Physical",
-    power: 40,
+    type: '???',
+    category: 'Physical',
+    power: 0,
     accuracy: 100,
     pp: 35,
-    description: "A basic move."
+    priority: 0,
+    description: 'Move data not available.'
   };
 }
