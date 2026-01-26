@@ -20,12 +20,12 @@ export default function ShopSellTab({ player, inventory }) {
         gold: (player.gold || 0) + totalSale
       });
 
-      // Update or delete inventory item
+      // Update or delete item
       const newQuantity = (item.quantity || 1) - quantity;
       if (newQuantity <= 0) {
-        await base44.entities.Inventory.delete(item.id);
+        await base44.entities.Item.delete(item.id);
       } else {
-        await base44.entities.Inventory.update(item.id, {
+        await base44.entities.Item.update(item.id, {
           quantity: newQuantity
         });
       }
