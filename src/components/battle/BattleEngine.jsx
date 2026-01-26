@@ -1,6 +1,5 @@
 import { getPokemonStats } from '../pokemon/usePokemonStats';
-import { getMoveData as getMoveDataGlobal } from '@/components/pokemon/moveData';
-import { getMoveData } from '@/lib/getMoveData';
+import { getMoveData } from '@/components/utils/getMoveData';
 
 // Battle Engine - Core logic for turn-based combat
 // INTEGRATION: Uses centralized MOVE_DATA for all move metadata

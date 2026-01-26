@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import MoveReminderModal from '@/components/moves/MoveReminderModal';
-import { getMoveData } from '@/lib/getMoveData';
+import { getMoveData } from '@/components/utils/getMoveData';
 
 export default function MovesTab({ pokemon }) {
   const [showMoveReminder, setShowMoveReminder] = useState(false);

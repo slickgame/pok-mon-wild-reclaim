@@ -3,7 +3,7 @@ import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import TalentDisplay from '@/components/battle/TalentDisplay';
 import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
-import { formatTalentName, normalizeTalentGrade } from '@/lib/talentUtils';
+import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
 
 export default function TalentsTab({ pokemon }) {
   if (!pokemon.talents || pokemon.talents.length === 0) {
