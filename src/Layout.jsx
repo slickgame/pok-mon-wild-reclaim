@@ -17,7 +17,6 @@ const navItems = [
   { name: 'Zones', icon: Map, page: 'Zones' },
   { name: 'Inventory', icon: Backpack, page: 'Inventory' },
   { name: 'Sets', icon: Sparkles, page: 'SetBuilder' },
-  { name: 'NPCs', icon: Users, page: 'NPCs' },
   { name: 'Tutorials', icon: Sparkles, page: 'TutorialLog' },
 ];
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Swords, Trophy, FlaskConical, Fish, Sparkles, Crown } from 'lucide-react';
+import { Swords, Trophy, FlaskConical, Fish, Sparkles, Crown, Users } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 
 // Import existing page components
@@ -11,6 +11,7 @@ import CraftingPage from './Crafting';
 import FishingPage from './Fishing';
 import MaplesLabPage from './MaplesLab';
 import EndgamePage from './Endgame';
+import NPCsPage from './NPCs';
 
 export default function TownPage() {
   return (
@@ -21,8 +22,12 @@ export default function TownPage() {
         icon={Sparkles}
       />
 
-      <Tabs defaultValue="battle" className="w-full">
-        <TabsList className="glass grid grid-cols-3 lg:grid-cols-6 gap-2 p-2 mb-6">
+      <Tabs defaultValue="npcs" className="w-full">
+        <TabsList className="glass grid grid-cols-4 lg:grid-cols-7 gap-2 p-2 mb-6">
+          <TabsTrigger value="npcs" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            <span className="hidden sm:inline">NPCs</span>
+          </TabsTrigger>
           <TabsTrigger value="battle" className="flex items-center gap-2">
             <Swords className="w-4 h-4" />
             <span className="hidden sm:inline">Battle Arena</span>
@@ -48,6 +53,22 @@ export default function TownPage() {
             <span className="hidden sm:inline">Endgame</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="npcs">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass rounded-xl p-6 border border-indigo-500/20"
+          >
+            <div className="mb-4">
+              <h3 className="text-xl font-bold text-white mb-2">👥 Town NPCs</h3>
+              <p className="text-slate-400 text-sm">
+                Meet the town residents. Visit Meera's shop, research with Professor Maple, or learn new moves!
+              </p>
+            </div>
+            <NPCsPage />
+          </motion.div>
+        </TabsContent>
 
         <TabsContent value="battle">
           <motion.div
