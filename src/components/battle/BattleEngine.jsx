@@ -344,6 +344,11 @@ export class BattleEngine {
   executeTurn(playerMove, enemyMove, battleState) {
     const turnLog = [];
     const turnOrder = this.determineTurnOrder(playerMove, enemyMove);
+    
+    // Track stat changes for Echo Thread support
+    if (!battleState.lastTurnStatChanges) {
+      battleState.lastTurnStatChanges = { player: [], enemy: [] };
+    }
 
     const firstAttacker = turnOrder === 'player' ? 
       { pokemon: this.playerPokemon, move: playerMove, key: 'player' } :
@@ -484,32 +489,107 @@ export class BattleEngine {
       }
     }
 
-    // Apply stat changes
-    if (move.effect && move.effect.includes('lower') || move.effect && move.effect.includes('raise')) {
-      const target = defender.pokemon;
-      const stages = move.stages || 1;
-      const isRaise = move.effect.includes('raise');
-      const statMap = {
-        'lowerAttack': 'atk',
-        'raiseAttack': 'atk',
-        'lowerDefense': 'def',
-        'raiseDefense': 'def',
-        'lowerSpeed': 'spd',
-        'raiseSpeed': 'spd',
-        'lowerSpDef': 'spDef',
-        'raiseSpDef': 'spDef'
-      };
-      
-      const stat = statMap[move.effect];
-      if (stat) {
-        this.applyStatChange(target, stat, isRaise ? stages : -stages, battleState);
+    // Handle special move effects
+    if (move.effect) {
+      // Echo Thread - copy last turn's stat changes
+      if (move.effect.copyLastStatChanges) {
+        const targetKey = defender.key;
+        const lastChanges = battleState.lastTurnStatChanges?.[targetKey] || [];
+        
+        if (lastChanges.length > 0) {
+          lastChanges.forEach(change => {
+            this.applyStatChange(defender.pokemon, change.stat, change.stages, battleState);
+            logs.push({
+              turn: battleState.turnNumber,
+              actor: attacker.pokemon.nickname || attacker.pokemon.species,
+              action: `Echo Thread mimicked`,
+              result: `${change.stat} ${change.stages > 0 ? '+' : ''}${change.stages}`,
+              synergyTriggered: false
+            });
+          });
+        } else {
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: attacker.pokemon.nickname || attacker.pokemon.species,
+            action: `used ${move.name}`,
+            result: 'but it failed!',
+            synergyTriggered: false
+          });
+        }
+      }
+      // Trap effects (Infestation)
+      else if (move.effect.trap) {
         logs.push({
           turn: battleState.turnNumber,
-          actor: target.nickname || target.species,
-          action: isRaise ? 'gained' : 'lost',
-          result: `${stat} ${isRaise ? '+' : ''}${isRaise ? stages : -stages}`,
+          actor: defender.pokemon.nickname || defender.pokemon.species,
+          action: 'is trapped',
+          result: `Cannot switch out for ${move.effect.duration} turns`,
           synergyTriggered: false
         });
+      }
+      // Stat changes from move data
+      else if (move.effect.targetStatChange) {
+        const statChanges = move.effect.targetStatChange;
+        Object.entries(statChanges).forEach(([stat, stages]) => {
+          const statKey = stat === 'Speed' ? 'spd' : stat.toLowerCase();
+          this.applyStatChange(defender.pokemon, statKey, stages, battleState);
+          
+          // Track for Echo Thread
+          if (!battleState.lastTurnStatChanges) battleState.lastTurnStatChanges = { player: [], enemy: [] };
+          battleState.lastTurnStatChanges[defender.key] = battleState.lastTurnStatChanges[defender.key] || [];
+          battleState.lastTurnStatChanges[defender.key].push({ stat: statKey, stages });
+          
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: defender.pokemon.nickname || defender.pokemon.species,
+            action: stages > 0 ? 'gained' : 'lost',
+            result: `${stat} ${stages > 0 ? '+' : ''}${stages}`,
+            synergyTriggered: false
+          });
+        });
+      }
+      else if (move.effect.selfStatChange) {
+        const statChanges = move.effect.selfStatChange;
+        Object.entries(statChanges).forEach(([stat, stages]) => {
+          const statKey = stat === 'Defense' ? 'def' : stat === 'SpDefense' ? 'spDef' : stat.toLowerCase();
+          this.applyStatChange(attacker.pokemon, statKey, stages, battleState);
+          
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: attacker.pokemon.nickname || attacker.pokemon.species,
+            action: 'boosted',
+            result: `${stat} +${stages}`,
+            synergyTriggered: false
+          });
+        });
+      }
+      // Legacy stat change format
+      else if (move.effect.includes && (move.effect.includes('lower') || move.effect.includes('raise'))) {
+        const target = defender.pokemon;
+        const stages = move.stages || 1;
+        const isRaise = move.effect.includes('raise');
+        const statMap = {
+          'lowerAttack': 'atk',
+          'raiseAttack': 'atk',
+          'lowerDefense': 'def',
+          'raiseDefense': 'def',
+          'lowerSpeed': 'spd',
+          'raiseSpeed': 'spd',
+          'lowerSpDef': 'spDef',
+          'raiseSpDef': 'spDef'
+        };
+        
+        const stat = statMap[move.effect];
+        if (stat) {
+          this.applyStatChange(target, stat, isRaise ? stages : -stages, battleState);
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: target.nickname || target.species,
+            action: isRaise ? 'gained' : 'lost',
+            result: `${stat} ${isRaise ? '+' : ''}${isRaise ? stages : -stages}`,
+            synergyTriggered: false
+          });
+        }
       }
     }
 
