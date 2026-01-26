@@ -42,7 +42,9 @@ export class BattleEngine {
     const synergies = [];
     
     // Get move data from central registry
-    const moveData = typeof move === 'string' ? getMoveData(move) : (getMoveData(move?.name) || move);
+    const moveData = typeof move === 'string' 
+      ? getMoveData(move, attacker) 
+      : (move?.name ? getMoveData(move.name, attacker) : move);
 
     if (!moveData?.synergyConditions) return synergies;
 
@@ -118,7 +120,9 @@ export class BattleEngine {
   // Calculate damage
   calculateDamage(attacker, defender, move, synergies = []) {
     // Get move data from central registry
-    const moveData = typeof move === 'string' ? getMoveData(move) : (getMoveData(move?.name) || move);
+    const moveData = typeof move === 'string' 
+      ? getMoveData(move, attacker) 
+      : (move?.name ? getMoveData(move.name, attacker) : move);
     
     if (!moveData) {
       console.warn('Move data not found:', move);
@@ -263,7 +267,7 @@ export class BattleEngine {
     
     // Get move data for all available moves
     const movesWithData = availableMoves.map(move => {
-      const moveData = getMoveData(move.name) || move;
+      const moveData = move?.name ? getMoveData(move.name, this.enemyPokemon) : move;
       return { ...move, ...moveData };
     });
     
@@ -389,7 +393,9 @@ export class BattleEngine {
     const logs = [];
     
     // Get move data from central registry
-    const move = typeof attacker.move === 'string' ? getMoveData(attacker.move) : (getMoveData(attacker.move?.name) || attacker.move);
+    const move = typeof attacker.move === 'string' 
+      ? getMoveData(attacker.move, attacker.pokemon) 
+      : (attacker.move?.name ? getMoveData(attacker.move.name, attacker.pokemon) : attacker.move);
     
     if (!move) {
       logs.push({
