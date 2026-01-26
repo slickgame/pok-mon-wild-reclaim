@@ -9,6 +9,7 @@ import TimeWidget from '@/components/time/TimeWidget';
 
 const navItems = [
   { name: 'Home', icon: Home, page: 'Home' },
+  { name: 'Main Menu', icon: Menu, page: 'StartScreen' },
   { name: 'Party', icon: Users, page: 'PartyManager' },
   { name: 'Pokémon', icon: PawPrint, page: 'Pokemon' },
   { name: 'Pokédex', icon: BookOpen, page: 'Pokedex' },
