@@ -4,6 +4,7 @@ import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 import { applyMoveEffect } from '@/components/data/MoveEffectRegistry';
 import { TalentEffectHandlers } from './TalentEffectHandlers';
+import { StatusRegistry, processStatusEffects, checkStatusPreventsAction } from '@/components/data/StatusRegistry';
 
 // Battle Engine - Core logic for turn-based combat
 // INTEGRATION: Uses centralized MOVE_DATA for all move metadata
@@ -16,6 +17,16 @@ export class BattleEngine {
     // Initialize passive effects storage
     this.playerPokemon.passiveEffects = this.playerPokemon.passiveEffects || [];
     this.enemyPokemon.passiveEffects = this.enemyPokemon.passiveEffects || [];
+    
+    // Initialize status and stat stages
+    this.playerPokemon.status = this.playerPokemon.status || null;
+    this.enemyPokemon.status = this.enemyPokemon.status || null;
+    this.playerPokemon.statStages = this.playerPokemon.statStages || {
+      atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, accuracy: 0, evasion: 0
+    };
+    this.enemyPokemon.statStages = this.enemyPokemon.statStages || {
+      atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, accuracy: 0, evasion: 0
+    };
   }
 
   // Calculate turn order based on Speed stat and priority
@@ -315,15 +326,30 @@ export class BattleEngine {
     return { success: false };
   }
 
-  // Apply buffs/debuffs
-  applyStatChange(target, stat, stages, battleState) {
-    const targetState = target === this.playerPokemon ? battleState.playerStatus : battleState.enemyStatus;
+  // Modify stat stages (clamped -6 to +6)
+  modifyStatStage(pokemon, stat, change, battleState) {
+    if (!pokemon.statStages) {
+      pokemon.statStages = { atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, accuracy: 0, evasion: 0 };
+    }
     
+    const statKey = stat.toLowerCase();
+    const current = pokemon.statStages[statKey] || 0;
+    const newValue = Math.max(-6, Math.min(6, current + change));
+    pokemon.statStages[statKey] = newValue;
+    
+    return { stat, stages: change, newTotal: newValue };
+  }
+
+  // Apply buffs/debuffs (legacy)
+  applyStatChange(target, stat, stages, battleState) {
+    const result = this.modifyStatStage(target, stat, stages, battleState);
+    
+    const targetState = target === this.playerPokemon ? battleState.playerStatus : battleState.enemyStatus;
     const existingBuff = targetState.buffs.find(b => b.stat === stat);
     if (existingBuff) {
-      existingBuff.value = Math.max(-6, Math.min(6, existingBuff.value + stages));
+      existingBuff.value = result.newTotal;
     } else {
-      targetState.buffs.push({ name: `${stat} ${stages > 0 ? '+' : ''}${stages}`, stat, value: stages });
+      targetState.buffs.push({ name: `${stat} ${stages > 0 ? '+' : ''}${stages}`, stat, value: result.newTotal });
     }
 
     return { stat, stages };
@@ -515,6 +541,18 @@ export class BattleEngine {
       battleState.lastTurnStatChanges = { player: [], enemy: [] };
     }
 
+    // Process status effects at turn start
+    const addLog = (message) => turnLog.push({
+      turn: battleState.turnNumber,
+      actor: 'Status',
+      action: message,
+      result: '',
+      synergyTriggered: false
+    });
+    
+    processStatusEffects(this.playerPokemon, battleState, addLog);
+    processStatusEffects(this.enemyPokemon, battleState, addLog);
+
     // Process passive effects at turn start
     const playerPassiveLogs = this.processPassiveEffects(this.playerPokemon, 'player', battleState);
     const enemyPassiveLogs = this.processPassiveEffects(this.enemyPokemon, 'enemy', battleState);
@@ -561,6 +599,19 @@ export class BattleEngine {
   // Execute a single move
   executeMove(attacker, defender, battleState) {
     const logs = [];
+    
+    // Check if status prevents action
+    const addLog = (message) => logs.push({
+      turn: battleState.turnNumber,
+      actor: attacker.pokemon.nickname || attacker.pokemon.species,
+      action: 'Status',
+      result: message,
+      synergyTriggered: false
+    });
+    
+    if (checkStatusPreventsAction(attacker.pokemon, addLog)) {
+      return { logs };
+    }
     
     // Get move data from central registry
     const move = typeof attacker.move === 'string' 

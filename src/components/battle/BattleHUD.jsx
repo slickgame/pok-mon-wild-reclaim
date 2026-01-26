@@ -1,11 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Shield, Zap } from 'lucide-react';
+import { Heart, Shield, Zap, TrendingUp, TrendingDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import StatBar from '@/components/ui/StatBar';
 import RoleIndicator from './RoleIndicator';
 import RevenantIndicator from '../pokemon/RevenantIndicator';
 import StatusIndicator from './StatusIndicator';
+import { StatusRegistry } from '@/components/data/StatusRegistry';
 
 export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false, roles = [] }) {
   const hpPercent = (hp / maxHp) * 100;
@@ -60,7 +61,19 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
         animated
       />
 
-      {/* Status effects */}
+      {/* Status condition */}
+      {pokemon.status?.id && (
+        <div className="mt-2">
+          <Badge 
+            className="bg-red-500/20 text-red-300 border-red-500/50 text-xs"
+            title={StatusRegistry[pokemon.status.id]?.description}
+          >
+            {StatusRegistry[pokemon.status.id]?.icon} {StatusRegistry[pokemon.status.id]?.name}
+          </Badge>
+        </div>
+      )}
+
+      {/* Legacy status effects */}
       {status?.conditions?.length > 0 && (
         <div className="mt-2 flex gap-1">
           <StatusIndicator status={status} />
@@ -76,6 +89,27 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
               {buff.name} +{buff.value}
             </Badge>
           ))}
+        </div>
+      )}
+
+      {/* Stat stages */}
+      {pokemon.statStages && Object.entries(pokemon.statStages).some(([_, v]) => v !== 0) && (
+        <div className="flex gap-1 mt-2 flex-wrap">
+          {Object.entries(pokemon.statStages)
+            .filter(([_, value]) => value !== 0)
+            .map(([stat, value]) => (
+              <Badge 
+                key={stat} 
+                className={`text-xs flex items-center gap-1 ${
+                  value > 0 
+                    ? 'bg-green-500/20 text-green-300 border-green-500/50' 
+                    : 'bg-red-500/20 text-red-300 border-red-500/50'
+                }`}
+              >
+                {value > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                {stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
+              </Badge>
+            ))}
         </div>
       )}
 
