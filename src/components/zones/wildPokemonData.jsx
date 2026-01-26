@@ -1,4 +1,4 @@
-import caterpieData from '@/components/data/pokemon/caterpie.json';
+import { caterpieData } from '@/components/data/pokemon/caterpie';
 
 // Convert new JSON format to old format for compatibility
 function convertPokemonData(jsonData) {
