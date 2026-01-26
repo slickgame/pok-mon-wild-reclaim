@@ -169,6 +169,9 @@ export default function MovesTab({ pokemon }) {
                             });
                           return changes.join(', ');
                         }
+                        if (moveData.effect.stealBerry) {
+                          return 'steals and consumes target\'s Berry if holding one';
+                        }
                         return JSON.stringify(moveData.effect);
                       }
                       return '';

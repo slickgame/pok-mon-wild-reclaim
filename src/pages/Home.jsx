@@ -31,10 +31,20 @@ export default function HomePage() {
   const { data: team = [], isLoading: teamLoading } = useQuery({
     queryKey: ['team'],
     queryFn: async () => {
-      return await base44.entities.Pokemon.filter({ isInTeam: true });
+      const teamPokemon = await base44.entities.Pokemon.filter({ isInTeam: true });
+      
+      // Sort by player.partyOrder to match PartyManager
+      if (!player?.partyOrder?.length) {
+        return teamPokemon;
+      }
+      
+      return player.partyOrder
+        .map(id => teamPokemon.find(p => p.id === id))
+        .filter(Boolean);
     },
     staleTime: 20000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    enabled: !!player
   });
 
   const { data: tutorials = [] } = useQuery({
@@ -243,7 +253,7 @@ export default function HomePage() {
               </div>
             ) : team.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {team.slice(0, 3).map((pokemon) => (
+                {team.map((pokemon) => (
                   <PokemonCard key={pokemon.id} pokemon={pokemon} />
                 ))}
               </div>

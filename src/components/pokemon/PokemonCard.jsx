@@ -164,11 +164,19 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
         {/* Talents */}
         {pokemon.talents && pokemon.talents.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {pokemon.talents.slice(0, 2).map((talent, idx) => (
-              <Badge key={idx} className={`text-[10px] ${gradeColors[talent.grade] || 'bg-slate-700'}`}>
-                {talent.name}
-              </Badge>
-            ))}
+            {pokemon.talents.slice(0, 2).map((talent, idx) => {
+              const talentName = typeof talent === 'string' ? talent : talent.name || talent;
+              const displayName = typeof talentName === 'string' 
+                ? talentName.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim()
+                : talentName;
+              const grade = typeof talent === 'object' ? talent.grade : null;
+              
+              return (
+                <Badge key={idx} className={`text-[10px] ${grade ? gradeColors[grade] : 'bg-slate-700'}`}>
+                  {displayName}
+                </Badge>
+              );
+            })}
             {pokemon.talents.length > 2 && (
               <Badge className="text-[10px] bg-slate-700/50 text-slate-400">
                 +{pokemon.talents.length - 2}
