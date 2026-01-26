@@ -35,25 +35,50 @@ export const MoveEffectRegistry = {
     apply: (ctx) => {
       const trapDuration = 4 + Math.floor(Math.random() * 2); // 4-5 turns
       ctx.addBattleLog(`${ctx.target.nickname || ctx.target.species} was infested!`);
-      ctx.target.inflictEffect("trapped", { turns: trapDuration });
-      ctx.target.inflictDOT("infestation", { 
-        damage: Math.floor(ctx.target.stats.hp * 0.0625), // 1/16 max HP per turn
-        duration: trapDuration 
+      
+      // Initialize passive effects array if needed
+      if (!ctx.target.passiveEffects) {
+        ctx.target.passiveEffects = [];
+      }
+
+      // Add passive DOT effect
+      ctx.target.passiveEffects.push({
+        id: "infestation",
+        source: ctx.user.nickname || ctx.user.species,
+        duration: trapDuration,
+        onTurnStart: (effectCtx) => {
+          const damage = Math.floor(effectCtx.target.stats.hp * 0.0625);
+          effectCtx.addBattleLog(`Infestation deals ${damage} damage!`);
+          // Damage will be applied by battle engine
+        }
       });
     }
   },
 
   echoThread: {
     apply: (ctx) => {
-      const lastChanges = ctx.target.lastStatChanges || {};
-      if (Object.keys(lastChanges).length === 0) {
-        ctx.addBattleLog("But it failed!");
-        return;
+      ctx.addBattleLog(`${ctx.target.nickname || ctx.target.species} is caught in an echo thread!`);
+      
+      // Initialize passive effects array if needed
+      if (!ctx.target.passiveEffects) {
+        ctx.target.passiveEffects = [];
       }
-      ctx.addBattleLog(`The stat changes were echoed back!`);
-      for (const [stat, change] of Object.entries(lastChanges)) {
-        ctx.target.modifyStat(stat, change);
-      }
+
+      // Add passive effect that echoes stat changes for 3 turns
+      ctx.target.passiveEffects.push({
+        id: "echoThread",
+        source: ctx.user.nickname || ctx.user.species,
+        duration: 3,
+        onTurnStart: (effectCtx) => {
+          const lastChanges = effectCtx.target.lastStatChanges || [];
+          if (lastChanges.length > 0) {
+            effectCtx.addBattleLog(`Echo Thread echoes stat changes!`);
+            lastChanges.forEach(change => {
+              effectCtx.modifyStat(change.stat, change.stages);
+            });
+          }
+        }
+      });
     }
   },
 

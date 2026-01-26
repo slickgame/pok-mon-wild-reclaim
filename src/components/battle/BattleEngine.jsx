@@ -11,6 +11,10 @@ export class BattleEngine {
     // Ensure stats are calculated dynamically from base stats
     this.playerPokemon = getPokemonStats(playerPokemon);
     this.enemyPokemon = getPokemonStats(enemyPokemon);
+    
+    // Initialize passive effects storage
+    this.playerPokemon.passiveEffects = this.playerPokemon.passiveEffects || [];
+    this.enemyPokemon.passiveEffects = this.enemyPokemon.passiveEffects || [];
   }
 
   // Calculate turn order based on Speed stat and priority
@@ -378,6 +382,64 @@ export class BattleEngine {
     return defenderTypes.some(type => superEffectiveAgainst.includes(type));
   }
 
+  // Process passive effects at turn start
+  processPassiveEffects(pokemon, pokemonKey, battleState) {
+    const logs = [];
+    if (!pokemon.passiveEffects || pokemon.passiveEffects.length === 0) return logs;
+
+    const remaining = [];
+    
+    for (const effect of pokemon.passiveEffects) {
+      if (effect.onTurnStart) {
+        const ctx = {
+          target: pokemon,
+          battle: battleState,
+          addBattleLog: (message) => {
+            logs.push({
+              turn: battleState.turnNumber,
+              actor: pokemon.nickname || pokemon.species,
+              action: effect.id,
+              result: message,
+              synergyTriggered: false
+            });
+          },
+          modifyStat: (stat, stages) => {
+            this.applyStatChange(pokemon, stat, stages, battleState);
+            logs.push({
+              turn: battleState.turnNumber,
+              actor: pokemon.nickname || pokemon.species,
+              action: `${effect.id} activated`,
+              result: `${stat} ${stages > 0 ? '+' : ''}${stages}`,
+              synergyTriggered: false
+            });
+          }
+        };
+        
+        try {
+          effect.onTurnStart(ctx);
+        } catch (error) {
+          console.error(`Error processing passive effect ${effect.id}:`, error);
+        }
+      }
+
+      effect.duration--;
+      if (effect.duration > 0) {
+        remaining.push(effect);
+      } else {
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: pokemon.nickname || pokemon.species,
+          action: `${effect.id} wore off`,
+          result: '',
+          synergyTriggered: false
+        });
+      }
+    }
+
+    pokemon.passiveEffects = remaining;
+    return logs;
+  }
+
   // Execute a full turn
   executeTurn(playerMove, enemyMove, battleState) {
     const turnLog = [];
@@ -387,6 +449,11 @@ export class BattleEngine {
     if (!battleState.lastTurnStatChanges) {
       battleState.lastTurnStatChanges = { player: [], enemy: [] };
     }
+
+    // Process passive effects at turn start
+    const playerPassiveLogs = this.processPassiveEffects(this.playerPokemon, 'player', battleState);
+    const enemyPassiveLogs = this.processPassiveEffects(this.enemyPokemon, 'enemy', battleState);
+    turnLog.push(...playerPassiveLogs, ...enemyPassiveLogs);
 
     const firstAttacker = turnOrder === 'player' ? 
       { pokemon: this.playerPokemon, move: playerMove, key: 'player' } :
