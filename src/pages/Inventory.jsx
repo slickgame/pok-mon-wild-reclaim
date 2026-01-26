@@ -30,27 +30,11 @@ export default function InventoryPage() {
   const [tmModalItem, setTmModalItem] = useState(null);
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['items'],
-    queryFn: () => base44.entities.Item.list()
+    queryKey: ['inventory'],
+    queryFn: () => base44.entities.Inventory.list()
   });
 
-  // Group items by name to combine duplicates
-  const stackedItems = {};
-  items.forEach(item => {
-    const key = item.name; // Group by item name
-    if (!stackedItems[key]) {
-      stackedItems[key] = {
-        ...item,
-        quantity: item.quantity || 1,
-        _ids: [item.id] // Track all IDs for this stack
-      };
-    } else {
-      stackedItems[key].quantity += (item.quantity || 1);
-      stackedItems[key]._ids.push(item.id);
-    }
-  });
-
-  const filteredItems = Object.values(stackedItems).filter(item => {
+  const filteredItems = items.filter(item => {
     const matchesType = filter === 'all' || item.type === filter;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesType && matchesSearch;
@@ -62,7 +46,7 @@ export default function InventoryPage() {
     return acc;
   }, {});
 
-  const totalItems = Object.values(stackedItems).reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
   return (
     <div>
