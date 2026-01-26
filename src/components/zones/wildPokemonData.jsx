@@ -2,24 +2,31 @@
 export const wildPokemonData = {
   Caterpie: {
     species: "Caterpie",
+    dexId: 10,
     type1: "Bug",
     type2: null,
     baseStats: { hp: 45, atk: 30, def: 35, spAtk: 20, spDef: 20, spd: 45 },
     evYield: { hp: 1 },
-    baseXpYield: 53,
+    baseXpYield: 39,
     dropItems: [
-      { item: "Silk Thread", chance: 0.30 },
-      { item: "Bug Wing", chance: 0.15 }
+      { item: "Bug Husk", itemId: "bug-husk", chance: 0.40, rarity: "Common", sellValue: 15 },
+      { item: "Sticky Silk", itemId: "sticky-silk", chance: 0.15, rarity: "Uncommon", sellValue: 25 },
+      { item: "Chitin Shard", itemId: "chitin-shard", chance: 0.05, rarity: "Rare", sellValue: 50 }
     ],
-    talentPool: ["Shield Dust", "Sturdy Shell"],
-    battleRole: "Tank",
-    signatureMove: "String Shot",
+    talentPool: [
+      "silkenGrip", "moltingDefense", "instinctiveSurvival", 
+      "threadAmbush", "scavengerInstinct", "naturesCloak",
+      "photosensitiveGrowth", "earlyInstinct", "tangleReflexes", "adaptiveShell"
+    ],
+    battleRole: "Status Inflictor",
+    signatureMove: "Sticky Thread",
     learnset: {
       1: ["Tackle", "String Shot"],
       5: ["Bug Bite"],
-      7: ["String Shot"]
+      7: ["Sticky Thread"]
     },
-    catchRate: 0.45
+    catchRate: 0.45,
+    genderRatio: { male: 0.5, female: 0.5 }
   },
 
   Pidgey: {
