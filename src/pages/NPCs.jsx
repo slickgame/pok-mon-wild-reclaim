@@ -244,9 +244,9 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
       )}
 
       {/* Tabs for Services, Quests & Schedule */}
-      <Tabs defaultValue={npc.name === 'Meera' ? 'shop' : 'services'} className="mt-6">
+      <Tabs defaultValue={npc.role === 'Merchant' ? 'shop' : 'services'} className="mt-6">
         <TabsList className="w-full bg-slate-800/50 grid grid-cols-4">
-          {npc.name === 'Meera' && (
+          {npc.role === 'Merchant' && (
             <TabsTrigger value="shop" className="data-[state=active]:bg-indigo-500">
               Shop
             </TabsTrigger>
@@ -267,7 +267,7 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
           </TabsTrigger>
         </TabsList>
 
-        {npc.name === 'Meera' && (
+        {npc.role === 'Merchant' && (
           <TabsContent value="shop" className="mt-4">
             <Tabs defaultValue="buy" className="w-full">
               <TabsList className="w-full bg-slate-800/50 grid grid-cols-2">
