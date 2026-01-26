@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Package, MapPin, AlertTriangle } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 const eventIcons = {
   pokemon: '🔵',

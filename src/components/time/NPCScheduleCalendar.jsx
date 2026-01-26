@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Clock, MapPin, Briefcase, Lock } from 'lucide-react';
+import { Clock, Briefcase, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

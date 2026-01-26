@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Sparkles, MapPin, Clock, Users, Trophy } from 'lucide-react';
+import { Lock, Sparkles, Clock, Users, Trophy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 

@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Eye, TrendingUp } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Eye } from 'lucide-react';
 
 export default function DiscoveryMeter({ progress, discoveredPokemon, discoveredPOIs, totalPokemon, totalPOIs }) {
   const getTier = (progress) => {

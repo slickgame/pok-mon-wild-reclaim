@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Sparkles, MapPin, Zap, Heart } from 'lucide-react';
+import { Sparkles, Zap } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { generateRandomIVs, getRandomNature, calculateAllStats } from '@/components/pokemon/statCalculations';
+import { generateRandomIVs, calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
 
 const storySteps = [

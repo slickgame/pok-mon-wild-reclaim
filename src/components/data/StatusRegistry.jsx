@@ -27,7 +27,7 @@ export const StatusRegistry = {
     name: "Poison",
     icon: "☠️",
     description: "Loses HP each turn.",
-    onTurnStart: (ctx) => {
+    onTurnEnd: (ctx) => {
       const dmg = Math.floor(ctx.user.stats.hp * 0.0625);
       const newHp = Math.max(0, ctx.user.currentHp - dmg);
       ctx.user.currentHp = newHp;
@@ -60,9 +60,9 @@ export const StatusRegistry = {
 
   paralyze: {
     id: "paralyze",
-    name: "Paralyze",
+    name: "Paralysis",
     icon: "⚡",
-    description: "May fail to act. Speed is halved.",
+    description: "May be unable to act each turn. Speed is halved.",
     onActionAttempt: (ctx) => {
       if (Math.random() < 0.25) {
         ctx.addBattleLog(`${ctx.user.nickname || ctx.user.species} is paralyzed! It can't move!`);

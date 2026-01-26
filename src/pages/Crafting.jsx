@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FlaskConical, Search, Sparkles, Clock, X, ChevronRight, Lock, Beaker, Swords, Target, Package, Coins, RefreshCw, RotateCcw } from 'lucide-react';
+import { FlaskConical, Search, Sparkles, Clock, X, Lock, Package, Coins, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,6 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from '@/components/ui/use-toast';
 import PageHeader from '@/components/common/PageHeader';
 import RecipeCard from '@/components/crafting/RecipeCard';
-import StatBar from '@/components/ui/StatBar';
 import CraftingProgressBar from '@/components/crafting/CraftingProgressBar';
 import BenchUpgradePanel from '@/components/crafting/BenchUpgradePanel';
 import ReforgePanel from '@/components/crafting/ReforgePanel';

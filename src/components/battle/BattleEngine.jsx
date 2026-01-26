@@ -3,7 +3,7 @@ import { getMoveData } from '@/components/utils/getMoveData';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 import { applyMoveEffect } from '@/components/data/MoveEffectRegistry';
-import { TalentEffectHandlers } from './TalentEffectHandlers';
+import { TalentEffectHandlers } from '@/engine/TalentEffectHandlers';
 import { StatusRegistry, processStatusEffects, checkStatusPreventsAction } from '@/components/data/StatusRegistry';
 
 // Battle Engine - Core logic for turn-based combat
@@ -27,6 +27,35 @@ export class BattleEngine {
     this.enemyPokemon.statStages = this.enemyPokemon.statStages || {
       atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, accuracy: 0, evasion: 0
     };
+  }
+
+  syncPokemonHpFromState(battleState) {
+    if (battleState) {
+      this.playerPokemon.currentHp = battleState.playerHP;
+      this.enemyPokemon.currentHp = battleState.enemyHP;
+    }
+  }
+
+  syncStateHpFromPokemon(battleState) {
+    if (battleState) {
+      battleState.playerHP = Math.max(0, this.playerPokemon.currentHp ?? battleState.playerHP);
+      battleState.enemyHP = Math.max(0, this.enemyPokemon.currentHp ?? battleState.enemyHP);
+    }
+  }
+
+  syncBattlePokemon(battleState) {
+    if (battleState) {
+      battleState.playerPokemon = this.playerPokemon;
+      battleState.enemyPokemon = this.enemyPokemon;
+    }
+  }
+
+  syncStatusConditions(battleState) {
+    if (!battleState) return;
+    battleState.playerStatus = battleState.playerStatus || { conditions: [], buffs: [] };
+    battleState.enemyStatus = battleState.enemyStatus || { conditions: [], buffs: [] };
+    battleState.playerStatus.conditions = this.playerPokemon.status?.id ? [this.playerPokemon.status.id] : [];
+    battleState.enemyStatus.conditions = this.enemyPokemon.status?.id ? [this.enemyPokemon.status.id] : [];
   }
 
   // Calculate turn order based on Speed stat and priority
@@ -263,6 +292,7 @@ export class BattleEngine {
                 if (!battleState.talentEffects) battleState.talentEffects = {};
                 battleState.talentEffects[`${key}_${talentId}`] = result;
               }
+              this.syncStateHpFromPokemon(battleState);
             } catch (error) {
               console.error(`Error applying talent ${talentId}:`, error);
             }
@@ -303,24 +333,27 @@ export class BattleEngine {
 
   // Apply status effects
   applyStatusEffect(target, effect, battleState) {
-    const statusEffects = {
-      burn: { name: 'Burn', damagePerTurn: 0.0625, reducesAttack: true },
-      paralysis: { name: 'Paralysis', speedReduction: 0.5, chanceOfFullParalysis: 0.25 },
-      poison: { name: 'Poison', damagePerTurn: 0.0625 },
-      sleep: { name: 'Sleep', turnDuration: Math.floor(Math.random() * 3) + 1 },
-      freeze: { name: 'Freeze', chanceOfThaw: 0.2 },
-      confusion: { name: 'Confusion', turnDuration: Math.floor(Math.random() * 4) + 1 }
-    };
+    const normalizedStatus = {
+      paralysis: 'paralyze',
+      paralyzed: 'paralyze',
+      poisoned: 'poison'
+    }[effect] || effect;
 
-    const statusEffect = statusEffects[effect];
+    const statusEffect = StatusRegistry[normalizedStatus];
     if (statusEffect) {
       // Check if target is already affected by a primary status
+      battleState.playerStatus = battleState.playerStatus || { conditions: [], buffs: [] };
+      battleState.enemyStatus = battleState.enemyStatus || { conditions: [], buffs: [] };
       const targetState = target === this.playerPokemon ? battleState.playerStatus : battleState.enemyStatus;
       
-      if (!targetState.conditions.includes(statusEffect.name)) {
-        targetState.conditions.push(statusEffect.name);
-        return { success: true, status: statusEffect.name };
+      if (target.status?.id) {
+        return { success: false, status: statusEffect.name, statusId: target.status.id };
       }
+      if (!targetState.conditions.includes(normalizedStatus)) {
+        targetState.conditions.push(normalizedStatus);
+      }
+      target.status = { id: normalizedStatus, duration: null };
+      return { success: true, status: statusEffect.name, statusId: normalizedStatus };
     }
 
     return { success: false };
@@ -359,31 +392,29 @@ export class BattleEngine {
   processTurnEndEffects(battleState) {
     const effects = [];
 
-    // Player status effects
-    if (battleState.playerStatus.conditions.includes('Burn')) {
-      const damage = Math.floor(battleState.playerPokemon.stats.maxHp * 0.0625);
-      battleState.playerHP = Math.max(0, battleState.playerHP - damage);
-      effects.push({ target: 'player', effect: 'Burn', damage });
-    }
+    const processEndStatus = (pokemon, key) => {
+      const status = pokemon.status?.id ? StatusRegistry[pokemon.status.id] : null;
+      if (status?.onTurnEnd) {
+        status.onTurnEnd({
+          user: pokemon,
+          status: pokemon.status,
+          addBattleLog: (message) => {
+            effects.push({
+              target: key,
+              effect: status.name,
+              damage: 0,
+              message
+            });
+          },
+          battleState
+        });
+      }
+    };
 
-    if (battleState.playerStatus.conditions.includes('Poison')) {
-      const damage = Math.floor(battleState.playerPokemon.stats.maxHp * 0.0625);
-      battleState.playerHP = Math.max(0, battleState.playerHP - damage);
-      effects.push({ target: 'player', effect: 'Poison', damage });
-    }
+    processEndStatus(this.playerPokemon, 'player');
+    processEndStatus(this.enemyPokemon, 'enemy');
 
-    // Enemy status effects
-    if (battleState.enemyStatus.conditions.includes('Burn')) {
-      const damage = Math.floor(battleState.enemyPokemon.stats.maxHp * 0.0625);
-      battleState.enemyHP = Math.max(0, battleState.enemyHP - damage);
-      effects.push({ target: 'enemy', effect: 'Burn', damage });
-    }
-
-    if (battleState.enemyStatus.conditions.includes('Poison')) {
-      const damage = Math.floor(battleState.enemyPokemon.stats.maxHp * 0.0625);
-      battleState.enemyHP = Math.max(0, battleState.enemyHP - damage);
-      effects.push({ target: 'enemy', effect: 'Poison', damage });
-    }
+    this.syncStateHpFromPokemon(battleState);
 
     return effects;
   }
@@ -535,6 +566,8 @@ export class BattleEngine {
   executeTurn(playerMove, enemyMove, battleState) {
     const turnLog = [];
     const turnOrder = this.determineTurnOrder(playerMove, enemyMove);
+
+    this.syncPokemonHpFromState(battleState);
     
     // Track stat changes for Echo Thread support
     if (!battleState.lastTurnStatChanges) {
@@ -552,6 +585,8 @@ export class BattleEngine {
     
     processStatusEffects(this.playerPokemon, battleState, addLog);
     processStatusEffects(this.enemyPokemon, battleState, addLog);
+    this.syncStatusConditions(battleState);
+    this.syncStateHpFromPokemon(battleState);
 
     // Process passive effects at turn start
     const playerPassiveLogs = this.processPassiveEffects(this.playerPokemon, 'player', battleState);
@@ -588,11 +623,13 @@ export class BattleEngine {
         turn: battleState.turnNumber,
         actor: effect.target === 'player' ? this.playerPokemon.species : this.enemyPokemon.species,
         action: `is hurt by ${effect.effect}`,
-        result: `${effect.damage} damage`,
+        result: effect.message || (effect.damage ? `${effect.damage} damage` : ''),
         synergyTriggered: false
       });
     });
 
+    this.syncStatusConditions(battleState);
+    this.syncBattlePokemon(battleState);
     return turnLog;
   }
 
@@ -659,8 +696,13 @@ export class BattleEngine {
       logs.push(...contactLogs);
     }
 
+    // Calculate damage
+    const damageResult = this.calculateDamage(attacker.pokemon, defender.pokemon, move, synergies);
+    const damage = damageResult.damage || damageResult;
+    const isCritical = damageResult.isCritical || false;
+    const typeEffectiveness = damageResult?.typeEffectiveness ?? 1;
+
     // Trigger onElementHit talents for super effective moves
-    const typeEffectiveness = damageResult?.typeEffectiveness !== undefined ? damageResult.typeEffectiveness : 1;
     if (typeEffectiveness > 1) {
       const elementHitLogs = this.triggerTalentEffects('onElementHit', {
         battleState,
@@ -670,17 +712,14 @@ export class BattleEngine {
       });
       logs.push(...elementHitLogs);
     }
-
-    // Calculate damage
-    const damageResult = this.calculateDamage(attacker.pokemon, defender.pokemon, move, synergies);
-    const damage = damageResult.damage || damageResult;
-    const isCritical = damageResult.isCritical || false;
     
     if (damage > 0) {
       if (defender.key === 'player') {
         battleState.playerHP = Math.max(0, battleState.playerHP - damage);
+        defender.pokemon.currentHp = battleState.playerHP;
       } else {
         battleState.enemyHP = Math.max(0, battleState.enemyHP - damage);
+        defender.pokemon.currentHp = battleState.enemyHP;
       }
 
       // Trigger onHit talents
@@ -719,6 +758,7 @@ export class BattleEngine {
         if (defender.pokemon.currentHp > 0) {
           if (defender.key === 'player') battleState.playerHP = 1;
           else battleState.enemyHP = 1;
+          defender.pokemon.currentHp = 1;
         } else {
           // Trigger onKill for attacker
           const killLogs = this.triggerTalentEffects('onKill', {
@@ -738,6 +778,7 @@ export class BattleEngine {
         if (defender.pokemon.currentHp > 0) {
           if (defender.key === 'player') battleState.playerHP = 1;
           else battleState.enemyHP = 1;
+          defender.pokemon.currentHp = 1;
         } else {
           const killLogs = this.triggerTalentEffects('onKill', {
             battleState,
@@ -774,7 +815,7 @@ export class BattleEngine {
     // Apply move effects from central move data
     if (move.effect && move.effectChance) {
       if (Math.random() * 100 < move.effectChance) {
-        if (move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralysis') {
+        if (move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralyze') {
           const statusResult = this.applyStatusEffect(defender.pokemon, move.effect, battleState);
           if (statusResult.success) {
             logs.push({

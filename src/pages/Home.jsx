@@ -4,15 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { Home, MapPin, PawPrint, Sparkles, ChevronRight, Zap, Target, Trophy } from 'lucide-react';
+import { MapPin, PawPrint, Sparkles, ChevronRight, Zap, Target, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import PageHeader from '@/components/common/PageHeader';
-import BulletinBoard from '@/components/time/BulletinBoard';
 import PokemonCard from '@/components/pokemon/PokemonCard';
 import QuestCard from '@/components/home/QuestCard';
 import TrustMeter from '@/components/home/TrustMeter';
-import StatBar from '@/components/ui/StatBar';
 import TutorialOverlay from '../components/tutorial/TutorialOverlay';
 
 export default function HomePage() {

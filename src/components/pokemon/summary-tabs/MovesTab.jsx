@@ -22,7 +22,10 @@ export default function MovesTab({ pokemon }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (moveName) => {
-      const updatedMoves = (pokemon.abilities || []).filter((m) => m !== moveName);
+      const updatedMoves = (pokemon.abilities || []).filter((moveEntry) => {
+        const entryName = typeof moveEntry === 'string' ? moveEntry : moveEntry?.name;
+        return entryName !== moveName;
+      });
       await base44.entities.Pokemon.update(pokemon.id, {
         abilities: updatedMoves
       });
@@ -108,14 +111,25 @@ export default function MovesTab({ pokemon }) {
       </div>
 
       <div className="space-y-3">
-        {pokemon.abilities.map((moveName) => {
-          const moveData = getMoveData(moveName, pokemon);
+        {pokemon.abilities.map((moveEntry, idx) => {
+          const moveName = typeof moveEntry === 'string' ? moveEntry : moveEntry?.name;
+          const baseMoveData = moveName ? getMoveData(moveName, pokemon) : null;
+          const moveData = moveEntry && typeof moveEntry === 'object'
+            ? { ...baseMoveData, ...moveEntry, name: moveName || moveEntry?.name }
+            : baseMoveData;
+          const effectValue = moveData?.effect;
+          const effectText = (() => {
+            if (!effectValue) return '';
+            if (typeof effectValue === 'string') return effectValue;
+            return JSON.stringify(effectValue) ?? String(effectValue);
+          })();
+          const displayName = moveName || 'Unknown Move';
 
           return (
-            <div key={moveName} className="glass rounded-lg p-4">
+            <div key={moveName || idx} className="glass rounded-lg p-4">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
-                  <h4 className="font-semibold text-white">{moveName}</h4>
+                  <h4 className="font-semibold text-white">{displayName}</h4>
                   {moveData &&
                   <div className="text-slate-50 mt-1 rounded flex gap-2 flex-wrap">
                       <Badge className="text-xs bg-slate-700">
@@ -152,10 +166,10 @@ export default function MovesTab({ pokemon }) {
               {moveData?.description &&
               <p className="text-xs text-slate-400 mt-2">{moveData.description}</p>
               }
-              {moveData?.effect &&
+              {effectText &&
               <div className="mt-2 flex items-start gap-1">
                   <Info className="w-3 h-3 text-indigo-400 mt-0.5" />
-                  <p className="text-xs text-indigo-300">{moveData.effect}</p>
+                  <p className="text-xs text-indigo-300">{effectText}</p>
                 </div>
               }
             </div>);

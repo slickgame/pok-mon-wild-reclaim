@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Lock, CheckCircle2, Circle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 const rarityColors = {
   Rare: 'from-blue-500 to-cyan-500',

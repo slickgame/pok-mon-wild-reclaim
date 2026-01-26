@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Shield, Zap, TrendingUp, TrendingDown } from 'lucide-react';
+import { Shield, Zap, TrendingUp, TrendingDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import StatBar from '@/components/ui/StatBar';
 import RoleIndicator from './RoleIndicator';

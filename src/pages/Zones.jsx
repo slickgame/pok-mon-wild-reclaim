@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Map, Search, Compass, Eye, Sparkles, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import PageHeader from '@/components/common/PageHeader';
-import TimePhaseIndicator from '@/components/time/TimePhaseIndicator';
 import ZoneCard from '@/components/zones/ZoneCard';
 import StatBar from '@/components/ui/StatBar';
 import NodeletCard from '@/components/zones/NodeletCard';
@@ -20,9 +19,7 @@ import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
 import { 
   verdantHollowEncounters, 
-  generateWildPokemon,
-  rollItemDrops,
-  calculateWildXP 
+  generateWildPokemon 
 } from '@/components/zones/wildPokemonData';
 
 export default function ZonesPage() {

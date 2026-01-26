@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, X, AlertCircle, Zap, Info } from 'lucide-react';
+import { Sparkles, X, AlertCircle, Info } from 'lucide-react';
 
 const typeColors = {
   Normal: 'bg-gray-500',

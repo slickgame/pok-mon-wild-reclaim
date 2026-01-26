@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Book, CheckCircle2, Circle, Crown } from 'lucide-react';
+import { CheckCircle2, Circle, Crown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 const categoryColors = {

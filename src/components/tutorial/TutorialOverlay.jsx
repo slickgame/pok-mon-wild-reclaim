@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Sparkles, X, ChevronRight, BookOpen, Lightbulb, Unlock, Zap } from 'lucide-react';
+import { Sparkles, X, ChevronRight, BookOpen, Lightbulb, Unlock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../../utils';

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Zap, ArrowRight, TrendingUp } from 'lucide-react';
-import { getEvolvedStats } from './evolutionData';
 
 export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStats, onComplete, onCancel }) {
   const [stage, setStage] = useState('confirm'); // 'confirm', 'evolving', 'stats', 'complete', 'cancelled'

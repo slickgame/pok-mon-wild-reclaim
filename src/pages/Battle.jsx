@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTutorialTrigger } from '../components/tutorial/TutorialTrigger';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Swords, Trophy, Sparkles, AlertCircle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,7 @@ import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 import { getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
 import MoveLearnModal from '@/components/battle/MoveLearnModal';
-import { checkEvolution, getEvolvedStats, getEvolvedRoles, evolvePokemon } from '@/components/pokemon/evolutionData';
+import { checkEvolution, evolvePokemon } from '@/components/pokemon/evolutionData';
 import EvolutionModal from '@/components/pokemon/EvolutionModal';
 import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
@@ -378,7 +378,7 @@ export default function BattlePage() {
   };
 
   // Use a move
-  const useMove = async (move) => {
+  const handleMoveUse = async (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
 
     // Initialize battle engine
@@ -705,7 +705,7 @@ export default function BattlePage() {
   };
 
   // Use battle item
-  const useItem = async (item) => {
+  const handleItemUse = async (item) => {
     if (!battleState) return;
 
     let healAmount = 0;
@@ -1344,7 +1344,7 @@ export default function BattlePage() {
                            move={moveData}
                            pokemon={battleState.playerPokemon}
                            onUse={(m) => {
-                             useMove(m);
+                             handleMoveUse(m);
                              setActionMenu('main');
                            }}
                            disabled={!isPlayerTurn}
@@ -1419,7 +1419,7 @@ export default function BattlePage() {
                             <Button
                               key={item.id}
                               onClick={() => {
-                                useItem(item);
+                                handleItemUse(item);
                                 setActionMenu('main');
                               }}
                               disabled={!isPlayerTurn}

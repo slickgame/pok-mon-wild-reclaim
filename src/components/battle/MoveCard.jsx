@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Target, Star, Info } from 'lucide-react';
+import { Zap, Target, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -59,7 +59,9 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
           </div>
         )}
         <div>PP: {move.pp}</div>
-        {move.accuracy < 100 && <div>Acc: {move.accuracy}%</div>}
+        {typeof move.accuracy === 'number' && move.accuracy < 100 && (
+          <div>Acc: {move.accuracy}%</div>
+        )}
         {move.priority !== 0 && (
           <div className={move.priority > 0 ? 'text-emerald-400' : 'text-red-400'}>
             Priority: {move.priority > 0 ? '+' : ''}{move.priority}

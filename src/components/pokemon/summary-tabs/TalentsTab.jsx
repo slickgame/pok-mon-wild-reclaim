@@ -16,6 +16,17 @@ export default function TalentsTab({ pokemon }) {
     );
   }
 
+  const resolveTalent = (talent) => {
+    const talentKey = typeof talent === 'string' ? talent : (talent?.id || talent?.name);
+    if (!talentKey) return null;
+    if (TalentRegistry[talentKey]) return TalentRegistry[talentKey];
+    const normalizedKey = talentKey.toLowerCase().replace(/\s+/g, '');
+    return Object.values(TalentRegistry).find((entry) => {
+      return entry.id?.toLowerCase() === normalizedKey
+        || entry.name?.toLowerCase().replace(/\s+/g, '') === normalizedKey;
+    }) || null;
+  };
+
   return (
     <div className="space-y-4">
       <div className="glass rounded-xl p-4">
@@ -26,10 +37,14 @@ export default function TalentsTab({ pokemon }) {
         
         <div className="space-y-3">
           {pokemon.talents.map((talent, index) => {
-            const talentData = TalentRegistry[talent.id];
+            const talentData = resolveTalent(talent);
             const normalizedGrade = normalizeTalentGrade(talent.grade);
-            const displayName = talentData?.name || talent.name || formatTalentName(talent.id);
-            const description = talentData?.grades?.[normalizedGrade]?.description || 'Unknown talent';
+            const displayName = talentData?.name
+              || talent.name
+              || formatTalentName(talent.id || talent);
+            const description = talentData?.grades?.[normalizedGrade]?.description
+              || talent.description
+              || 'Unknown talent';
             const gradeColorClass = getTalentGradeColor(normalizedGrade);
             
             return (

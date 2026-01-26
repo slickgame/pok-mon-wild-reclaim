@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Backpack, Search, Filter, Package, Beaker, Target, Sparkles, Key, Swords, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Backpack, Search, Package, Beaker, Target, Sparkles, Key, Swords, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import PageHeader from '@/components/common/PageHeader';
 import ItemCard from '@/components/inventory/ItemCard';

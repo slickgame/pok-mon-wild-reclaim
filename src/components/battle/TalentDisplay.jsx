@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { getTalentDescription } from '@/components/talents/TalentDescriptions';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
 
 const gradeColors = {
@@ -24,7 +24,8 @@ export default function TalentDisplay({ talents, showDescription = false, compac
       <div className="flex flex-wrap gap-1">
         {talents.map((talent, idx) => {
           const normalizedGrade = normalizeTalentGrade(talent.grade);
-          const displayName = talent.name || formatTalentName(talent.id);
+          const talentData = TalentRegistry[talent.id];
+          const displayName = talentData?.name || talent.name || formatTalentName(talent.id);
           return (
             <Badge key={idx} className={`text-xs ${gradeColors[normalizedGrade]}`}>
               {displayName}
@@ -39,8 +40,9 @@ export default function TalentDisplay({ talents, showDescription = false, compac
     <div className="space-y-2">
       {talents.map((talent, idx) => {
         const normalizedGrade = normalizeTalentGrade(talent.grade);
-        const displayName = talent.name || formatTalentName(talent.id);
-        const description = getTalentDescription(talent.id, normalizedGrade);
+        const talentData = TalentRegistry[talent.id];
+        const displayName = talentData?.name || talent.name || formatTalentName(talent.id);
+        const description = talentData?.grades?.[normalizedGrade]?.description || '';
 
         return (
           <motion.div

@@ -93,9 +93,17 @@ export function getTalentDescription(talentId, grade = 'Bronze') {
 
 export function getTalentGradeColor(grade) {
   switch (grade) {
-    case 'Bronze': return 'text-amber-600 bg-amber-600/10';
-    case 'Silver': return 'text-slate-400 bg-slate-400/10';
-    case 'Gold': return 'text-yellow-400 bg-yellow-400/10';
+    case 'Basic':
+    case 'Bronze':
+      return 'text-amber-600 bg-amber-600/10';
+    case 'Rare':
+    case 'Silver':
+      return 'text-slate-400 bg-slate-400/10';
+    case 'Epic':
+    case 'Gold':
+      return 'text-yellow-400 bg-yellow-400/10';
+    case 'Diamond':
+      return 'text-cyan-400 bg-cyan-400/10';
     default: return 'text-slate-500 bg-slate-500/10';
   }
 }

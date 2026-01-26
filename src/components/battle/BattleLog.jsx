@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Sparkles, Flame, Droplet, Skull } from 'lucide-react';
+import { Zap, Sparkles, Flame, Skull } from 'lucide-react';
 
 export default function BattleLog({ logs }) {
   const logEndRef = useRef(null);

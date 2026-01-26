@@ -9,7 +9,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import PageHeader from '@/components/common/PageHeader';
 import ContestCard from '@/components/contests/ContestCard';
-import ContestScorecard from '@/components/contests/ContestScorecard';
 import PokemonCard from '@/components/pokemon/PokemonCard';
 import TrinketSlot from '@/components/contests/TrinketSlot';
 import { Badge } from '@/components/ui/badge';

@@ -11,13 +11,30 @@ import { PokemonRegistry } from '@/components/data/PokemonRegistry';
 export function resolveMove(moveName, pokemon) {
   if (!moveName) return null;
 
+  const withDefaults = (move) => {
+    if (!move) return null;
+    const basePower = move.power ?? 0;
+    return {
+      name: moveName,
+      type: move.type ?? '???',
+      category: move.category ?? (basePower > 0 ? 'Physical' : 'Status'),
+      power: basePower,
+      accuracy: move.accuracy === undefined ? 100 : move.accuracy,
+      pp: move.pp ?? 35,
+      priority: move.priority ?? 0,
+      description: move.description ?? 'Move data not found.',
+      ...move
+    };
+  };
+
   // Check pokemon's species learnset first
   if (pokemon?.species) {
     const speciesData = PokemonRegistry[pokemon.species.toLowerCase()];
     if (speciesData?.learnset && Array.isArray(speciesData.learnset)) {
       const moveFromLearnset = speciesData.learnset.find(m => m.name === moveName);
       if (moveFromLearnset) {
-        return moveFromLearnset;
+        const globalMove = MOVE_DATA[moveName];
+        return withDefaults({ ...globalMove, ...moveFromLearnset, name: moveName });
       }
     }
   }
@@ -25,18 +42,9 @@ export function resolveMove(moveName, pokemon) {
   // Fallback to global move registry
   const globalMove = MOVE_DATA[moveName];
   if (globalMove) {
-    return { name: moveName, ...globalMove };
+    return withDefaults({ name: moveName, ...globalMove });
   }
 
   // Final fallback
-  return {
-    name: moveName,
-    type: '???',
-    category: 'Physical',
-    power: 0,
-    accuracy: 100,
-    pp: 35,
-    priority: 0,
-    description: 'Move data not found.'
-  };
+  return withDefaults({ name: moveName });
 }

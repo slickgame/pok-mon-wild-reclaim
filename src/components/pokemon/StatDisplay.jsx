@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, TrendingUp, ArrowUp, ArrowDown } from 'lucide-react';
+import { Eye, EyeOff, ArrowUp, ArrowDown } from 'lucide-react';
 import { getBaseStats } from './baseStats';
 import { calculateAllStats, getNatureDescription, NATURES } from './statCalculations';
 

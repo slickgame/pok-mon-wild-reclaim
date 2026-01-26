@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Star, Zap, Users } from 'lucide-react';
+import { Star, Zap, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function ContestScorecard({ roundScores, roundNumber }) {

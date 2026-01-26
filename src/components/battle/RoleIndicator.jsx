@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Heart, Eye, Swords, Zap, Users } from 'lucide-react';
+import { Shield, Heart, Eye, Swords, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 const roleData = {

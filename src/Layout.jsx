@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown, Box, BookOpen } from 'lucide-react';
+import { Home, PawPrint, Map, Backpack, Users, Menu, X, Sparkles, Box, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -23,10 +23,7 @@ const navItems = [
 const noLayoutPages = ['StartScreen', 'StoryCutscene', 'Onboarding'];
 
 export default function Layout({ children, currentPageName }) {
-  // Don't show layout for start screen and onboarding
-  if (noLayoutPages.includes(currentPageName)) {
-    return children;
-  }
+  const isLayoutHidden = noLayoutPages.includes(currentPageName);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { data: gameTime } = useQuery({
@@ -36,7 +33,13 @@ export default function Layout({ children, currentPageName }) {
       return times[0] || null;
     },
     refetchInterval: 60000, // Refresh every minute
+    enabled: !isLayoutHidden
   });
+
+  // Don't show layout for start screen and onboarding
+  if (isLayoutHidden) {
+    return children;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
