@@ -13,8 +13,12 @@ export class BattleEngine {
   // Calculate turn order based on Speed stat and priority
   determineTurnOrder(playerMove, enemyMove) {
     // Get move data from central registry
-    const playerMoveData = typeof playerMove === 'string' ? getMoveData(playerMove) : (getMoveData(playerMove?.name) || playerMove);
-    const enemyMoveData = typeof enemyMove === 'string' ? getMoveData(enemyMove) : (getMoveData(enemyMove?.name) || enemyMove);
+    const playerMoveData = typeof playerMove === 'string' 
+      ? getMoveData(playerMove, this.playerPokemon) 
+      : (playerMove?.name ? getMoveData(playerMove.name, this.playerPokemon) : playerMove);
+    const enemyMoveData = typeof enemyMove === 'string' 
+      ? getMoveData(enemyMove, this.enemyPokemon) 
+      : (enemyMove?.name ? getMoveData(enemyMove.name, this.enemyPokemon) : enemyMove);
     
     const playerPriority = playerMoveData?.priority || 0;
     const enemyPriority = enemyMoveData?.priority || 0;
