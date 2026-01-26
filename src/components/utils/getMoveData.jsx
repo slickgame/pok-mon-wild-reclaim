@@ -13,9 +13,18 @@ export function getMoveData(moveName, pokemon = null) {
   if (pokemon?.species) {
     const speciesData = wildPokemonData[pokemon.species];
     if (speciesData?.learnset) {
-      const moveFromLearnset = speciesData.learnset.find(m => m.name === moveName);
-      if (moveFromLearnset) {
-        return moveFromLearnset;
+      // Handle both array and object formats
+      if (Array.isArray(speciesData.learnset)) {
+        const moveFromLearnset = speciesData.learnset.find(m => m.name === moveName);
+        if (moveFromLearnset) {
+          return moveFromLearnset;
+        }
+      } else if (typeof speciesData.learnset === 'object') {
+        // Learnset is an object with move names as keys
+        const moveFromLearnset = speciesData.learnset[moveName];
+        if (moveFromLearnset) {
+          return { name: moveName, ...moveFromLearnset };
+        }
       }
     }
   }
