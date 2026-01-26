@@ -19,14 +19,18 @@ export default function PartyManager() {
     queryFn: async () => {
       const players = await base44.entities.Player.list();
       return players[0] || null;
-    }
+    },
+    staleTime: 30000,
+    refetchOnWindowFocus: false
   });
 
   const { data: allPokemon = [], isLoading } = useQuery({
     queryKey: ['allPokemon'],
     queryFn: async () => {
       return await base44.entities.Pokemon.list();
-    }
+    },
+    staleTime: 15000,
+    refetchOnWindowFocus: false
   });
 
   // Use player.partyOrder as single source of truth

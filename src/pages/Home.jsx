@@ -23,19 +23,25 @@ export default function HomePage() {
     queryFn: async () => {
       const players = await base44.entities.Player.list();
       return players[0] || null;
-    }
+    },
+    staleTime: 30000,
+    refetchOnWindowFocus: false
   });
 
   const { data: team = [], isLoading: teamLoading } = useQuery({
     queryKey: ['team'],
     queryFn: async () => {
       return await base44.entities.Pokemon.filter({ isInTeam: true });
-    }
+    },
+    staleTime: 20000,
+    refetchOnWindowFocus: false
   });
 
   const { data: tutorials = [] } = useQuery({
     queryKey: ['tutorials'],
-    queryFn: () => base44.entities.Tutorial.list()
+    queryFn: () => base44.entities.Tutorial.list(),
+    staleTime: 60000,
+    refetchOnWindowFocus: false
   });
 
   // Check for onboarding

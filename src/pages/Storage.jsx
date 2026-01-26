@@ -29,7 +29,9 @@ export default function StoragePage() {
     queryFn: async () => {
       const pokemon = await base44.entities.Pokemon.list();
       return pokemon;
-    }
+    },
+    staleTime: 15000,
+    refetchOnWindowFocus: false
   });
 
   // Separate party and storage - exclude wild instances
