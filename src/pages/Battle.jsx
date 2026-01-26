@@ -443,11 +443,12 @@ export default function BattlePage() {
         // Calculate level ups
         const currentLevel = teamMember.level;
         let newLevel = currentLevel;
-        let remainingXP = newXP;
+        let totalXP = newXP;
         const levelsGained = [];
 
-        while (remainingXP >= (newLevel * 100)) {
-          remainingXP -= (newLevel * 100);
+        // Level up while we have enough XP for the next level
+        while (totalXP >= (newLevel * 100)) {
+          totalXP -= (newLevel * 100);
           newLevel++;
           levelsGained.push(newLevel);
         }
@@ -455,7 +456,7 @@ export default function BattlePage() {
         // Track for update
         pokemonToUpdate.push({
           id: teamMember.id,
-          experience: remainingXP,
+          experience: totalXP,
           level: newLevel,
           species: teamMember.species
         });
