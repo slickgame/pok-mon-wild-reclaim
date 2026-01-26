@@ -1,6 +1,6 @@
-import { caterpieData } from '@/components/data/pokemon/caterpie';
+import { PokemonRegistry } from '@/components/data/PokemonRegistry';
 
-// Convert new JSON format to old format for compatibility
+// Convert new format to old format for compatibility
 function convertPokemonData(jsonData) {
   return {
     species: jsonData.species,
@@ -38,9 +38,9 @@ function convertPokemonData(jsonData) {
   };
 }
 
-// Wild Pokémon species data for encounters
+// Wild Pokémon species data for encounters (uses PokemonRegistry)
 export const wildPokemonData = {
-  Caterpie: convertPokemonData(caterpieData),
+  Caterpie: convertPokemonData(PokemonRegistry.caterpie),
 
   Pidgey: {
     species: "Pidgey",
@@ -169,10 +169,43 @@ export function randomNature() {
   return natures[Math.floor(Math.random() * natures.length)];
 }
 
-// Random talent from pool
+// Random talent from pool with grade
 export function randomTalent(talentPool) {
   if (!talentPool || talentPool.length === 0) return null;
   return talentPool[Math.floor(Math.random() * talentPool.length)];
+}
+
+// Roll talent grade
+export function rollTalentGrade() {
+  const roll = Math.random();
+  if (roll < 0.70) return "Bronze";
+  if (roll < 0.95) return "Silver";
+  return "Gold";
+}
+
+// Assign random talents with weighted count
+export function assignRandomTalents(talentPool) {
+  if (!talentPool || talentPool.length === 0) return [];
+  
+  // Weighted random: 0-3 talents (most get 1-2)
+  const countRoll = Math.random();
+  let numTalents = 1;
+  if (countRoll < 0.20) numTalents = 0;
+  else if (countRoll < 0.60) numTalents = 1;
+  else if (countRoll < 0.90) numTalents = 2;
+  else numTalents = 3;
+  
+  const shuffled = [...talentPool].sort(() => Math.random() - 0.5);
+  const assigned = [];
+  
+  for (let i = 0; i < Math.min(numTalents, shuffled.length); i++) {
+    assigned.push({
+      id: shuffled[i],
+      grade: rollTalentGrade()
+    });
+  }
+  
+  return assigned;
 }
 
 // Calculate XP gained from wild Pokémon (scaled by level)
@@ -227,11 +260,8 @@ export function generateWildPokemon(encounterTable) {
     moves = availableMoves.slice(-4);
   }
   
-  // Select random talent (use id, not name)
-  const talentId = randomTalent(speciesData.talentPool);
-  const talents = talentId
-    ? [{ id: talentId, grade: "Bronze" }]
-    : [];
+  // Assign random talents from pool
+  const talents = assignRandomTalents(speciesData.talentPool);
   
   return {
     species: speciesData.species,
