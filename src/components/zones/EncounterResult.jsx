@@ -54,11 +54,21 @@ export default function EncounterResult({ result, onContinue, onAction }) {
       {/* Pokémon Encounter Actions */}
       {result.type === 'pokemon' && result.pokemon && (
         <div className="space-y-3 mb-4">
-          <div className="glass rounded-lg p-3 flex items-center justify-between">
-            <span className="text-white font-medium">{result.pokemon}</span>
-            <Badge className={rarityColors[result.rarity]}>
-              Lv. {result.pokemonLevel}
-            </Badge>
+          <div className="glass rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white font-medium">{result.pokemon}</span>
+              <Badge className={rarityColors[result.rarity]}>
+                Lv. {result.pokemonLevel}
+              </Badge>
+            </div>
+            {result.pokemonNature && (
+              <div className="flex gap-2 text-xs text-slate-400">
+                <span>Nature: <span className="text-cyan-400">{result.pokemonNature}</span></span>
+                {result.pokemonRole && (
+                  <span>• Role: <span className="text-indigo-400">{result.pokemonRole}</span></span>
+                )}
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-2 gap-2">
