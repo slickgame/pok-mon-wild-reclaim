@@ -1,40 +1,46 @@
+import caterpieData from '@/components/data/pokemon/caterpie.json';
+
+// Convert new JSON format to old format for compatibility
+function convertPokemonData(jsonData) {
+  return {
+    species: jsonData.species,
+    dexId: jsonData.dexId,
+    type1: jsonData.types[0],
+    type2: jsonData.types[1] || null,
+    baseStats: {
+      hp: jsonData.baseStats.HP,
+      atk: jsonData.baseStats.Attack,
+      def: jsonData.baseStats.Defense,
+      spAtk: jsonData.baseStats.SpAttack,
+      spDef: jsonData.baseStats.SpDefense,
+      spd: jsonData.baseStats.Speed
+    },
+    evYield: {
+      hp: jsonData.evYield.HP || 0,
+      atk: jsonData.evYield.Attack || 0,
+      def: jsonData.evYield.Defense || 0,
+      spAtk: jsonData.evYield.SpAttack || 0,
+      spDef: jsonData.evYield.SpDefense || 0,
+      spd: jsonData.evYield.Speed || 0
+    },
+    baseXpYield: jsonData.baseExp,
+    dropItems: jsonData.dropItems.map(d => ({
+      item: d.itemId,
+      itemId: d.itemId,
+      chance: d.chance
+    })),
+    talentPool: jsonData.talentPool,
+    battleRole: jsonData.battleRole,
+    signatureMove: jsonData.signatureMove,
+    learnset: jsonData.learnset,
+    catchRate: jsonData.catchRate / 255,
+    genderRatio: jsonData.genderRatio
+  };
+}
+
 // Wild Pokémon species data for encounters
 export const wildPokemonData = {
-  Caterpie: {
-    species: "Caterpie",
-    dexId: 10,
-    type1: "Bug",
-    type2: null,
-    baseStats: { hp: 45, atk: 30, def: 35, spAtk: 20, spDef: 20, spd: 45 },
-    evYield: { hp: 1 },
-    baseXpYield: 39,
-    dropItems: [
-      { item: "Bug Husk", itemId: "bug-husk", chance: 0.40, rarity: "Common", sellValue: 15 },
-      { item: "Sticky Silk", itemId: "sticky-silk", chance: 0.15, rarity: "Uncommon", sellValue: 25 },
-      { item: "Chitin Shard", itemId: "chitin-shard", chance: 0.05, rarity: "Rare", sellValue: 50 }
-    ],
-    talentPool: [
-      "silkenGrip", "moltingDefense", "instinctiveSurvival", 
-      "threadAmbush", "scavengerInstinct", "naturesCloak",
-      "photosensitiveGrowth", "earlyInstinct", "tangleReflexes", "adaptiveShell"
-    ],
-    battleRole: "Status Inflictor",
-    signatureMove: "Sticky Thread",
-    learnset: {
-      1: ["Tackle", "String Shot"],
-      5: ["Bug Bite"],
-      7: ["Sticky Thread"],
-      10: ["Infestation"],
-      13: ["Camouflage"],
-      16: ["Skitter Smack"],
-      20: ["Safeguard"],
-      24: ["Silk Bomb"],
-      28: ["Echo Thread"],
-      30: ["Cocoon Shield"]
-    },
-    catchRate: 0.45,
-    genderRatio: { male: 0.5, female: 0.5 }
-  },
+  Caterpie: convertPokemonData(caterpieData),
 
   Pidgey: {
     species: "Pidgey",
@@ -203,15 +209,23 @@ export function generateWildPokemon(encounterTable) {
   const nature = randomNature();
   
   // Select moves based on level
-  const availableMoves = [];
-  for (const [learnLevel, moves] of Object.entries(speciesData.learnset)) {
-    if (parseInt(learnLevel) <= level) {
-      availableMoves.push(...moves);
+  let moves = [];
+  if (Array.isArray(speciesData.learnset)) {
+    // New format: learnset is array of move objects
+    const learnableMoves = speciesData.learnset
+      .filter(m => m.level <= level)
+      .sort((a, b) => a.level - b.level);
+    moves = learnableMoves.slice(-4).map(m => m.name);
+  } else {
+    // Old format: learnset is object with level keys
+    const availableMoves = [];
+    for (const [learnLevel, movesAtLevel] of Object.entries(speciesData.learnset)) {
+      if (parseInt(learnLevel) <= level) {
+        availableMoves.push(...movesAtLevel);
+      }
     }
+    moves = availableMoves.slice(-4);
   }
-  
-  // Take last 4 moves
-  const moves = availableMoves.slice(-4);
   
   // Select random talent (use id, not name)
   const talentId = randomTalent(speciesData.talentPool);

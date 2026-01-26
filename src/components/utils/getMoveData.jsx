@@ -4,17 +4,23 @@ import { caterpieMoves } from '@/components/zones/caterpieMoves';
 
 /**
  * Unified move data resolver
- * Priority: Species custom moves > Global registry > Default fallback
+ * Priority: Pokemon learnset > Global registry > Default fallback
  * @param {string} moveName - Name of the move to look up
- * @param {Object} pokemon - Pokemon instance (optional, for species lookup)
+ * @param {Object} pokemon - Pokemon instance (optional, for learnset lookup)
  * @returns {Object} Move data with all properties
  */
 export function getMoveData(moveName, pokemon = null) {
   if (!moveName) return null;
 
-  // Check species-specific custom moves first (e.g., Caterpie moves)
-  if (pokemon?.species === 'Caterpie' && caterpieMoves[moveName]) {
-    return caterpieMoves[moveName];
+  // Check pokemon's learnset first (for species-specific moves with full data)
+  if (pokemon?.species) {
+    const speciesData = wildPokemonData[pokemon.species];
+    if (speciesData?.learnset && Array.isArray(speciesData.learnset)) {
+      const moveFromLearnset = speciesData.learnset.find(m => m.name === moveName);
+      if (moveFromLearnset) {
+        return moveFromLearnset;
+      }
+    }
   }
 
   // Check global move registry
