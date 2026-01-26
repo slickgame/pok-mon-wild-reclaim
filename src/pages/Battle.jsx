@@ -26,6 +26,7 @@ import EvolutionModal from '@/components/pokemon/EvolutionModal';
 import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
 import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zones/wildPokemonData';
+import { getMoveData } from '@/components/utils/getMoveData';
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
@@ -1313,15 +1314,7 @@ export default function BattlePage() {
                   <div className="grid grid-cols-2 gap-3">
                     {battleState.playerPokemon.abilities && battleState.playerPokemon.abilities.length > 0 ? (
                      battleState.playerPokemon.abilities.map((moveName, idx) => {
-                       const moveData = moves.find(m => m.name === moveName) || {
-                         id: idx,
-                         name: moveName,
-                         type: 'Normal',
-                         category: 'Physical',
-                         power: 40,
-                         accuracy: 100,
-                         description: 'A basic move'
-                       };
+                       const moveData = getMoveData(moveName, battleState.playerPokemon);
                        return (
                          <MoveCard
                            key={idx}
