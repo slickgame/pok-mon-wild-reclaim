@@ -10,7 +10,7 @@ const categoryColors = {
   Status: 'from-slate-500 to-slate-600',
 };
 
-export default function MoveCard({ move, onUse, disabled, showSynergy = true }) {
+export default function MoveCard({ move, onUse, disabled, showSynergy = true, pokemon = null }) {
   const [showDetails, setShowDetails] = useState(false);
   const hasSynergy = move.synergyConditions && move.synergyConditions.length > 0;
 

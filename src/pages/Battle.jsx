@@ -1312,28 +1312,29 @@ export default function BattlePage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {battleState.playerPokemon.abilities && battleState.playerPokemon.abilities.length > 0 ? (
-                      battleState.playerPokemon.abilities.map((moveName, idx) => {
-                        const moveData = moves.find(m => m.name === moveName) || {
-                          id: idx,
-                          name: moveName,
-                          type: 'Normal',
-                          category: 'Physical',
-                          power: 40,
-                          accuracy: 100,
-                          description: 'A basic move'
-                        };
-                        return (
-                          <MoveCard
-                            key={idx}
-                            move={moveData}
-                            onUse={(m) => {
-                              useMove(m);
-                              setActionMenu('main');
-                            }}
-                            disabled={!isPlayerTurn}
-                          />
-                        );
-                      })
+                     battleState.playerPokemon.abilities.map((moveName, idx) => {
+                       const moveData = moves.find(m => m.name === moveName) || {
+                         id: idx,
+                         name: moveName,
+                         type: 'Normal',
+                         category: 'Physical',
+                         power: 40,
+                         accuracy: 100,
+                         description: 'A basic move'
+                       };
+                       return (
+                         <MoveCard
+                           key={idx}
+                           move={moveData}
+                           pokemon={battleState.playerPokemon}
+                           onUse={(m) => {
+                             useMove(m);
+                             setActionMenu('main');
+                           }}
+                           disabled={!isPlayerTurn}
+                         />
+                       );
+                     })
                     ) : (
                       <div className="col-span-2 text-center text-slate-400 py-4">
                         <p>No moves learned yet!</p>

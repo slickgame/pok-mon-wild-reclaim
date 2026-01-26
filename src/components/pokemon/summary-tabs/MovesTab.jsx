@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import MoveReminderModal from '@/components/moves/MoveReminderModal';
-import { getMoveData } from '../moveData';
+import { getMoveData } from '@/lib/getMoveData';
 
 export default function MovesTab({ pokemon }) {
   const [showMoveReminder, setShowMoveReminder] = useState(false);
@@ -109,7 +109,7 @@ export default function MovesTab({ pokemon }) {
 
       <div className="space-y-3">
         {pokemon.abilities.map((moveName) => {
-          const moveData = getMoveData(moveName);
+          const moveData = getMoveData(moveName, pokemon);
 
           return (
             <div key={moveName} className="glass rounded-lg p-4">

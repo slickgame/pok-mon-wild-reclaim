@@ -3,6 +3,7 @@ import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import TalentDisplay from '@/components/battle/TalentDisplay';
 import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
+import { formatTalentName, normalizeTalentGrade } from '@/lib/talentUtils';
 
 export default function TalentsTab({ pokemon }) {
   if (!pokemon.talents || pokemon.talents.length === 0) {
@@ -25,21 +26,23 @@ export default function TalentsTab({ pokemon }) {
         
         <div className="space-y-3">
           {pokemon.talents.map((talent, index) => {
-            const description = getTalentDescription(talent.id, talent.grade);
-            const gradeColorClass = getTalentGradeColor(talent.grade);
+            const normalizedGrade = normalizeTalentGrade(talent.grade);
+            const displayName = talent.name || formatTalentName(talent.id);
+            const description = getTalentDescription(talent.id, normalizedGrade);
+            const gradeColorClass = getTalentGradeColor(normalizedGrade);
             
             return (
               <div key={index} className="glass rounded-lg p-4 hover:bg-white/5 transition-colors">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-indigo-400" />
-                    <h4 className="font-semibold text-white">{talent.name}</h4>
+                    <h4 className="font-semibold text-white">{displayName}</h4>
                   </div>
                   <Badge className={gradeColorClass}>
-                    {talent.grade}
+                    {normalizedGrade}
                   </Badge>
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed">{description}</p>
+                <p className="text-sm text-slate-300 leading-relaxed italic">{description}</p>
               </div>
             );
           })}
@@ -50,7 +53,7 @@ export default function TalentsTab({ pokemon }) {
         <h4 className="text-xs font-semibold text-white mb-2">About Talents</h4>
         <div className="space-y-1 text-xs text-slate-400">
           <p><strong className="text-slate-300">Talents</strong> provide unique battle effects and synergies.</p>
-          <p><strong className="text-slate-300">Grade:</strong> Bronze → Silver → Gold</p>
+          <p><strong className="text-slate-300">Grade:</strong> Basic → Rare → Epic → Diamond</p>
           <p>Higher grades unlock more powerful effects.</p>
         </div>
       </div>
