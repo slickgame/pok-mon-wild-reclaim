@@ -16,7 +16,7 @@ import TalentDisplay from '@/components/battle/TalentDisplay';
 import BattleOutcomeModal from '@/components/battle/BattleOutcomeModal';
 import CaptureSuccessModal from '@/components/battle/CaptureSuccessModal';
 import BattleSummaryModal from '@/components/battle/BattleSummaryModal';
-import { BattleEngine } from '@/components/battle/BattleEngine';
+import { BattleEngine, triggerTalent } from '@/components/battle/BattleEngine';
 import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 import { getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
@@ -700,7 +700,34 @@ export default function BattlePage() {
       turnNumber: battleState.turnNumber + 1
     };
 
-    setBattleState(newBattleState);
+    const switchTalentLogs = [];
+    const switchEngine = new BattleEngine(newPokemon, battleState.enemyPokemon);
+    triggerTalent('onSwitchIn', {
+      playerTeam: [newPokemon],
+      enemyTeam: [battleState.enemyPokemon],
+      battleState: newBattleState,
+      turnCount: newBattleState.turnNumber,
+      weather: newBattleState.weather,
+      terrain: newBattleState.terrain,
+      isFirstTurn: newBattleState.turnNumber === 1,
+      addBattleLog: (message, user, talentDef) => {
+        switchTalentLogs.push({
+          turn: newBattleState.turnNumber,
+          actor: user?.nickname || user?.species,
+          action: talentDef?.name || 'Talent',
+          result: message,
+          synergyTriggered: true
+        });
+      },
+      modifyStat: (targetPokemon, stat, stages) => {
+        switchEngine.applyStatChange(targetPokemon, stat, stages, newBattleState);
+      }
+    });
+
+    setBattleState({
+      ...newBattleState,
+      battleLog: [...newBattleState.battleLog, ...switchTalentLogs]
+    });
     setActionMenu('main');
   };
 
