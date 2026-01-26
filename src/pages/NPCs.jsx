@@ -15,6 +15,8 @@ import NPCScheduleCalendar from '@/components/time/NPCScheduleCalendar';
 import MoveTutorModal from '@/components/npc/MoveTutorModal';
 import { MOVE_TUTORS } from '@/components/pokemon/moveTutors';
 import ResearchQuestManager from '@/components/research/ResearchQuestManager';
+import ShopBuyTab from '@/components/shop/ShopBuyTab';
+import ShopSellTab from '@/components/shop/ShopSellTab';
 
 export default function NPCsPage() {
   const [selectedNPC, setSelectedNPC] = useState(null);
@@ -126,6 +128,21 @@ export default function NPCsPage() {
 }
 
 function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMove }) {
+  const { data: player } = useQuery({
+    queryKey: ['player'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    }
+  });
+
+  const { data: inventory = [] } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: async () => {
+      const items = await base44.entities.Item.list();
+      return items;
+    }
+  });
   const roleIcons = {
     'Crafting Mentor': Wrench,
     'Professor': BookOpen,
@@ -227,23 +244,49 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
       )}
 
       {/* Tabs for Services, Quests & Schedule */}
-      <Tabs defaultValue="services" className="mt-6">
-        <TabsList className="w-full bg-slate-800/50">
-          <TabsTrigger value="services" className="flex-1 data-[state=active]:bg-indigo-500">
+      <Tabs defaultValue={npc.name === 'Meera' ? 'shop' : 'services'} className="mt-6">
+        <TabsList className="w-full bg-slate-800/50 grid grid-cols-4">
+          {npc.name === 'Meera' && (
+            <TabsTrigger value="shop" className="data-[state=active]:bg-indigo-500">
+              Shop
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="services" className="data-[state=active]:bg-indigo-500">
             Services
           </TabsTrigger>
           {npc.name === 'Professor Maple' && (
-            <TabsTrigger value="research" className="flex-1 data-[state=active]:bg-indigo-500">
+            <TabsTrigger value="research" className="data-[state=active]:bg-indigo-500">
               Research
             </TabsTrigger>
           )}
-          <TabsTrigger value="quests" className="flex-1 data-[state=active]:bg-indigo-500">
+          <TabsTrigger value="quests" className="data-[state=active]:bg-indigo-500">
             Quests
           </TabsTrigger>
-          <TabsTrigger value="schedule" className="flex-1 data-[state=active]:bg-indigo-500">
+          <TabsTrigger value="schedule" className="data-[state=active]:bg-indigo-500">
             Schedule
           </TabsTrigger>
         </TabsList>
+
+        {npc.name === 'Meera' && (
+          <TabsContent value="shop" className="mt-4">
+            <Tabs defaultValue="buy" className="w-full">
+              <TabsList className="w-full bg-slate-800/50 grid grid-cols-2">
+                <TabsTrigger value="buy" className="data-[state=active]:bg-emerald-500">
+                  Buy
+                </TabsTrigger>
+                <TabsTrigger value="sell" className="data-[state=active]:bg-emerald-500">
+                  Sell
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="buy" className="mt-4">
+                <ShopBuyTab player={player} inventory={inventory} />
+              </TabsContent>
+              <TabsContent value="sell" className="mt-4">
+                <ShopSellTab player={player} inventory={inventory} />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+        )}
 
         <TabsContent value="services" className="mt-4">
           {/* Check if NPC is a move tutor */}
