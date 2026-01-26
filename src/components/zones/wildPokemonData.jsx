@@ -178,9 +178,9 @@ export function randomTalent(talentPool) {
 // Roll talent grade
 export function rollTalentGrade() {
   const roll = Math.random();
-  if (roll < 0.70) return "Bronze";
-  if (roll < 0.95) return "Silver";
-  return "Gold";
+  if (roll < 0.70) return "Basic";
+  if (roll < 0.95) return "Rare";
+  return "Epic";
 }
 
 // Assign random talents with weighted count
