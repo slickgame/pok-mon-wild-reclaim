@@ -21,7 +21,7 @@ import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 import { getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
 import MoveLearnModal from '@/components/battle/MoveLearnModal';
-import { checkEvolution, getEvolvedStats, getEvolvedRoles } from '@/components/pokemon/evolutionData';
+import { checkEvolution, getEvolvedStats, getEvolvedRoles, evolvePokemon } from '@/components/pokemon/evolutionData';
 import EvolutionModal from '@/components/pokemon/EvolutionModal';
 import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
@@ -849,11 +849,8 @@ export default function BattlePage() {
     try {
       const { pokemon, evolvesInto, pendingUpdate } = evolutionState;
       
-      // Calculate new stats based on evolved form
-      const evolvedStats = getEvolvedStats(evolvesInto, pokemon.stats);
-      
-      // Get new roles
-      const evolvedRoles = getEvolvedRoles(evolvesInto, pokemon.roles || []);
+      // Use centralized evolution function
+      const evolvedPokemon = evolvePokemon(pokemon, evolvesInto);
       
       // Recalculate stats properly with new base stats
       const baseStats = getBaseStats(evolvesInto);
@@ -862,7 +859,7 @@ export default function BattlePage() {
         baseStats
       );
       
-      // Update Pokemon with evolution
+      // Update Pokemon with evolution (preserves talents + adds canLearnNewTalents flag)
       await base44.entities.Pokemon.update(pendingUpdate.id, {
         species: evolvesInto,
         experience: pendingUpdate.experience,
@@ -870,17 +867,25 @@ export default function BattlePage() {
         evs: pendingUpdate.evs,
         stats: calculatedStats,
         currentHp: calculatedStats.hp,
-        roles: evolvedRoles
+        roles: evolvedPokemon.roles,
+        talents: evolvedPokemon.talents, // Preserved from pre-evolution
+        canLearnNewTalents: true // Future NPC teaching system
       });
       
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
       
-      // Check if there are moves to learn after evolution
-      if (pendingUpdate.movesLearned && pendingUpdate.movesLearned.length > 0) {
-        const currentMoves = pokemon.abilities || [];
+      // Check for moves the evolved form learns at current level
+      const movesAtLevel = getMovesLearnedAtLevel(evolvesInto, pendingUpdate.level);
+      const currentMoves = pokemon.abilities || [];
+      const learnableMoves = movesAtLevel.filter(move => !currentMoves.includes(move));
+      
+      // Combine with level-up moves if any
+      const allNewMoves = [...new Set([...(pendingUpdate.movesLearned || []), ...learnableMoves])];
+      
+      if (allNewMoves.length > 0) {
         setMoveLearnState({
           pokemon: { ...pokemon, species: evolvesInto },
-          newMoves: pendingUpdate.movesLearned,
+          newMoves: allNewMoves,
           currentMoves: currentMoves,
           pendingUpdate: {
             id: pendingUpdate.id,
