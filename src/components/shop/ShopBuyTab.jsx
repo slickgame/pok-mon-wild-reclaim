@@ -38,18 +38,19 @@ export default function ShopBuyTab({ player, inventory }) {
       
       if (existingItem) {
         // Update quantity
-        await base44.entities.Item.update(existingItem.id, {
+        await base44.entities.Inventory.update(existingItem.id, {
           quantity: (existingItem.quantity || 1) + quantity
         });
       } else {
-        // Create new item
-        await base44.entities.Item.create({
+        // Create new inventory item
+        await base44.entities.Inventory.create({
+          itemId: item.name,
           name: item.name,
           type: item.type,
           description: item.description,
           rarity: item.rarity,
+          tier: 1,
           quantity: quantity,
-          stackable: true,
           sellValue: Math.floor(item.price * 0.5)
         });
       }
