@@ -50,12 +50,16 @@ export default function PokemonPage() {
     queryFn: async () => {
       const players = await base44.entities.Player.list();
       return players[0] || null;
-    }
+    },
+    staleTime: 30000, // 30 seconds
+    refetchOnWindowFocus: false
   });
 
   const { data: pokemon = [], isLoading } = useQuery({
     queryKey: ['pokemon'],
-    queryFn: () => base44.entities.Pokemon.list()
+    queryFn: () => base44.entities.Pokemon.list(),
+    staleTime: 10000, // 10 seconds
+    refetchOnWindowFocus: false
   });
 
   const filteredPokemon = React.useMemo(() => {
