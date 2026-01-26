@@ -20,32 +20,60 @@ export default function ShopSellTab({ player, inventory }) {
         gold: (player.gold || 0) + totalSale
       });
 
-      // Update or delete item
-      const newQuantity = (item.quantity || 1) - quantity;
-      if (newQuantity <= 0) {
-        await base44.entities.Item.delete(item.id);
-      } else {
-        await base44.entities.Item.update(item.id, {
-          quantity: newQuantity
-        });
+      // Handle stacked items - remove from multiple item instances if needed
+      let remaining = quantity;
+      for (const id of item._ids) {
+        if (remaining <= 0) break;
+        
+        const itemInstance = inventory.find(i => i.id === id);
+        if (!itemInstance) continue;
+        
+        const itemQty = itemInstance.quantity || 1;
+        
+        if (itemQty <= remaining) {
+          await base44.entities.Item.delete(id);
+          remaining -= itemQty;
+        } else {
+          await base44.entities.Item.update(id, {
+            quantity: itemQty - remaining
+          });
+          remaining = 0;
+        }
       }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['player'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      setQuantities(prev => ({ ...prev, [variables.item.id]: 1 }));
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      setQuantities(prev => ({ ...prev, [variables.item.name]: 1 }));
     }
   });
 
-  const getQuantity = (itemId) => quantities[itemId] || 1;
+  const getQuantity = (itemName) => quantities[itemName] || 1;
 
-  const adjustQuantity = (itemId, maxQty, delta) => {
-    const current = getQuantity(itemId);
+  const adjustQuantity = (itemName, maxQty, delta) => {
+    const current = getQuantity(itemName);
     const newQty = Math.max(1, Math.min(maxQty, current + delta));
-    setQuantities(prev => ({ ...prev, [itemId]: newQty }));
+    setQuantities(prev => ({ ...prev, [itemName]: newQty }));
   };
 
-  const sellableItems = inventory.filter(item => 
+  // Group items by name to combine duplicates
+  const stackedItems = {};
+  inventory.forEach(item => {
+    const key = item.name;
+    if (!stackedItems[key]) {
+      stackedItems[key] = {
+        ...item,
+        quantity: item.quantity || 1,
+        _ids: [item.id]
+      };
+    } else {
+      stackedItems[key].quantity += (item.quantity || 1);
+      stackedItems[key]._ids.push(item.id);
+    }
+  });
+
+  const sellableItems = Object.values(stackedItems).filter(item => 
     item.sellValue > 0 || item.type === 'Material' || item.type === 'Potion' || item.type === 'Bait' || item.type === 'Capture Gear'
   );
 
@@ -73,14 +101,14 @@ export default function ShopSellTab({ player, inventory }) {
       {/* Sellable Items */}
       <div className="space-y-3">
         {sellableItems.map((item, idx) => {
-          const quantity = getQuantity(item.id);
-          const maxQty = item.quantity || 1;
+          const quantity = getQuantity(item.name);
+          const maxQty = item.quantity;
           const sellValue = item.sellValue || Math.floor((item.price || 0) * 0.5) || 10;
           const totalSale = sellValue * quantity;
 
           return (
             <motion.div
-              key={item.id}
+              key={item.name}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
@@ -113,14 +141,14 @@ export default function ShopSellTab({ player, inventory }) {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg p-2">
                   <button
-                    onClick={() => adjustQuantity(item.id, maxQty, -1)}
+                    onClick={() => adjustQuantity(item.name, maxQty, -1)}
                     className="w-8 h-8 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white"
                   >
                     <Minus className="w-4 h-4" />
                   </button>
                   <span className="w-12 text-center text-white font-semibold">{quantity}</span>
                   <button
-                    onClick={() => adjustQuantity(item.id, maxQty, 1)}
+                    onClick={() => adjustQuantity(item.name, maxQty, 1)}
                     className="w-8 h-8 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white"
                   >
                     <Plus className="w-4 h-4" />
