@@ -1,8 +1,8 @@
 import React from 'react';
 import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import TalentDisplay from '@/components/battle/TalentDisplay';
-import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
+import { getTalentGradeColor } from '@/components/talents/TalentDescriptions';
 import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
 
 export default function TalentsTab({ pokemon }) {
@@ -26,9 +26,10 @@ export default function TalentsTab({ pokemon }) {
         
         <div className="space-y-3">
           {pokemon.talents.map((talent, index) => {
+            const talentData = TalentRegistry[talent.id];
             const normalizedGrade = normalizeTalentGrade(talent.grade);
-            const displayName = talent.name || formatTalentName(talent.id);
-            const description = getTalentDescription(talent.id, normalizedGrade);
+            const displayName = talentData?.name || talent.name || formatTalentName(talent.id);
+            const description = talentData?.grades?.[normalizedGrade]?.description || 'Unknown talent';
             const gradeColorClass = getTalentGradeColor(normalizedGrade);
             
             return (
@@ -53,7 +54,7 @@ export default function TalentsTab({ pokemon }) {
         <h4 className="text-xs font-semibold text-white mb-2">About Talents</h4>
         <div className="space-y-1 text-xs text-slate-400">
           <p><strong className="text-slate-300">Talents</strong> provide unique battle effects and synergies.</p>
-          <p><strong className="text-slate-300">Grade:</strong> Bronze → Silver → Gold</p>
+          <p><strong className="text-slate-300">Grade:</strong> Basic → Rare → Epic</p>
           <p>Higher grades unlock more powerful effects.</p>
         </div>
       </div>
