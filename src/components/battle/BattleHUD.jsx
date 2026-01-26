@@ -79,6 +79,18 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
         </div>
       )}
 
+      {/* Passive effects */}
+      {pokemon.passiveEffects?.length > 0 && (
+        <div className="flex gap-2 mt-2 flex-wrap">
+          {pokemon.passiveEffects.map((effect, idx) => (
+            <Badge key={idx} className="bg-purple-500/20 text-purple-300 border-purple-500/50 text-xs flex items-center gap-1">
+              <Zap className="w-3 h-3" />
+              {effect.id} ({effect.duration} turns)
+            </Badge>
+          ))}
+        </div>
+      )}
+
       {/* Held items indicator */}
       {pokemon.heldItems?.length > 0 && (
         <div className="mt-2 pt-2 border-t border-slate-700">
