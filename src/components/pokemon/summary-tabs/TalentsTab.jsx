@@ -26,9 +26,10 @@ export default function TalentsTab({ pokemon }) {
         
         <div className="space-y-3">
           {pokemon.talents.map((talent, index) => {
-            const talentData = TalentRegistry[talent.id];
+            const talentId = talent.id || talent.name;
+            const talentData = TalentRegistry[talentId];
             const normalizedGrade = normalizeTalentGrade(talent.grade);
-            const displayName = talentData?.name || talent.name || formatTalentName(talent.id);
+            const displayName = talentData?.name || formatTalentName(talentId);
             const description = talentData?.grades?.[normalizedGrade]?.description || 'Unknown talent';
             const gradeColorClass = getTalentGradeColor(normalizedGrade);
             
