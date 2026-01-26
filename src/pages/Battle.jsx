@@ -1119,6 +1119,15 @@ export default function BattlePage() {
                     ivs: randomIVs
                   });
 
+                  // If added to party, update player's partyOrder
+                  if (captureModalState.addedToParty && player) {
+                    const updatedPartyOrder = [...(player.partyOrder || []), wildPokemonId];
+                    await base44.entities.Player.update(player.id, {
+                      partyOrder: updatedPartyOrder
+                    });
+                    queryClient.invalidateQueries({ queryKey: ['player'] });
+                  }
+
                   // Check if this species is already in Pokédex
                   const existingEntry = await base44.entities.Pokedex.filter({ species });
 
