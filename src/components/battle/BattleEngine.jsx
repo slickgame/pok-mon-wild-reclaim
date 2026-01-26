@@ -2,6 +2,7 @@ import { getPokemonStats } from '../pokemon/usePokemonStats';
 import { getMoveData } from '@/components/utils/getMoveData';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { applyMoveEffect } from '@/components/data/MoveEffectRegistry';
 
 // Battle Engine - Core logic for turn-based combat
 // INTEGRATION: Uses centralized MOVE_DATA for all move metadata
@@ -565,7 +566,108 @@ export class BattleEngine {
       }
     }
 
-    // Handle special move effects
+    // Apply centralized move effects from MoveEffectRegistry
+    const moveEffectContext = {
+      user: attacker.pokemon,
+      target: defender.pokemon,
+      move,
+      battle: battleState,
+      userTeam: { addAura: () => {} }, // Placeholder for team effects
+      targetTeam: { addAura: () => {} },
+      addBattleLog: (message) => {
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: attacker.pokemon.nickname || attacker.pokemon.species,
+          action: 'effect',
+          result: message,
+          synergyTriggered: false
+        });
+      },
+      target: {
+        ...defender.pokemon,
+        modifyStat: (stat, stages) => {
+          this.applyStatChange(defender.pokemon, stat, stages, battleState);
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: defender.pokemon.nickname || defender.pokemon.species,
+            action: stages > 0 ? 'gained' : 'lost',
+            result: `${stat} ${stages > 0 ? '+' : ''}${stages}`,
+            synergyTriggered: false
+          });
+        },
+        inflictEffect: (effectName, params) => {
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: defender.pokemon.nickname || defender.pokemon.species,
+            action: `is ${effectName}`,
+            result: `Duration: ${params.turns} turns`,
+            synergyTriggered: false
+          });
+        },
+        inflictDOT: (dotName, params) => {
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: defender.pokemon.nickname || defender.pokemon.species,
+            action: `is afflicted with ${dotName}`,
+            result: `${params.damage} damage per turn`,
+            synergyTriggered: false
+          });
+        },
+        inflictStatus: (status) => {
+          const statusResult = this.applyStatusEffect(defender.pokemon, status, battleState);
+          if (statusResult.success) {
+            logs.push({
+              turn: battleState.turnNumber,
+              actor: defender.pokemon.nickname || defender.pokemon.species,
+              action: `is now ${statusResult.status}`,
+              result: '',
+              synergyTriggered: false
+            });
+          }
+        },
+        heldItem: defender.pokemon.heldItems?.[0] || null,
+        lastStatChanges: battleState.lastTurnStatChanges?.[defender.key] || []
+      },
+      user: {
+        ...attacker.pokemon,
+        modifyStat: (stat, stages) => {
+          this.applyStatChange(attacker.pokemon, stat, stages, battleState);
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: attacker.pokemon.nickname || attacker.pokemon.species,
+            action: stages > 0 ? 'gained' : 'lost',
+            result: `${stat} ${stages > 0 ? '+' : ''}${stages}`,
+            synergyTriggered: false
+          });
+        },
+        consumeItemEffect: (item) => {
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: attacker.pokemon.nickname || attacker.pokemon.species,
+            action: 'consumed',
+            result: `${item.name}'s effect`,
+            synergyTriggered: false
+          });
+        },
+        changeType: (newType) => {
+          attacker.pokemon.type1 = newType;
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: attacker.pokemon.nickname || attacker.pokemon.species,
+            action: 'changed type to',
+            result: newType,
+            synergyTriggered: false
+          });
+        }
+      },
+      battle: {
+        getTerrainType: () => battleState.terrain || "normal"
+      }
+    };
+    
+    applyMoveEffect(move.name, moveEffectContext);
+
+    // Handle special move effects (legacy support)
     if (move.effect) {
       // Echo Thread - copy last turn's stat changes
       if (move.effect.copyLastStatChanges) {
