@@ -155,7 +155,9 @@ export default function MovesTab({ pokemon }) {
               {moveData?.effect &&
               <div className="mt-2 flex items-start gap-1">
                   <Info className="w-3 h-3 text-indigo-400 mt-0.5" />
-                  <p className="text-xs text-indigo-300">{moveData.effect}</p>
+                  <p className="text-xs text-indigo-300">
+                    {typeof moveData.effect === 'string' ? moveData.effect : JSON.stringify(moveData.effect)}
+                  </p>
                 </div>
               }
             </div>);
