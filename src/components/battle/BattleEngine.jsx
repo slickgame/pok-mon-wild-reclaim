@@ -4,7 +4,7 @@ import { TalentRegistry } from '@/data/TalentRegistry';
 import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 import { applyMoveEffect } from '@/components/data/MoveEffectRegistry';
 import { TalentEffectHandlers } from '@/engine/TalentEffectHandlers';
-import { StatusRegistry, processStatusEffects, checkStatusPreventsAction } from '@/components/data/StatusRegistry';
+import { StatusRegistry, processStatusEffects, checkStatusPreventsAction, inflictStatus } from '@/components/data/StatusRegistry';
 
 export const triggerTalent = (event, ctx) => {
   const allCombatants = [...(ctx.playerTeam || []), ...(ctx.enemyTeam || [])];
@@ -263,28 +263,12 @@ export class BattleEngine {
   }
 
   // Apply status effects
-  applyStatusEffect(target, effect, battleState) {
-    const statusEffects = {
-      burn: { name: 'Burn', damagePerTurn: 0.0625, reducesAttack: true },
-      paralysis: { name: 'Paralysis', speedReduction: 0.5, chanceOfFullParalysis: 0.25 },
-      poison: { name: 'Poison', damagePerTurn: 0.0625 },
-      sleep: { name: 'Sleep', turnDuration: Math.floor(Math.random() * 3) + 1 },
-      freeze: { name: 'Freeze', chanceOfThaw: 0.2 },
-      confusion: { name: 'Confusion', turnDuration: Math.floor(Math.random() * 4) + 1 }
-    };
+  applyStatusEffect(target, effect, battleState, addBattleLog) {
+    const statusId = effect === 'paralysis' ? 'paralyze' : effect;
+    const success = inflictStatus(target, statusId, battleState, addBattleLog);
+    const statusName = StatusRegistry[statusId]?.name || statusId;
 
-    const statusEffect = statusEffects[effect];
-    if (statusEffect) {
-      // Check if target is already affected by a primary status
-      const targetState = target === this.playerPokemon ? battleState.playerStatus : battleState.enemyStatus;
-      
-      if (!targetState.conditions.includes(statusEffect.name)) {
-        targetState.conditions.push(statusEffect.name);
-        return { success: true, status: statusEffect.name };
-      }
-    }
-
-    return { success: false };
+    return { success, status: statusName };
   }
 
   // Modify stat stages (clamped -6 to +6)
@@ -444,8 +428,20 @@ export class BattleEngine {
     for (const effect of pokemon.passiveEffects) {
       if (effect.onTurnStart) {
         const ctx = {
-          target: pokemon,
+          target: {
+            ...pokemon,
+            lastStatChanges: battleState.lastTurnStatChanges?.[pokemonKey] || []
+          },
           battle: battleState,
+          applyDamage: (amount) => {
+            if (pokemonKey === 'player') {
+              battleState.playerHP = Math.max(0, battleState.playerHP - amount);
+              pokemon.currentHp = battleState.playerHP;
+            } else {
+              battleState.enemyHP = Math.max(0, battleState.enemyHP - amount);
+              pokemon.currentHp = battleState.enemyHP;
+            }
+          },
           addBattleLog: (message) => {
             logs.push({
               turn: battleState.turnNumber,
@@ -526,6 +522,7 @@ export class BattleEngine {
     if (!battleState.lastTurnStatChanges) {
       battleState.lastTurnStatChanges = { player: [], enemy: [] };
     }
+    battleState.currentTurnStatChanges = { player: [], enemy: [] };
 
     // Process status effects at turn start
     const addLog = (message) => turnLog.push({
@@ -536,8 +533,12 @@ export class BattleEngine {
       synergyTriggered: false
     });
     
+    this.playerPokemon.currentHp = battleState.playerHP;
+    this.enemyPokemon.currentHp = battleState.enemyHP;
     processStatusEffects(this.playerPokemon, battleState, addLog);
     processStatusEffects(this.enemyPokemon, battleState, addLog);
+    battleState.playerHP = this.playerPokemon.currentHp;
+    battleState.enemyHP = this.enemyPokemon.currentHp;
 
     // Process passive effects at turn start
     const playerPassiveLogs = this.processPassiveEffects(this.playerPokemon, 'player', battleState);
@@ -577,6 +578,10 @@ export class BattleEngine {
         synergyTriggered: false
       });
     });
+
+    battleState.lastTurnStatChanges = battleState.currentTurnStatChanges;
+    battleState.playerPokemon = this.playerPokemon;
+    battleState.enemyPokemon = this.enemyPokemon;
 
     return turnLog;
   }
@@ -648,8 +653,10 @@ export class BattleEngine {
     if (damage > 0) {
       if (defender.key === 'player') {
         battleState.playerHP = Math.max(0, battleState.playerHP - damage);
+        defender.pokemon.currentHp = battleState.playerHP;
       } else {
         battleState.enemyHP = Math.max(0, battleState.enemyHP - damage);
+        defender.pokemon.currentHp = battleState.enemyHP;
       }
 
       let resultText = `${damage} damage!`;
@@ -786,6 +793,8 @@ export class BattleEngine {
         ...defender.pokemon,
         modifyStat: (stat, stages) => {
           this.applyStatChange(defender.pokemon, stat, stages, battleState);
+          battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
+          battleState.currentTurnStatChanges[defender.key].push({ stat, stages });
           logs.push({
             turn: battleState.turnNumber,
             actor: defender.pokemon.nickname || defender.pokemon.species,
@@ -831,6 +840,8 @@ export class BattleEngine {
         ...attacker.pokemon,
         modifyStat: (stat, stages) => {
           this.applyStatChange(attacker.pokemon, stat, stages, battleState);
+          battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
+          battleState.currentTurnStatChanges[attacker.key].push({ stat, stages });
           logs.push({
             turn: battleState.turnNumber,
             actor: attacker.pokemon.nickname || attacker.pokemon.species,
@@ -913,9 +924,8 @@ export class BattleEngine {
           this.applyStatChange(defender.pokemon, statKey, stagesValue, battleState);
           
           // Track for Echo Thread
-          if (!battleState.lastTurnStatChanges) battleState.lastTurnStatChanges = { player: [], enemy: [] };
-          battleState.lastTurnStatChanges[defender.key] = battleState.lastTurnStatChanges[defender.key] || [];
-          battleState.lastTurnStatChanges[defender.key].push({ stat: statKey, stages: stagesValue });
+          battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
+          battleState.currentTurnStatChanges[defender.key].push({ stat: statKey, stages: stagesValue });
           
           logs.push({
             turn: battleState.turnNumber,
@@ -931,6 +941,8 @@ export class BattleEngine {
         Object.entries(statChanges).forEach(([stat, stages]) => {
           const statKey = stat === 'Defense' ? 'def' : stat === 'SpDefense' ? 'spDef' : stat.toLowerCase();
           this.applyStatChange(attacker.pokemon, statKey, stages, battleState);
+          battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
+          battleState.currentTurnStatChanges[attacker.key].push({ stat: statKey, stages });
           
           logs.push({
             turn: battleState.turnNumber,
@@ -959,12 +971,15 @@ export class BattleEngine {
         
         const stat = statMap[move.effect];
         if (stat) {
-          this.applyStatChange(target, stat, isRaise ? stages : -stages, battleState);
+          const stageValue = isRaise ? stages : -stages;
+          this.applyStatChange(target, stat, stageValue, battleState);
+          battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
+          battleState.currentTurnStatChanges[defender.key].push({ stat, stages: stageValue });
           logs.push({
             turn: battleState.turnNumber,
             actor: target.nickname || target.species,
             action: isRaise ? 'gained' : 'lost',
-            result: `${stat} ${isRaise ? '+' : ''}${isRaise ? stages : -stages}`,
+            result: `${stat} ${isRaise ? '+' : ''}${stageValue}`,
             synergyTriggered: false
           });
         }
