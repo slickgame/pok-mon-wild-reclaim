@@ -33,7 +33,7 @@ export const MoveEffectRegistry = {
 
   infestation: {
     apply: (ctx) => {
-      const trapDuration = 4 + Math.floor(Math.random() * 2); // 4-5 turns
+      const trapDuration = 4;
       ctx.addBattleLog(`${ctx.target.nickname || ctx.target.species} was infested!`);
       
       // Initialize passive effects array if needed
@@ -46,9 +46,11 @@ export const MoveEffectRegistry = {
         id: "infestation",
         source: ctx.user.nickname || ctx.user.species,
         duration: trapDuration,
+        trap: true,
         onTurnStart: (effectCtx) => {
-          const damage = Math.floor(effectCtx.target.stats.hp * 0.0625);
-          effectCtx.addBattleLog(`Infestation deals ${damage} damage!`);
+          const maxHp = effectCtx.target.stats?.maxHp ?? 0;
+          const damage = Math.floor(maxHp / 8);
+          effectCtx.addBattleLog(`Infestation hurts ${effectCtx.target.nickname || effectCtx.target.species} for ${damage} HP!`);
           effectCtx.applyDamage(damage);
         }
       });

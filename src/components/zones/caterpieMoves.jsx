@@ -49,10 +49,10 @@ export const caterpieMoves = {
     accuracy: 100,
     pp: 20,
     priority: 0,
-    description: 'Traps and damages the target for 4-5 turns.',
+    description: 'Traps and damages the target for 4 turns.',
     effect: {
       trap: true,
-      duration: 5
+      duration: 4
     }
   },
   
