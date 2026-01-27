@@ -2,8 +2,8 @@ import React from 'react';
 import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { TalentRegistry } from '@/data/TalentRegistry';
-import { getTalentGradeColor } from '@/components/talents/TalentDescriptions';
-import { formatTalentName } from '@/components/utils/talentUtils';
+import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
+import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
 
 export default function TalentsTab({ pokemon }) {
   if (!pokemon.talents || pokemon.talents.length === 0) {
@@ -28,18 +28,9 @@ export default function TalentsTab({ pokemon }) {
           {pokemon.talents.map((talent, index) => {
             const talentId = talent.id || talent.name;
             const talentData = TalentRegistry[talentId];
-            const gradeKey = (talent.grade || 'basic').toLowerCase();
-            const gradeMap = {
-              basic: 'Basic',
-              rare: 'Rare',
-              epic: 'Epic',
-              bronze: 'Basic',
-              silver: 'Rare',
-              gold: 'Epic'
-            };
-            const gradeLabel = gradeMap[gradeKey] || 'Basic';
+            const gradeLabel = normalizeTalentGrade(talent.grade || 'Basic');
             const displayName = talentData?.name || formatTalentName(talentId);
-            const description = talentData?.grades?.[gradeLabel]?.description || 'No description';
+            const description = getTalentDescription(talentId, gradeLabel);
             const gradeColorClass = getTalentGradeColor(gradeLabel);
             
             return (
