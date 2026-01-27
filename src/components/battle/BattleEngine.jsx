@@ -8,6 +8,7 @@ import { StatusRegistry, processStatusEffects, checkStatusPreventsAction, inflic
 import {
   createDefaultStatStages,
   formatStatStageChange,
+  formatStatStageLimit,
   getStatModifier,
   getStatStageValue,
   normalizeStatStageKey,
@@ -64,12 +65,26 @@ export class BattleEngine {
   attachModifyStat(pokemon) {
     pokemon.modifyStat = (stat, delta, battleState) => {
       const result = this.modifyStatStage(pokemon, stat, delta, battleState);
-      const message = formatStatStageChange(stat, delta);
+      const message = result.actualChange === 0
+        ? formatStatStageLimit(stat, delta)
+        : formatStatStageChange(stat, result.actualChange);
       if (typeof pokemon.log === 'function') {
         pokemon.log(message);
       }
       return { ...result, message };
     };
+  }
+
+  formatStatStageLogMessage(stat, intendedChange, actualChange) {
+    if (actualChange === 0) {
+      return formatStatStageLimit(stat, intendedChange);
+    }
+    return formatStatStageChange(stat, actualChange);
+  }
+
+  getPossessiveName(pokemon) {
+    const name = pokemon.nickname || pokemon.species;
+    return `${name}'s`;
   }
 
   // Calculate turn order based on Speed stat and priority
@@ -305,13 +320,25 @@ export class BattleEngine {
     
     const statKey = normalizeStatStageKey(stat);
     if (!statKey) {
-      return { stat, stages: change, newTotal: 0 };
+      return {
+        stat,
+        stages: change,
+        actualChange: 0,
+        newTotal: 0,
+        previousTotal: 0
+      };
     }
     const current = pokemon.statStages[statKey] || 0;
     const newValue = Math.max(-6, Math.min(6, current + change));
     pokemon.statStages[statKey] = newValue;
     
-    return { stat: statKey, stages: change, newTotal: newValue };
+    return {
+      stat: statKey,
+      stages: change,
+      actualChange: newValue - current,
+      newTotal: newValue,
+      previousTotal: current
+    };
   }
 
   // Apply buffs/debuffs (legacy)
@@ -323,11 +350,15 @@ export class BattleEngine {
     const existingBuff = targetState.buffs.find(b => b.stat === normalizedStat);
     if (existingBuff) {
       existingBuff.value = result.newTotal;
-    } else {
-      targetState.buffs.push({ name: `${normalizedStat} ${stages > 0 ? '+' : ''}${stages}`, stat: normalizedStat, value: result.newTotal });
+    } else if (result.actualChange !== 0) {
+      targetState.buffs.push({
+        name: `${normalizedStat} ${result.actualChange > 0 ? '+' : ''}${result.actualChange}`,
+        stat: normalizedStat,
+        value: result.newTotal
+      });
     }
 
-    return { stat, stages };
+    return { stat, stages, actualChange: result.actualChange, newTotal: result.newTotal };
   }
 
   // Process turn-end effects (burn, poison, etc.)
@@ -482,12 +513,13 @@ export class BattleEngine {
             });
           },
           modifyStat: (stat, stages) => {
-            this.applyStatChange(pokemon, stat, stages, battleState);
+            const changeResult = this.applyStatChange(pokemon, stat, stages, battleState);
+            const message = this.formatStatStageLogMessage(stat, stages, changeResult.actualChange);
             logs.push({
               turn: battleState.turnNumber,
               actor: pokemon.nickname || pokemon.species,
               action: `${effect.id} activated`,
-              result: formatStatStageChange(stat, stages),
+              result: message,
               synergyTriggered: false
             });
           }
@@ -827,14 +859,20 @@ export class BattleEngine {
       target: {
         ...defender.pokemon,
         modifyStat: (stat, stages) => {
-          this.applyStatChange(defender.pokemon, stat, stages, battleState);
-          battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
-          battleState.currentTurnStatChanges[defender.key].push({ stat: normalizeStatStageKey(stat), stages });
+          const changeResult = this.applyStatChange(defender.pokemon, stat, stages, battleState);
+          if (changeResult.actualChange !== 0) {
+            battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
+            battleState.currentTurnStatChanges[defender.key].push({
+              stat: normalizeStatStageKey(stat),
+              stages: changeResult.actualChange
+            });
+          }
+          const message = this.formatStatStageLogMessage(stat, stages, changeResult.actualChange);
           logs.push({
             turn: battleState.turnNumber,
-            actor: defender.pokemon.nickname || defender.pokemon.species,
-            action: stages > 0 ? 'gained' : 'lost',
-            result: formatStatStageChange(stat, stages),
+            actor: this.getPossessiveName(defender.pokemon),
+            action: message,
+            result: '',
             synergyTriggered: false
           });
         },
@@ -874,14 +912,20 @@ export class BattleEngine {
       user: {
         ...attacker.pokemon,
         modifyStat: (stat, stages) => {
-          this.applyStatChange(attacker.pokemon, stat, stages, battleState);
-          battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
-          battleState.currentTurnStatChanges[attacker.key].push({ stat: normalizeStatStageKey(stat), stages });
+          const changeResult = this.applyStatChange(attacker.pokemon, stat, stages, battleState);
+          if (changeResult.actualChange !== 0) {
+            battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
+            battleState.currentTurnStatChanges[attacker.key].push({
+              stat: normalizeStatStageKey(stat),
+              stages: changeResult.actualChange
+            });
+          }
+          const message = this.formatStatStageLogMessage(stat, stages, changeResult.actualChange);
           logs.push({
             turn: battleState.turnNumber,
-            actor: attacker.pokemon.nickname || attacker.pokemon.species,
-            action: stages > 0 ? 'gained' : 'lost',
-            result: formatStatStageChange(stat, stages),
+            actor: this.getPossessiveName(attacker.pokemon),
+            action: message,
+            result: '',
             synergyTriggered: false
           });
         },
@@ -921,12 +965,13 @@ export class BattleEngine {
         
         if (lastChanges.length > 0) {
           lastChanges.forEach(change => {
-            this.applyStatChange(defender.pokemon, change.stat, change.stages, battleState);
+            const changeResult = this.applyStatChange(defender.pokemon, change.stat, change.stages, battleState);
+            const message = this.formatStatStageLogMessage(change.stat, change.stages, changeResult.actualChange);
             logs.push({
               turn: battleState.turnNumber,
               actor: attacker.pokemon.nickname || attacker.pokemon.species,
               action: `Echo Thread mimicked`,
-              result: formatStatStageChange(change.stat, change.stages),
+              result: message,
               synergyTriggered: false
             });
           });
@@ -956,17 +1001,23 @@ export class BattleEngine {
         Object.entries(statChanges).forEach(([stat, stages]) => {
           const stagesValue = typeof stages === 'number' ? stages : 0;
           const normalizedStat = normalizeStatStageKey(stat);
-          this.applyStatChange(defender.pokemon, normalizedStat, stagesValue, battleState);
+          const changeResult = this.applyStatChange(defender.pokemon, normalizedStat, stagesValue, battleState);
           
           // Track for Echo Thread
-          battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
-          battleState.currentTurnStatChanges[defender.key].push({ stat: normalizedStat, stages: stagesValue });
+          if (changeResult.actualChange !== 0) {
+            battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
+            battleState.currentTurnStatChanges[defender.key].push({
+              stat: normalizedStat,
+              stages: changeResult.actualChange
+            });
+          }
           
+          const message = this.formatStatStageLogMessage(stat, stagesValue, changeResult.actualChange);
           logs.push({
             turn: battleState.turnNumber,
-            actor: defender.pokemon.nickname || defender.pokemon.species,
-            action: stagesValue > 0 ? 'gained' : 'lost',
-            result: formatStatStageChange(stat, stagesValue),
+            actor: this.getPossessiveName(defender.pokemon),
+            action: message,
+            result: '',
             synergyTriggered: false
           });
         });
@@ -975,15 +1026,21 @@ export class BattleEngine {
         const statChanges = move.effect.selfStatChange;
         Object.entries(statChanges).forEach(([stat, stages]) => {
           const normalizedStat = normalizeStatStageKey(stat);
-          this.applyStatChange(attacker.pokemon, normalizedStat, stages, battleState);
-          battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
-          battleState.currentTurnStatChanges[attacker.key].push({ stat: normalizedStat, stages });
+          const changeResult = this.applyStatChange(attacker.pokemon, normalizedStat, stages, battleState);
+          if (changeResult.actualChange !== 0) {
+            battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
+            battleState.currentTurnStatChanges[attacker.key].push({
+              stat: normalizedStat,
+              stages: changeResult.actualChange
+            });
+          }
+          const message = this.formatStatStageLogMessage(stat, stages, changeResult.actualChange);
           
           logs.push({
             turn: battleState.turnNumber,
-            actor: attacker.pokemon.nickname || attacker.pokemon.species,
-            action: 'boosted',
-            result: formatStatStageChange(stat, stages),
+            actor: this.getPossessiveName(attacker.pokemon),
+            action: message,
+            result: '',
             synergyTriggered: false
           });
         });
@@ -1007,14 +1064,17 @@ export class BattleEngine {
         const stat = statMap[move.effect];
         if (stat) {
           const stageValue = isRaise ? stages : -stages;
-          this.applyStatChange(target, stat, stageValue, battleState);
-          battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
-          battleState.currentTurnStatChanges[defender.key].push({ stat, stages: stageValue });
+          const changeResult = this.applyStatChange(target, stat, stageValue, battleState);
+          if (changeResult.actualChange !== 0) {
+            battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
+            battleState.currentTurnStatChanges[defender.key].push({ stat, stages: changeResult.actualChange });
+          }
+          const message = this.formatStatStageLogMessage(stat, stageValue, changeResult.actualChange);
           logs.push({
             turn: battleState.turnNumber,
-            actor: target.nickname || target.species,
-            action: isRaise ? 'gained' : 'lost',
-            result: formatStatStageChange(stat, stageValue),
+            actor: this.getPossessiveName(target),
+            action: message,
+            result: '',
             synergyTriggered: false
           });
         }
