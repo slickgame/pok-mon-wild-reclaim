@@ -678,6 +678,22 @@ export default function BattlePage() {
   const switchPokemon = async (newPokemon) => {
     if (!battleState || !newPokemon) return;
 
+    const isTrapped = battleState.playerPokemon.passiveEffects?.some(effect => effect.trap);
+    if (isTrapped) {
+      setBattleState({
+        ...battleState,
+        battleLog: [...battleState.battleLog, {
+          turn: battleState.turnNumber,
+          actor: battleState.playerPokemon.nickname || battleState.playerPokemon.species,
+          action: 'is trapped',
+          result: 'Cannot switch out!',
+          synergyTriggered: false
+        }]
+      });
+      setActionMenu('main');
+      return;
+    }
+
     const newStatsResult = getPokemonStats(newPokemon);
     const newStats = newStatsResult?.stats || newPokemon.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     const maxHp = newStats?.maxHp || 100;

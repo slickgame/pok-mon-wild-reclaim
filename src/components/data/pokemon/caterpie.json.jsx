@@ -109,10 +109,10 @@ export const caterpieData = {
       accuracy: 100,
       pp: 20,
       priority: 0,
-      description: "The target is infested and trapped for 4–5 turns. It takes damage over time and cannot switch out.",
+      description: "The target is infested and trapped for 4 turns. It takes damage over time and cannot switch out.",
       effect: {
         trap: true,
-        duration: "4-5"
+        duration: 4
       }
     },
     {
