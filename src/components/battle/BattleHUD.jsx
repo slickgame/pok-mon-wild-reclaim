@@ -1,12 +1,26 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Shield, Zap, TrendingUp, TrendingDown } from 'lucide-react';
+import { Heart, Shield, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import StatBar from '@/components/ui/StatBar';
 import RoleIndicator from './RoleIndicator';
 import RevenantIndicator from '../pokemon/RevenantIndicator';
 import StatusIndicator from './StatusIndicator';
 import { StatusRegistry } from '@/components/data/StatusRegistry';
+import { STAT_STAGE_ORDER } from './statStageUtils';
+
+function StatStageDisplay({ stat, stage }) {
+  if (stage === 0) return null;
+
+  const color = stage > 0 ? 'rgb(74 222 128)' : 'rgb(248 113 113)';
+  const sign = stage > 0 ? '+' : '';
+
+  return (
+    <div className="stat-stage" style={{ color }}>
+      {stat}: {sign}{stage}
+    </div>
+  );
+}
 
 export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false, roles = [] }) {
   const hpPercent = (hp / maxHp) * 100;
@@ -93,23 +107,11 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
       )}
 
       {/* Stat stages */}
-      {pokemon.statStages && Object.entries(pokemon.statStages).some(([_, v]) => v !== 0) && (
+      {pokemon.statStages && Object.values(pokemon.statStages).some((value) => value !== 0) && (
         <div className="flex gap-1 mt-2 flex-wrap">
-          {Object.entries(pokemon.statStages)
-            .filter(([_, value]) => value !== 0)
-            .map(([stat, value]) => (
-              <Badge 
-                key={stat} 
-                className={`text-xs flex items-center gap-1 ${
-                  value > 0 
-                    ? 'bg-green-500/20 text-green-300 border-green-500/50' 
-                    : 'bg-red-500/20 text-red-300 border-red-500/50'
-                }`}
-              >
-                {value > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                {stat.toUpperCase()}: {value > 0 ? '+' : ''}{value}
-              </Badge>
-            ))}
+          {STAT_STAGE_ORDER.map((stat) => (
+            <StatStageDisplay key={stat} stat={stat} stage={pokemon.statStages?.[stat] ?? 0} />
+          ))}
         </div>
       )}
 

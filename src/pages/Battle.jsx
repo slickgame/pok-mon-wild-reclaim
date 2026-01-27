@@ -17,6 +17,7 @@ import BattleOutcomeModal from '@/components/battle/BattleOutcomeModal';
 import CaptureSuccessModal from '@/components/battle/CaptureSuccessModal';
 import BattleSummaryModal from '@/components/battle/BattleSummaryModal';
 import { BattleEngine, triggerTalent } from '@/components/battle/BattleEngine';
+import { createDefaultStatStages } from '@/components/battle/statStageUtils';
 import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 import { getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
@@ -692,6 +693,10 @@ export default function BattlePage() {
       });
       setActionMenu('main');
       return;
+    }
+
+    if (battleState.playerPokemon) {
+      battleState.playerPokemon.statStages = createDefaultStatStages();
     }
 
     const newStatsResult = getPokemonStats(newPokemon);

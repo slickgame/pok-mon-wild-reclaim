@@ -5,6 +5,14 @@ import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 import { applyMoveEffect } from '@/components/data/MoveEffectRegistry';
 import { TalentEffectHandlers } from '@/engine/TalentEffectHandlers';
 import { StatusRegistry, processStatusEffects, checkStatusPreventsAction, inflictStatus } from '@/components/data/StatusRegistry';
+import {
+  createDefaultStatStages,
+  formatStatStageChange,
+  getStatModifier,
+  getStatStageValue,
+  normalizeStatStageKey,
+  normalizeStatStages
+} from './statStageUtils';
 
 export const triggerTalent = (event, ctx) => {
   const allCombatants = [...(ctx.playerTeam || []), ...(ctx.enemyTeam || [])];
@@ -46,11 +54,21 @@ export class BattleEngine {
     // Initialize status and stat stages
     this.playerPokemon.status = this.playerPokemon.status || null;
     this.enemyPokemon.status = this.enemyPokemon.status || null;
-    this.playerPokemon.statStages = this.playerPokemon.statStages || {
-      atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, accuracy: 0, evasion: 0
-    };
-    this.enemyPokemon.statStages = this.enemyPokemon.statStages || {
-      atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, accuracy: 0, evasion: 0
+    this.playerPokemon.statStages = normalizeStatStages(this.playerPokemon.statStages);
+    this.enemyPokemon.statStages = normalizeStatStages(this.enemyPokemon.statStages);
+
+    this.attachModifyStat(this.playerPokemon);
+    this.attachModifyStat(this.enemyPokemon);
+  }
+
+  attachModifyStat(pokemon) {
+    pokemon.modifyStat = (stat, delta, battleState) => {
+      const result = this.modifyStatStage(pokemon, stat, delta, battleState);
+      const message = formatStatStageChange(stat, delta);
+      if (typeof pokemon.log === 'function') {
+        pokemon.log(message);
+      }
+      return { ...result, message };
     };
   }
 
@@ -79,8 +97,10 @@ export class BattleEngine {
     }
 
     // If priority is equal, use Speed stat
-    const playerSpeed = this.playerPokemon.stats.spd;
-    const enemySpeed = this.enemyPokemon.stats.spd;
+    const playerSpeedStage = getStatStageValue(this.playerPokemon.statStages, 'Speed');
+    const enemySpeedStage = getStatStageValue(this.enemyPokemon.statStages, 'Speed');
+    const playerSpeed = this.playerPokemon.stats.spd * getStatModifier(playerSpeedStage);
+    const enemySpeed = this.enemyPokemon.stats.spd * getStatModifier(enemySpeedStage);
 
     return playerSpeed >= enemySpeed ? 'player' : 'enemy';
   }
@@ -180,8 +200,14 @@ export class BattleEngine {
     if (moveData.category === 'Status') return 0;
 
     const basePower = moveData.power || 50;
-    const attackStat = moveData.category === 'Physical' ? attacker.stats.atk : attacker.stats.spAtk;
-    const defenseStat = moveData.category === 'Physical' ? defender.stats.def : defender.stats.spDef;
+    const attackStageKey = moveData.category === 'Physical' ? 'Attack' : 'Sp. Atk';
+    const defenseStageKey = moveData.category === 'Physical' ? 'Defense' : 'Sp. Def';
+    const attackStage = getStatStageValue(attacker.statStages, attackStageKey);
+    const defenseStage = getStatStageValue(defender.statStages, defenseStageKey);
+    const attackStat = (moveData.category === 'Physical' ? attacker.stats.atk : attacker.stats.spAtk)
+      * getStatModifier(attackStage);
+    const defenseStat = (moveData.category === 'Physical' ? defender.stats.def : defender.stats.spDef)
+      * getStatModifier(defenseStage);
     
     // Base damage calculation
     let damage = Math.floor(
@@ -274,15 +300,18 @@ export class BattleEngine {
   // Modify stat stages (clamped -6 to +6)
   modifyStatStage(pokemon, stat, change, battleState) {
     if (!pokemon.statStages) {
-      pokemon.statStages = { atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, accuracy: 0, evasion: 0 };
+      pokemon.statStages = createDefaultStatStages();
     }
     
-    const statKey = stat.toLowerCase();
+    const statKey = normalizeStatStageKey(stat);
+    if (!statKey) {
+      return { stat, stages: change, newTotal: 0 };
+    }
     const current = pokemon.statStages[statKey] || 0;
     const newValue = Math.max(-6, Math.min(6, current + change));
     pokemon.statStages[statKey] = newValue;
     
-    return { stat, stages: change, newTotal: newValue };
+    return { stat: statKey, stages: change, newTotal: newValue };
   }
 
   // Apply buffs/debuffs (legacy)
@@ -290,11 +319,12 @@ export class BattleEngine {
     const result = this.modifyStatStage(target, stat, stages, battleState);
     
     const targetState = target === this.playerPokemon ? battleState.playerStatus : battleState.enemyStatus;
-    const existingBuff = targetState.buffs.find(b => b.stat === stat);
+    const normalizedStat = normalizeStatStageKey(stat);
+    const existingBuff = targetState.buffs.find(b => b.stat === normalizedStat);
     if (existingBuff) {
       existingBuff.value = result.newTotal;
     } else {
-      targetState.buffs.push({ name: `${stat} ${stages > 0 ? '+' : ''}${stages}`, stat, value: result.newTotal });
+      targetState.buffs.push({ name: `${normalizedStat} ${stages > 0 ? '+' : ''}${stages}`, stat: normalizedStat, value: result.newTotal });
     }
 
     return { stat, stages };
@@ -457,7 +487,7 @@ export class BattleEngine {
               turn: battleState.turnNumber,
               actor: pokemon.nickname || pokemon.species,
               action: `${effect.id} activated`,
-              result: `${stat} ${stages > 0 ? '+' : ''}${stages}`,
+              result: formatStatStageChange(stat, stages),
               synergyTriggered: false
             });
           }
@@ -621,8 +651,13 @@ export class BattleEngine {
     
     // Check accuracy (never-miss moves skip this)
     if (!move.neverMiss && move.accuracy) {
+      const accuracyStage = getStatStageValue(attacker.pokemon.statStages, 'Accuracy');
+      const evasionStage = getStatStageValue(defender.pokemon.statStages, 'Evasion');
+      const accuracyModifier = getStatModifier(accuracyStage);
+      const evasionModifier = getStatModifier(evasionStage);
+      const adjustedAccuracy = Math.min(100, Math.max(1, move.accuracy * (accuracyModifier / evasionModifier)));
       const accuracyRoll = Math.random() * 100;
-      if (accuracyRoll > move.accuracy) {
+      if (accuracyRoll > adjustedAccuracy) {
         logs.push({
           turn: battleState.turnNumber,
           actor: attacker.pokemon.nickname || attacker.pokemon.species,
@@ -794,12 +829,12 @@ export class BattleEngine {
         modifyStat: (stat, stages) => {
           this.applyStatChange(defender.pokemon, stat, stages, battleState);
           battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
-          battleState.currentTurnStatChanges[defender.key].push({ stat, stages });
+          battleState.currentTurnStatChanges[defender.key].push({ stat: normalizeStatStageKey(stat), stages });
           logs.push({
             turn: battleState.turnNumber,
             actor: defender.pokemon.nickname || defender.pokemon.species,
             action: stages > 0 ? 'gained' : 'lost',
-            result: `${stat} ${stages > 0 ? '+' : ''}${stages}`,
+            result: formatStatStageChange(stat, stages),
             synergyTriggered: false
           });
         },
@@ -841,12 +876,12 @@ export class BattleEngine {
         modifyStat: (stat, stages) => {
           this.applyStatChange(attacker.pokemon, stat, stages, battleState);
           battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
-          battleState.currentTurnStatChanges[attacker.key].push({ stat, stages });
+          battleState.currentTurnStatChanges[attacker.key].push({ stat: normalizeStatStageKey(stat), stages });
           logs.push({
             turn: battleState.turnNumber,
             actor: attacker.pokemon.nickname || attacker.pokemon.species,
             action: stages > 0 ? 'gained' : 'lost',
-            result: `${stat} ${stages > 0 ? '+' : ''}${stages}`,
+            result: formatStatStageChange(stat, stages),
             synergyTriggered: false
           });
         },
@@ -891,7 +926,7 @@ export class BattleEngine {
               turn: battleState.turnNumber,
               actor: attacker.pokemon.nickname || attacker.pokemon.species,
               action: `Echo Thread mimicked`,
-              result: `${change.stat} ${change.stages > 0 ? '+' : ''}${change.stages}`,
+              result: formatStatStageChange(change.stat, change.stages),
               synergyTriggered: false
             });
           });
@@ -919,19 +954,19 @@ export class BattleEngine {
       else if (move.effect.targetStatChange) {
         const statChanges = move.effect.targetStatChange;
         Object.entries(statChanges).forEach(([stat, stages]) => {
-          const statKey = stat === 'Speed' ? 'spd' : stat.toLowerCase();
           const stagesValue = typeof stages === 'number' ? stages : 0;
-          this.applyStatChange(defender.pokemon, statKey, stagesValue, battleState);
+          const normalizedStat = normalizeStatStageKey(stat);
+          this.applyStatChange(defender.pokemon, normalizedStat, stagesValue, battleState);
           
           // Track for Echo Thread
           battleState.currentTurnStatChanges[defender.key] = battleState.currentTurnStatChanges[defender.key] || [];
-          battleState.currentTurnStatChanges[defender.key].push({ stat: statKey, stages: stagesValue });
+          battleState.currentTurnStatChanges[defender.key].push({ stat: normalizedStat, stages: stagesValue });
           
           logs.push({
             turn: battleState.turnNumber,
             actor: defender.pokemon.nickname || defender.pokemon.species,
             action: stagesValue > 0 ? 'gained' : 'lost',
-            result: `${stat} ${stagesValue > 0 ? '+' : ''}${stagesValue}`,
+            result: formatStatStageChange(stat, stagesValue),
             synergyTriggered: false
           });
         });
@@ -939,16 +974,16 @@ export class BattleEngine {
       else if (move.effect.selfStatChange) {
         const statChanges = move.effect.selfStatChange;
         Object.entries(statChanges).forEach(([stat, stages]) => {
-          const statKey = stat === 'Defense' ? 'def' : stat === 'SpDefense' ? 'spDef' : stat.toLowerCase();
-          this.applyStatChange(attacker.pokemon, statKey, stages, battleState);
+          const normalizedStat = normalizeStatStageKey(stat);
+          this.applyStatChange(attacker.pokemon, normalizedStat, stages, battleState);
           battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
-          battleState.currentTurnStatChanges[attacker.key].push({ stat: statKey, stages });
+          battleState.currentTurnStatChanges[attacker.key].push({ stat: normalizedStat, stages });
           
           logs.push({
             turn: battleState.turnNumber,
             actor: attacker.pokemon.nickname || attacker.pokemon.species,
             action: 'boosted',
-            result: `${stat} +${stages}`,
+            result: formatStatStageChange(stat, stages),
             synergyTriggered: false
           });
         });
@@ -959,14 +994,14 @@ export class BattleEngine {
         const stages = move.stages || 1;
         const isRaise = move.effect.includes('raise');
         const statMap = {
-          'lowerAttack': 'atk',
-          'raiseAttack': 'atk',
-          'lowerDefense': 'def',
-          'raiseDefense': 'def',
-          'lowerSpeed': 'spd',
-          'raiseSpeed': 'spd',
-          'lowerSpDef': 'spDef',
-          'raiseSpDef': 'spDef'
+          'lowerAttack': 'Attack',
+          'raiseAttack': 'Attack',
+          'lowerDefense': 'Defense',
+          'raiseDefense': 'Defense',
+          'lowerSpeed': 'Speed',
+          'raiseSpeed': 'Speed',
+          'lowerSpDef': 'Sp. Def',
+          'raiseSpDef': 'Sp. Def'
         };
         
         const stat = statMap[move.effect];
@@ -979,7 +1014,7 @@ export class BattleEngine {
             turn: battleState.turnNumber,
             actor: target.nickname || target.species,
             action: isRaise ? 'gained' : 'lost',
-            result: `${stat} ${isRaise ? '+' : ''}${stageValue}`,
+            result: formatStatStageChange(stat, stageValue),
             synergyTriggered: false
           });
         }
