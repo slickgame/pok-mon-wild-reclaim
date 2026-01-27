@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { getTalentDescription } from '@/components/talents/TalentDescriptions';
 import TalentTooltip from '@/components/talents/TalentTooltip';
 import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { TalentRegistry } from '@/data/TalentRegistry';
 
 const gradeColors = {
   Basic: 'bg-amber-700/30 text-amber-400 border-amber-600/50',
@@ -17,6 +18,20 @@ const gradeColors = {
   Gold: 'bg-yellow-500/30 text-yellow-300 border-yellow-500/50',
 };
 
+const resolveTalentData = (talent) => {
+  const talentKey = typeof talent === 'string' ? talent : talent?.id || talent?.name;
+  if (!talentKey) return null;
+  return TalentRegistry[talentKey]
+    || Object.values(TalentRegistry).find((entry) => entry.name === talentKey);
+};
+
+const formatTalentDisplayName = (talent, talentData) => {
+  if (talentData?.name) return talentData.name;
+  const rawName = typeof talent === 'string' ? talent : talent?.name || talent?.id;
+  if (!rawName) return 'Unknown Talent';
+  return rawName.includes(' ') ? rawName : formatTalentName(rawName);
+};
+
 export default function TalentDisplay({ talents, showDescription = false, compact = false }) {
   if (!talents || talents.length === 0) return null;
 
@@ -25,7 +40,8 @@ export default function TalentDisplay({ talents, showDescription = false, compac
       <div className="flex flex-wrap gap-1">
         {talents.map((talent, idx) => {
           const normalizedGrade = normalizeTalentGrade(talent.grade);
-          const displayName = talent.name || formatTalentName(talent.id);
+          const talentData = resolveTalentData(talent);
+          const displayName = formatTalentDisplayName(talent, talentData);
           return (
             <TalentTooltip key={idx} talent={talent}>
               <Badge className={`text-xs ${gradeColors[normalizedGrade]}`}>
@@ -42,8 +58,12 @@ export default function TalentDisplay({ talents, showDescription = false, compac
     <div className="space-y-2">
       {talents.map((talent, idx) => {
         const normalizedGrade = normalizeTalentGrade(talent.grade);
-        const displayName = talent.name || formatTalentName(talent.id);
-        const description = getTalentDescription(talent.id, normalizedGrade);
+        const talentData = resolveTalentData(talent);
+        const displayName = formatTalentDisplayName(talent, talentData);
+        const description = talent?.description
+          || (talentData
+            ? getTalentDescription(talentData.id, normalizedGrade)
+            : getTalentDescription(talent.id || talent.name, normalizedGrade));
 
         return (
           <motion.div
