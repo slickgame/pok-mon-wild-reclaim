@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import TalentTooltip from '@/components/talents/TalentTooltip';
 
 export default function TalentResetModal({ 
   open, 
@@ -70,7 +71,9 @@ export default function TalentResetModal({
                       />
                     )}
                     <div>
-                      <p className="text-white text-sm font-medium">{talent.name}</p>
+                      <TalentTooltip talent={talent}>
+                        <p className="text-white text-sm font-medium">{talent.name}</p>
+                      </TalentTooltip>
                       <p className="text-xs text-slate-400">{talent.description}</p>
                     </div>
                   </div>

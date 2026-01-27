@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import TalentTooltip from '@/components/talents/TalentTooltip';
 import { TalentRegistry } from '@/data/TalentRegistry';
 import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
 import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
@@ -38,7 +39,9 @@ export default function TalentsTab({ pokemon }) {
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-indigo-400" />
-                    <h4 className="font-semibold text-white">{displayName}</h4>
+                    <TalentTooltip talent={talent}>
+                      <h4 className="font-semibold text-white">{displayName}</h4>
+                    </TalentTooltip>
                   </div>
                   <Badge className={gradeColorClass}>
                     {gradeLabel}
