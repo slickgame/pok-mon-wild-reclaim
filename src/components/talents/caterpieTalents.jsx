@@ -7,9 +7,9 @@ const CaterpieTalents = {
     description: "Contact moves have a chance to lower target's Speed",
     trigger: "onContact",
     grades: {
-      Bronze: { chance: 0.2, speedDrop: 1 },
-      Silver: { chance: 0.3, speedDrop: 1, evasionDrop: 0 },
-      Gold: { chance: 0.4, speedDrop: 1, evasionDrop: 1 }
+      Basic: { chance: 0.2, speedDrop: 1 },
+      Rare: { chance: 0.3, speedDrop: 1, evasionDrop: 0 },
+      Epic: { chance: 0.4, speedDrop: 1, evasionDrop: 1 }
     }
   },
 
@@ -19,9 +19,9 @@ const CaterpieTalents = {
     description: "Taking damage has a chance to boost Defense",
     trigger: "onHit",
     grades: {
-      Bronze: { chance: 0.3, defBoost: 1 },
-      Silver: { chance: 0.5, defBoost: 1 },
-      Gold: { chance: 1.0, defBoost: 2 }
+      Basic: { chance: 0.3, defBoost: 1 },
+      Rare: { chance: 0.5, defBoost: 1 },
+      Epic: { chance: 1.0, defBoost: 2 }
     }
   },
 
@@ -31,9 +31,9 @@ const CaterpieTalents = {
     description: "At full HP, may survive a fatal hit with 1 HP",
     trigger: "onFatalHit",
     grades: {
-      Bronze: { chance: 0.1 },
-      Silver: { chance: 0.3 },
-      Gold: { chance: 1.0 }
+      Basic: { chance: 0.1 },
+      Rare: { chance: 0.3 },
+      Epic: { chance: 1.0 }
     }
   },
 
@@ -43,9 +43,9 @@ const CaterpieTalents = {
     description: "When opponent's Speed drops, gain priority on next move",
     trigger: "onOpponentSpeedDrop",
     grades: {
-      Bronze: { priorityBoost: 1 },
-      Silver: { priorityBoost: 1, flinchChance: 0.1 },
-      Gold: { priorityBoost: 1, flinchChance: 1.0 }
+      Basic: { priorityBoost: 1 },
+      Rare: { priorityBoost: 1, flinchChance: 0.1 },
+      Epic: { priorityBoost: 1, flinchChance: 1.0 }
     }
   },
 
@@ -55,9 +55,9 @@ const CaterpieTalents = {
     description: "Defeating opponents grants bonus XP and items",
     trigger: "onDefeat",
     grades: {
-      Bronze: { xpBonus: 0.1 },
-      Silver: { xpBonus: 0.2 },
-      Gold: { xpBonus: 0.2, guaranteedDrop: true }
+      Basic: { xpBonus: 0.1 },
+      Rare: { xpBonus: 0.2 },
+      Epic: { xpBonus: 0.2, guaranteedDrop: true }
     }
   },
 
@@ -67,9 +67,9 @@ const CaterpieTalents = {
     description: "Boosted evasion in forest zones",
     trigger: "onEnterBattle",
     grades: {
-      Bronze: { evasionBoost: 0.05 },
-      Silver: { evasionBoost: 0.10 },
-      Gold: { evasionBoost: 0.15, nullifyFirstHit: true }
+      Basic: { evasionBoost: 0.05 },
+      Rare: { evasionBoost: 0.10 },
+      Epic: { evasionBoost: 0.15, nullifyFirstHit: true }
     }
   },
 
@@ -79,9 +79,9 @@ const CaterpieTalents = {
     description: "Regenerates HP in daylight or sunny weather",
     trigger: "onStartTurn",
     grades: {
-      Bronze: { hpRegen: 0 },
-      Silver: { hpRegen: 0.05, spDefBoost: 0 },
-      Gold: { hpRegen: 0.05, spDefBoost: 1 }
+      Basic: { hpRegen: 0 },
+      Rare: { hpRegen: 0.05, spDefBoost: 0 },
+      Epic: { hpRegen: 0.05, spDefBoost: 1 }
     }
   },
 
@@ -91,9 +91,9 @@ const CaterpieTalents = {
     description: "Learns moves 1-2 levels earlier",
     trigger: "onLevelUp",
     grades: {
-      Bronze: { levelsEarly: 1 },
-      Silver: { levelsEarly: 1, bonusMove: "Harden" },
-      Gold: { levelsEarly: 2, bonusMove: "Harden" }
+      Basic: { levelsEarly: 1 },
+      Rare: { levelsEarly: 1, bonusMove: "Harden" },
+      Epic: { levelsEarly: 2, bonusMove: "Harden" }
     }
   },
 
@@ -103,9 +103,9 @@ const CaterpieTalents = {
     description: "Using String Shot boosts own Speed",
     trigger: "onMoveUsed",
     grades: {
-      Bronze: { speedBoost: 1 },
-      Silver: { speedBoost: 1, evasionBoost: 1 },
-      Gold: { speedBoost: 1, evasionBoost: 1, hpRegen: 0.05 }
+      Basic: { speedBoost: 1 },
+      Rare: { speedBoost: 1, evasionBoost: 1 },
+      Epic: { speedBoost: 1, evasionBoost: 1, hpRegen: 0.05 }
     }
   },
 
@@ -115,9 +115,9 @@ const CaterpieTalents = {
     description: "After 3 turns, gain defense boosts",
     trigger: "onTurn",
     grades: {
-      Bronze: { defBoost: 1, spDefBoost: 0 },
-      Silver: { defBoost: 1, spDefBoost: 1 },
-      Gold: { defBoost: 2, spDefBoost: 2, critImmune: true }
+      Basic: { defBoost: 1, spDefBoost: 0 },
+      Rare: { defBoost: 1, spDefBoost: 1 },
+      Epic: { defBoost: 2, spDefBoost: 2, critImmune: true }
     }
   }
 };
