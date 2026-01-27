@@ -222,30 +222,36 @@ export const TalentEffectHandlers = {
   },
 
   threadAmbush: {
-    Basic: ({ user, target, addBattleLog, modifyStat }) => {
+    Basic: ({ user, target, addBattleLog, modifyStat, isFirstTurn }) => {
+      if (!isFirstTurn) return;
       modifyStat(target, "speed", -1);
       addBattleLog(`${user.nickname || user.species} ambushed with threads!`);
     },
-    Bronze: ({ user, target, addBattleLog, modifyStat }) => {
+    Bronze: ({ user, target, addBattleLog, modifyStat, isFirstTurn }) => {
+      if (!isFirstTurn) return;
       modifyStat(target, "speed", -1);
       addBattleLog(`${user.nickname || user.species} ambushed with threads!`);
     },
-    Rare: ({ user, target, addBattleLog, modifyStat }) => {
+    Rare: ({ user, target, addBattleLog, modifyStat, isFirstTurn }) => {
+      if (!isFirstTurn) return;
       modifyStat(target, "speed", -1);
       addBattleLog(`${target.nickname || target.species} was trapped by threads!`);
       return { trapped: true, duration: 1 };
     },
-    Silver: ({ user, target, addBattleLog, modifyStat }) => {
+    Silver: ({ user, target, addBattleLog, modifyStat, isFirstTurn }) => {
+      if (!isFirstTurn) return;
       modifyStat(target, "speed", -1);
       addBattleLog(`${target.nickname || target.species} was trapped by threads!`);
       return { trapped: true, duration: 1 };
     },
-    Epic: ({ user, target, addBattleLog, modifyStat }) => {
+    Epic: ({ user, target, addBattleLog, modifyStat, isFirstTurn }) => {
+      if (!isFirstTurn) return;
       modifyStat(target, "speed", -2);
       addBattleLog(`${target.nickname || target.species} was severely trapped!`);
       return { trapped: true, duration: 2 };
     },
-    Gold: ({ user, target, addBattleLog, modifyStat }) => {
+    Gold: ({ user, target, addBattleLog, modifyStat, isFirstTurn }) => {
+      if (!isFirstTurn) return;
       modifyStat(target, "speed", -2);
       addBattleLog(`${target.nickname || target.species} was severely trapped!`);
       return { trapped: true, duration: 2 };

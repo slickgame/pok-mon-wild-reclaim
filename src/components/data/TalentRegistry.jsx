@@ -47,7 +47,7 @@ export const TalentRegistry = {
   moltingDefense: {
     id: "moltingDefense",
     name: "Molting Defense",
-    trigger: "onStatusReceived",
+    trigger: "onTurnStart",
     grades: {
       Basic: { description: "30% chance to cure status condition at end of turn." },
       Rare: { description: "Cure status condition every 3 turns." },
@@ -58,7 +58,7 @@ export const TalentRegistry = {
   threadAmbush: {
     id: "threadAmbush",
     name: "Thread Ambush",
-    trigger: "onSwitchIn",
+    trigger: "onTurnStart",
     grades: {
       Basic: { description: "Lower opponent's Speed by 1 when entering battle." },
       Rare: { description: "Lower Speed by 1 and trap opponent for 1 turn." },
