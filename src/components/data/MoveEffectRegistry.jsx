@@ -49,7 +49,7 @@ export const MoveEffectRegistry = {
         onTurnStart: (effectCtx) => {
           const damage = Math.floor(effectCtx.target.stats.hp * 0.0625);
           effectCtx.addBattleLog(`Infestation deals ${damage} damage!`);
-          // Damage will be applied by battle engine
+          effectCtx.applyDamage(damage);
         }
       });
     }

@@ -97,7 +97,12 @@ export const StatusRegistry = {
 /**
  * Apply status condition to a Pokemon
  */
-export function inflictStatus(pokemon, statusId, battleState, addBattleLog) {
+export function inflictStatus(pokemon, statusId, battleState, addBattleLog = () => {}) {
+  if (pokemon.statusImmunities?.includes(statusId)) {
+    addBattleLog(`${pokemon.nickname || pokemon.species} is immune to ${statusId}!`);
+    return false;
+  }
+
   if (pokemon.status) {
     addBattleLog(`${pokemon.nickname || pokemon.species} is already affected by ${pokemon.status.id}!`);
     return false;
