@@ -89,7 +89,9 @@ export default function TalentDisplay({ talents, showDescription = false, compac
                   </Badge>
                 </div>
                 {showDescription && description && (
-                  <p className="text-xs text-slate-400 italic">{description}</p>
+                  <p className="text-xs text-slate-400 italic">
+                    {typeof description === 'string' ? description : JSON.stringify(description)}
+                  </p>
                 )}
               </div>
             </div>
