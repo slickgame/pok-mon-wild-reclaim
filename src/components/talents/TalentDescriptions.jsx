@@ -1,11 +1,20 @@
 // Talent descriptions by grade
 import CaterpieTalents from './caterpieTalents';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
+import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 
-export function getTalentDescription(talentId, grade = 'Bronze') {
+export function getTalentDescription(talentId, grade = 'Basic') {
+  const normalizedGrade = normalizeTalentGrade(grade);
+  const registryTalent = TalentRegistry[talentId];
+
+  if (registryTalent) {
+    return registryTalent.grades?.[normalizedGrade]?.description || 'Unknown talent.';
+  }
+
   const talent = CaterpieTalents[talentId];
   if (!talent) return "Unknown talent.";
 
-  const gradeData = talent.grades[grade];
+  const gradeData = talent.grades[normalizedGrade];
   if (!gradeData) return talent.description;
 
   // Build dynamic description based on grade values
