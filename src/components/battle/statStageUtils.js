@@ -78,3 +78,9 @@ export const formatStatStageChange = (stat, delta) => {
   const changeVerb = delta > 0 ? 'rose' : 'fell';
   return `${normalized} ${changeVerb} by ${stageCount} ${stageLabel}!`;
 };
+
+export const formatStatStageLimit = (stat, delta) => {
+  const normalized = normalizeStatStageKey(stat);
+  const direction = delta > 0 ? 'higher' : 'lower';
+  return `${normalized} can't go any ${direction}!`;
+};

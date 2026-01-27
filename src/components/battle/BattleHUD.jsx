@@ -95,12 +95,12 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
       )}
 
       {/* Active buffs */}
-      {status?.buffs?.length > 0 && (
+      {status?.buffs?.length > 0 && !pokemon.statStages && (
         <div className="flex gap-2 mt-2 flex-wrap">
           {status.buffs.map((buff, idx) => (
             <Badge key={idx} className="bg-cyan-500/20 text-cyan-300 border-cyan-500/50 text-xs flex items-center gap-1">
               <Zap className="w-3 h-3" />
-              {buff.name} +{buff.value}
+              {buff.name} {buff.value > 0 ? `+${buff.value}` : buff.value}
             </Badge>
           ))}
         </div>
