@@ -919,6 +919,135 @@ export const MOVE_DATA = {
     pp: 35,
     description: 'A full-body charge attack.'
   },
+  'String Shot': {
+    type: 'Bug',
+    category: 'Status',
+    power: 0,
+    accuracy: 95,
+    pp: 40,
+    description: 'The opposing Pokémon are bound with silk blown from the user\'s mouth that harshly lowers their Speed.',
+    effect: {
+      targetStatChange: {
+        Speed: -2
+      }
+    }
+  },
+  'Bug Bite': {
+    type: 'Bug',
+    category: 'Physical',
+    power: 60,
+    accuracy: 100,
+    pp: 25,
+    description: 'The user bites the target. If the target is holding a Berry, the user eats it and gains its effect.',
+    effect: {
+      stealBerry: true
+    }
+  },
+  'Sticky Thread': {
+    type: 'Bug',
+    category: 'Status',
+    power: 0,
+    accuracy: 90,
+    pp: 15,
+    description: 'The user releases an extremely adhesive thread. It harshly lowers the target\'s Speed and slightly lowers their Accuracy.',
+    effect: {
+      targetStatChange: {
+        Speed: -2,
+        Accuracy: -1
+      }
+    },
+    signature: true,
+    signatureFor: ['Status Inflictor']
+  },
+  'Infestation': {
+    type: 'Bug',
+    category: 'Special',
+    power: 20,
+    accuracy: 100,
+    pp: 20,
+    description: 'The target is infested and trapped for 4–5 turns. It takes damage over time and cannot switch out.',
+    effect: {
+      trap: true,
+      duration: '4-5'
+    }
+  },
+  'Camouflage': {
+    type: 'Normal',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'The user\'s type changes depending on the terrain.',
+    effect: {
+      changeTypeByTerrain: true
+    }
+  },
+  'Skitter Smack': {
+    type: 'Bug',
+    category: 'Physical',
+    power: 70,
+    accuracy: 90,
+    pp: 10,
+    description: 'The user skitters behind the target to attack. This also lowers the target\'s Sp. Atk stat.',
+    effect: {
+      targetStatChange: {
+        SpAttack: -1
+      }
+    }
+  },
+  'Safeguard': {
+    type: 'Normal',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 25,
+    description: 'The user creates a protective field that prevents status conditions for five turns.',
+    effect: {
+      teamWide: true,
+      blocksStatus: true,
+      duration: 5
+    }
+  },
+  'Silk Bomb': {
+    type: 'Bug',
+    category: 'Special',
+    power: 60,
+    accuracy: 95,
+    pp: 15,
+    description: 'The user fires a compressed silk projectile. May paralyze the target.',
+    effect: {
+      statusChance: {
+        type: 'paralyze',
+        chance: 0.2
+      }
+    }
+  },
+  'Echo Thread': {
+    type: 'Bug',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 5,
+    description: 'The user repeats the target\'s stat changes from the previous turn.',
+    effect: {
+      copyLastStatChanges: true
+    }
+  },
+  'Cocoon Shield': {
+    type: 'Bug',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 10,
+    description: 'The user hardens its shell to boost its Defense and Special Defense. Can stack up to 3 times.',
+    effect: {
+      selfStatChange: {
+        Defense: 1,
+        SpDefense: 1
+      },
+      maxStacks: 3
+    }
+  },
   'Tail Whip': {
     type: 'Normal',
     category: 'Status',
