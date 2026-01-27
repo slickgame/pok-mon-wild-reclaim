@@ -86,3 +86,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .stat-stage {
+    font-size: 0.9rem;
+    margin: 2px;
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.2);
+  }
+}
