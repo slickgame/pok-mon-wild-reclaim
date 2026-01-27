@@ -105,8 +105,6 @@ export function getTalentGradeColor(grade) {
     case 'Basic': return 'text-amber-600 bg-amber-600/10';
     case 'Rare': return 'text-slate-400 bg-slate-400/10';
     case 'Epic': return 'text-yellow-400 bg-yellow-400/10';
-    case 'Diamond': return 'text-cyan-300 bg-cyan-300/10';
-    // Legacy support
     case 'Bronze': return 'text-amber-600 bg-amber-600/10';
     case 'Silver': return 'text-slate-400 bg-slate-400/10';
     case 'Gold': return 'text-yellow-400 bg-yellow-400/10';

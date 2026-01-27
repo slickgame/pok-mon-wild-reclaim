@@ -248,7 +248,7 @@ export function generateWildPokemon(encounterTable) {
     const learnableMoves = speciesData.learnset
       .filter(m => m.level <= level)
       .sort((a, b) => a.level - b.level);
-    moves = learnableMoves.slice(-4).map(m => m.name);
+    moves = learnableMoves.slice(-4).map(m => m.move || m.name);
   } else {
     // Old format: learnset is object with level keys
     const availableMoves = [];

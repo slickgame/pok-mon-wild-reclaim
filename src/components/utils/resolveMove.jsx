@@ -15,9 +15,13 @@ export function resolveMove(moveName, pokemon) {
   if (pokemon?.species) {
     const speciesData = PokemonRegistry[pokemon.species.toLowerCase()];
     if (speciesData?.learnset && Array.isArray(speciesData.learnset)) {
-      const moveFromLearnset = speciesData.learnset.find(m => m.name === moveName);
+      const moveFromLearnset = speciesData.learnset.find(
+        m => (m.name || m.move) === moveName
+      );
       if (moveFromLearnset) {
-        return moveFromLearnset;
+        if (moveFromLearnset.type) {
+          return moveFromLearnset;
+        }
       }
     }
   }

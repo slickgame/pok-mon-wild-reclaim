@@ -1,9 +1,9 @@
 import React from 'react';
 import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { TalentRegistry } from '@/components/data/TalentRegistry';
+import { TalentRegistry } from '@/data/TalentRegistry';
 import { getTalentGradeColor } from '@/components/talents/TalentDescriptions';
-import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { formatTalentName } from '@/components/utils/talentUtils';
 
 export default function TalentsTab({ pokemon }) {
   if (!pokemon.talents || pokemon.talents.length === 0) {
@@ -28,10 +28,19 @@ export default function TalentsTab({ pokemon }) {
           {pokemon.talents.map((talent, index) => {
             const talentId = talent.id || talent.name;
             const talentData = TalentRegistry[talentId];
-            const normalizedGrade = normalizeTalentGrade(talent.grade);
+            const gradeKey = (talent.grade || 'basic').toLowerCase();
+            const gradeMap = {
+              basic: 'Basic',
+              rare: 'Rare',
+              epic: 'Epic',
+              bronze: 'Basic',
+              silver: 'Rare',
+              gold: 'Epic'
+            };
+            const gradeLabel = gradeMap[gradeKey] || 'Basic';
             const displayName = talentData?.name || formatTalentName(talentId);
-            const description = talentData?.grades?.[normalizedGrade]?.description || 'Unknown talent';
-            const gradeColorClass = getTalentGradeColor(normalizedGrade);
+            const description = talentData?.grades?.[gradeLabel]?.description || 'No description';
+            const gradeColorClass = getTalentGradeColor(gradeLabel);
             
             return (
               <div key={index} className="glass rounded-lg p-4 hover:bg-white/5 transition-colors">
@@ -41,7 +50,7 @@ export default function TalentsTab({ pokemon }) {
                     <h4 className="font-semibold text-white">{displayName}</h4>
                   </div>
                   <Badge className={gradeColorClass}>
-                    {normalizedGrade}
+                    {gradeLabel}
                   </Badge>
                 </div>
                 <p className="text-sm text-slate-300 leading-relaxed italic">{description}</p>
