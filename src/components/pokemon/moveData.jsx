@@ -20,7 +20,9 @@
 //   synergy?: object
 // }
 
-export const MOVE_DATA = {
+import { caterpieMoves } from '@/components/zones/caterpieMoves';
+
+const BASE_MOVE_DATA = {
   // Charmander's moves
   'Scratch': {
     type: 'Normal',
@@ -940,6 +942,11 @@ export const MOVE_DATA = {
   },
 
   // Add more moves as needed
+};
+
+export const MOVE_DATA = {
+  ...caterpieMoves,
+  ...BASE_MOVE_DATA
 };
 
 // Alias for backward compatibility
