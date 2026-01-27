@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Swords, Shield, Zap, Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import TalentTooltip from '@/components/talents/TalentTooltip';
 import RevenantIndicator from './RevenantIndicator';
 import { getPokemonStats } from './usePokemonStats';
 
@@ -172,9 +173,11 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
               const grade = typeof talent === 'object' ? talent.grade : null;
               
               return (
-                <Badge key={idx} className={`text-[10px] ${grade ? gradeColors[grade] : 'bg-slate-700'}`}>
-                  {displayName}
-                </Badge>
+                <TalentTooltip key={idx} talent={talent}>
+                  <Badge className={`text-[10px] ${grade ? gradeColors[grade] : 'bg-slate-700'}`}>
+                    {displayName}
+                  </Badge>
+                </TalentTooltip>
               );
             })}
             {pokemon.talents.length > 2 && (

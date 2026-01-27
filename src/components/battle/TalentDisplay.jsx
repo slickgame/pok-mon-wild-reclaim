@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getTalentDescription } from '@/components/talents/TalentDescriptions';
+import TalentTooltip from '@/components/talents/TalentTooltip';
 import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
 
 const gradeColors = {
@@ -26,9 +27,11 @@ export default function TalentDisplay({ talents, showDescription = false, compac
           const normalizedGrade = normalizeTalentGrade(talent.grade);
           const displayName = talent.name || formatTalentName(talent.id);
           return (
-            <Badge key={idx} className={`text-xs ${gradeColors[normalizedGrade]}`}>
-              {displayName}
-            </Badge>
+            <TalentTooltip key={idx} talent={talent}>
+              <Badge className={`text-xs ${gradeColors[normalizedGrade]}`}>
+                {displayName}
+              </Badge>
+            </TalentTooltip>
           );
         })}
       </div>
@@ -58,7 +61,9 @@ export default function TalentDisplay({ talents, showDescription = false, compac
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-white font-semibold text-sm">{displayName}</span>
+                  <TalentTooltip talent={talent}>
+                    <span className="text-white font-semibold text-sm">{displayName}</span>
+                  </TalentTooltip>
                   <Badge className={`text-xs ${gradeColors[normalizedGrade]}`}>
                     {normalizedGrade}
                   </Badge>

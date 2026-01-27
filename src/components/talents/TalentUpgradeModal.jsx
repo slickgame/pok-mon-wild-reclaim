@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import TalentTooltip from '@/components/talents/TalentTooltip';
 
 const gradeColors = {
   F: 'bg-gray-700/30 text-gray-400 border-gray-600/50',
@@ -138,7 +139,9 @@ export default function TalentUpgradeModal({
             <div className="glass rounded-lg p-4">
               <h4 className="text-sm text-slate-400 mb-2">Current Talent</h4>
               <div className="flex items-center justify-between">
-                <span className="text-white font-semibold">{talent.name}</span>
+                <TalentTooltip talent={talent}>
+                  <span className="text-white font-semibold">{talent.name}</span>
+                </TalentTooltip>
                 <Badge className={gradeColors[talent.grade]}>{talent.grade}</Badge>
               </div>
               <p className="text-xs text-slate-400 mt-2">{talent.description}</p>
