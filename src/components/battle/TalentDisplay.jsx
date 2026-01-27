@@ -9,11 +9,7 @@ const gradeColors = {
   Basic: 'bg-amber-700/30 text-amber-400 border-amber-600/50',
   Rare: 'bg-slate-400/30 text-slate-200 border-slate-400/50',
   Epic: 'bg-yellow-500/30 text-yellow-300 border-yellow-500/50',
-  Diamond: 'bg-cyan-400/30 text-cyan-200 border-cyan-400/50',
-  // Legacy support
-  Bronze: 'bg-amber-700/30 text-amber-400 border-amber-600/50',
-  Silver: 'bg-slate-400/30 text-slate-200 border-slate-400/50',
-  Gold: 'bg-yellow-500/30 text-yellow-300 border-yellow-500/50',
+  Diamond: 'bg-cyan-400/30 text-cyan-200 border-cyan-400/50'
 };
 
 export default function TalentDisplay({ talents, showDescription = false, compact = false }) {
