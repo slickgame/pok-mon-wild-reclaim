@@ -38,6 +38,16 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
   const pokemonWithStats = getPokemonStats(pokemon);
   const stats = pokemonWithStats.stats;
   const gradientClass = typeColors[pokemon.type1] || 'from-indigo-500 to-purple-600';
+  const talentList = Array.isArray(pokemon.talents)
+    ? pokemon.talents
+    : pokemon.talents
+      ? [pokemon.talents]
+      : [];
+  const roleList = Array.isArray(pokemon.roles)
+    ? pokemon.roles
+    : pokemon.roles
+      ? [pokemon.roles]
+      : [];
   
   if (compact) {
     return (
@@ -163,9 +173,9 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
         </div>
 
         {/* Talents */}
-        {pokemon.talents && pokemon.talents.length > 0 && (
+        {talentList.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {pokemon.talents.slice(0, 2).map((talent, idx) => {
+            {talentList.slice(0, 2).map((talent, idx) => {
               const talentName = typeof talent === 'string' ? talent : talent.name || talent;
               const displayName = typeof talentName === 'string' 
                 ? talentName.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim()
@@ -180,18 +190,18 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
                 </TalentTooltip>
               );
             })}
-            {pokemon.talents.length > 2 && (
+            {talentList.length > 2 && (
               <Badge className="text-[10px] bg-slate-700/50 text-slate-400">
-                +{pokemon.talents.length - 2}
+                +{talentList.length - 2}
               </Badge>
             )}
           </div>
         )}
 
         {/* Roles */}
-        {pokemon.roles && pokemon.roles.length > 0 && (
+        {roleList.length > 0 && (
           <div className="flex gap-1 mt-2">
-            {pokemon.roles.map((role, idx) => (
+            {roleList.map((role, idx) => (
               <span key={idx} className="text-[10px] text-indigo-400">
                 {role}
               </span>
