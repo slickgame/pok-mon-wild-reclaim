@@ -594,7 +594,7 @@ export class BattleEngine {
             });
           }
         };
-        
+
         try {
           effect.onTurnStart(ctx);
         } catch (error) {
@@ -606,13 +606,33 @@ export class BattleEngine {
       if (effect.duration > 0) {
         remaining.push(effect);
       } else {
-        logs.push({
-          turn: battleState.turnNumber,
-          actor: pokemon.nickname || pokemon.species,
-          action: `${effect.id} wore off`,
-          result: '',
-          synergyTriggered: false
-        });
+        if (effect.onExpire) {
+          try {
+            effect.onExpire({
+              target: pokemon,
+              battle: battleState,
+              addBattleLog: (message) => {
+                logs.push({
+                  turn: battleState.turnNumber,
+                  actor: pokemon.nickname || pokemon.species,
+                  action: effect.id,
+                  result: message,
+                  synergyTriggered: false
+                });
+              }
+            });
+          } catch (error) {
+            console.error(`Error expiring passive effect ${effect.id}:`, error);
+          }
+        } else {
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: pokemon.nickname || pokemon.species,
+            action: `${effect.id} wore off`,
+            result: '',
+            synergyTriggered: false
+          });
+        }
       }
     }
 
