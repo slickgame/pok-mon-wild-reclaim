@@ -121,7 +121,7 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
           {pokemon.passiveEffects.map((effect, idx) => (
             <Badge key={idx} className="bg-purple-500/20 text-purple-300 border-purple-500/50 text-xs flex items-center gap-1">
               <Zap className="w-3 h-3" />
-              {effect.id} ({effect.duration} turns)
+              {effect.displayName || effect.id} ({effect.duration} turns)
             </Badge>
           ))}
         </div>

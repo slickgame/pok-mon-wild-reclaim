@@ -33,25 +33,33 @@ export const MoveEffectRegistry = {
 
   infestation: {
     apply: (ctx) => {
-      const trapDuration = 4;
-      ctx.addBattleLog(`${ctx.target.nickname || ctx.target.species} was infested!`);
-      
-      // Initialize passive effects array if needed
       if (!ctx.target.passiveEffects) {
         ctx.target.passiveEffects = [];
       }
 
-      // Add passive DOT effect
+      const alreadyInfested = ctx.target.passiveEffects.some((effect) => effect.id === "infestation");
+      if (alreadyInfested) {
+        ctx.addBattleLog(`${ctx.target.nickname || ctx.target.species} is already infested!`);
+        return;
+      }
+
+      const trapDuration = 4 + Math.floor(Math.random() * 2);
+      ctx.addBattleLog(`${ctx.target.nickname || ctx.target.species} was infested!`);
+
       ctx.target.passiveEffects.push({
         id: "infestation",
+        displayName: "Infestation",
         source: ctx.user.nickname || ctx.user.species,
         duration: trapDuration,
         trap: true,
         onTurnStart: (effectCtx) => {
           const maxHp = effectCtx.target.stats?.maxHp ?? 0;
           const damage = Math.floor(maxHp / 8);
-          effectCtx.addBattleLog(`Infestation hurts ${effectCtx.target.nickname || effectCtx.target.species} for ${damage} HP!`);
+          effectCtx.addBattleLog(`${effectCtx.target.nickname || effectCtx.target.species} is hurt by Infestation! (-${damage} HP)`);
           effectCtx.applyDamage(damage);
+        },
+        onExpire: (effectCtx) => {
+          effectCtx.addBattleLog(`${effectCtx.target.nickname || effectCtx.target.species} was freed from Infestation.`);
         }
       });
     }
