@@ -5,6 +5,9 @@ import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 import { applyMoveEffect } from '@/components/data/MoveEffectRegistry';
 import { TalentEffectHandlers } from '@/engine/TalentEffectHandlers';
 import { StatusRegistry, processStatusEffects, checkStatusPreventsAction, inflictStatus } from '@/components/data/StatusRegistry';
+import { WeatherRegistry } from '@/components/data/WeatherRegistry';
+import { TerrainRegistry } from '@/components/data/TerrainRegistry';
+import { ScreenRegistry } from '@/components/data/ScreenRegistry';
 import {
   createDefaultStatStages,
   formatStatStageChange,
@@ -14,6 +17,36 @@ import {
   normalizeStatStageKey,
   normalizeStatStages
 } from './statStageUtils';
+
+const createDefaultBattlefield = () => ({
+  terrain: null,
+  terrainDuration: 0,
+  weather: null,
+  weatherDuration: 0,
+  hazards: {
+    playerSide: [],
+    enemySide: []
+  },
+  screens: {
+    playerSide: [],
+    enemySide: []
+  }
+});
+
+const ensureBattlefield = (battleState) => {
+  if (!battleState.battlefield) {
+    battleState.battlefield = createDefaultBattlefield();
+  }
+
+  battleState.battlefield.hazards = battleState.battlefield.hazards || { playerSide: [], enemySide: [] };
+  battleState.battlefield.screens = battleState.battlefield.screens || { playerSide: [], enemySide: [] };
+  battleState.battlefield.hazards.playerSide = battleState.battlefield.hazards.playerSide || [];
+  battleState.battlefield.hazards.enemySide = battleState.battlefield.hazards.enemySide || [];
+  battleState.battlefield.screens.playerSide = battleState.battlefield.screens.playerSide || [];
+  battleState.battlefield.screens.enemySide = battleState.battlefield.screens.enemySide || [];
+
+  return battleState.battlefield;
+};
 
 export const triggerTalent = (event, ctx) => {
   const allCombatants = [...(ctx.playerTeam || []), ...(ctx.enemyTeam || [])];
@@ -200,8 +233,24 @@ export class BattleEngine {
     return multiplier;
   }
 
+  getScreenDamageMultiplier(defenderKey, move, battlefield) {
+    const sideKey = defenderKey === 'player' ? 'playerSide' : 'enemySide';
+    const screens = battlefield.screens?.[sideKey] || [];
+    let multiplier = 1;
+
+    screens.forEach((screen) => {
+      const screenId = typeof screen === 'string' ? screen : screen.id;
+      const screenDef = ScreenRegistry[screenId];
+      if (!screenDef?.reduceDamage) return;
+      const reduction = screenDef.reduceDamage(move, { weather: battlefield.weather });
+      if (reduction) multiplier *= reduction;
+    });
+
+    return multiplier;
+  }
+
   // Calculate damage
-  calculateDamage(attacker, defender, move, synergies = []) {
+  calculateDamage(attacker, defender, move, synergies = [], battleState, defenderKey) {
     // Get move data from central registry
     const moveData = typeof move === 'string' 
       ? getMoveData(move, attacker) 
@@ -214,7 +263,23 @@ export class BattleEngine {
     
     if (moveData.category === 'Status') return 0;
 
-    const basePower = moveData.power || 50;
+    const battlefield = battleState ? ensureBattlefield(battleState) : createDefaultBattlefield();
+    let basePower = moveData.power || 50;
+    const weatherEffect = battlefield.weather ? WeatherRegistry[battlefield.weather] : null;
+    const terrainEffect = battlefield.terrain ? TerrainRegistry[battlefield.terrain] : null;
+    const weatherMod = weatherEffect?.modifyMove?.(moveData);
+    const terrainMod = terrainEffect?.modifyMove?.(moveData);
+
+    if (weatherMod?.powerBoost) {
+      basePower = Math.floor(basePower * weatherMod.powerBoost);
+    }
+    if (weatherMod?.powerDrop) {
+      basePower = Math.floor(basePower * weatherMod.powerDrop);
+    }
+    if (terrainMod?.powerBoost) {
+      basePower = Math.floor(basePower * terrainMod.powerBoost);
+    }
+
     const attackStageKey = moveData.category === 'Physical' ? 'Attack' : 'Sp. Atk';
     const defenseStageKey = moveData.category === 'Physical' ? 'Defense' : 'Sp. Def';
     const attackStage = getStatStageValue(attacker.statStages, attackStageKey);
@@ -260,6 +325,11 @@ export class BattleEngine {
         damage = Math.floor(damage * 1.5);
       }
     });
+
+    if (defenderKey && battlefield) {
+      const screenMultiplier = this.getScreenDamageMultiplier(defenderKey, moveData, battlefield);
+      damage = Math.floor(damage * screenMultiplier);
+    }
 
     // Random damage variance (±15%)
     const randomFactor = (Math.random() * 0.3 + 0.85);
@@ -551,13 +621,16 @@ export class BattleEngine {
   }
 
   createTalentContext(battleState, logs, extra = {}) {
+    const battlefield = ensureBattlefield(battleState);
+    const mappedWeather = battlefield.weather === 'sunny' ? 'sun' : battlefield.weather;
+    const mappedTerrain = battlefield.terrain === 'grassy' ? 'grass' : battlefield.terrain;
     return {
       playerTeam: [this.playerPokemon],
       enemyTeam: [this.enemyPokemon],
       battleState,
       turnCount: battleState.turnNumber,
-      weather: battleState.weather,
-      terrain: battleState.terrain,
+      weather: mappedWeather ?? battleState.weather,
+      terrain: mappedTerrain ?? battleState.terrain,
       isFirstTurn: battleState.turnNumber === 1,
       addBattleLog: (message, user, talentDef) => {
         logs.push({
@@ -575,16 +648,97 @@ export class BattleEngine {
     };
   }
 
+  processBattlefieldTurnStart(battleState, logs) {
+    const battlefield = ensureBattlefield(battleState);
+    const log = (message) => {
+      logs.push({
+        turn: battleState.turnNumber,
+        actor: 'Battlefield',
+        action: message,
+        result: '',
+        synergyTriggered: false
+      });
+    };
+
+    if (battlefield.weather) {
+      const weatherDef = WeatherRegistry[battlefield.weather];
+      weatherDef?.onTurnStart?.({
+        log,
+        allPokemon: [this.playerPokemon, this.enemyPokemon],
+        battlefield
+      });
+      if (battlefield.weatherDuration > 0) {
+        battlefield.weatherDuration -= 1;
+        if (battlefield.weatherDuration === 0) {
+          log(`${weatherDef?.name || 'The weather'} faded.`);
+          battlefield.weather = null;
+        }
+      }
+    }
+
+    if (battlefield.terrain) {
+      const terrainDef = TerrainRegistry[battlefield.terrain];
+      terrainDef?.onTurnStart?.({
+        log,
+        allPokemon: [this.playerPokemon, this.enemyPokemon],
+        battlefield
+      });
+      if (battlefield.terrainDuration > 0) {
+        battlefield.terrainDuration -= 1;
+        if (battlefield.terrainDuration === 0) {
+          log(`${terrainDef?.name || 'The terrain'} faded.`);
+          battlefield.terrain = null;
+        }
+      }
+    }
+
+    ['playerSide', 'enemySide'].forEach((sideKey) => {
+      const updatedScreens = [];
+      battlefield.screens[sideKey].forEach((screen) => {
+        const screenObj = typeof screen === 'string'
+          ? { id: screen, duration: ScreenRegistry[screen]?.duration ?? 0 }
+          : screen;
+        const nextDuration = screenObj.duration - 1;
+        if (nextDuration > 0) {
+          updatedScreens.push({ ...screenObj, duration: nextDuration });
+        } else {
+          const screenName = ScreenRegistry[screenObj.id]?.name || screenObj.id;
+          const owner = sideKey === 'playerSide' ? 'Your' : 'Enemy';
+          log(`${owner} ${screenName} wore off.`);
+        }
+      });
+      battlefield.screens[sideKey] = updatedScreens;
+    });
+
+    if (this.playerPokemon.currentHp !== undefined) {
+      battleState.playerHP = Math.min(
+        battleState.playerPokemon?.stats?.maxHp ?? this.playerPokemon.stats?.maxHp ?? battleState.playerHP,
+        this.playerPokemon.currentHp
+      );
+    }
+    if (this.enemyPokemon.currentHp !== undefined) {
+      battleState.enemyHP = Math.min(
+        battleState.enemyPokemon?.stats?.maxHp ?? this.enemyPokemon.stats?.maxHp ?? battleState.enemyHP,
+        this.enemyPokemon.currentHp
+      );
+    }
+  }
+
   // Execute a full turn
   executeTurn(playerMove, enemyMove, battleState) {
     const turnLog = [];
     const turnOrder = this.determineTurnOrder(playerMove, enemyMove);
+    ensureBattlefield(battleState);
     
     // Track stat changes for Echo Thread support
     if (!battleState.lastTurnStatChanges) {
       battleState.lastTurnStatChanges = { player: [], enemy: [] };
     }
     battleState.currentTurnStatChanges = { player: [], enemy: [] };
+
+    this.playerPokemon.currentHp = battleState.playerHP;
+    this.enemyPokemon.currentHp = battleState.enemyHP;
+    this.processBattlefieldTurnStart(battleState, turnLog);
 
     // Process status effects at turn start
     const addLog = (message) => turnLog.push({
@@ -595,8 +749,6 @@ export class BattleEngine {
       synergyTriggered: false
     });
     
-    this.playerPokemon.currentHp = battleState.playerHP;
-    this.enemyPokemon.currentHp = battleState.enemyHP;
     processStatusEffects(this.playerPokemon, battleState, addLog);
     processStatusEffects(this.enemyPokemon, battleState, addLog);
     battleState.playerHP = this.playerPokemon.currentHp;
@@ -712,7 +864,7 @@ export class BattleEngine {
 
     // Apply onContactReceived talents for physical moves
     // Calculate damage
-    const damageResult = this.calculateDamage(attacker.pokemon, defender.pokemon, move, synergies);
+    const damageResult = this.calculateDamage(attacker.pokemon, defender.pokemon, move, synergies, battleState, defender.key);
     const damage = damageResult.damage || damageResult;
     const isCritical = damageResult.isCritical || false;
     const typeEffectiveness = damageResult?.typeEffectiveness !== undefined ? damageResult.typeEffectiveness : 1;
@@ -950,7 +1102,7 @@ export class BattleEngine {
         }
       },
       battle: {
-        getTerrainType: () => battleState.terrain || "normal"
+        getTerrainType: () => battleState.battlefield?.terrain || battleState.terrain || "normal"
       }
     };
     
@@ -958,6 +1110,76 @@ export class BattleEngine {
 
     // Handle special move effects (legacy support)
     if (move.effect) {
+      if (move.effect === 'setTerrain' && move.terrain) {
+        const battlefield = ensureBattlefield(battleState);
+        const terrainDef = TerrainRegistry[move.terrain];
+        battlefield.terrain = move.terrain;
+        battlefield.terrainDuration = move.duration || terrainDef?.duration || 5;
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: attacker.pokemon.nickname || attacker.pokemon.species,
+          action: 'Terrain',
+          result: `${terrainDef?.name || move.terrain} took hold!`,
+          synergyTriggered: false
+        });
+      } else if (move.effect === 'weather' && move.weather) {
+        const battlefield = ensureBattlefield(battleState);
+        const weatherId = move.weather === 'sun' ? 'sunny' : move.weather;
+        const weatherDef = WeatherRegistry[weatherId];
+        battlefield.weather = weatherId;
+        battlefield.weatherDuration = move.duration || weatherDef?.duration || 5;
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: attacker.pokemon.nickname || attacker.pokemon.species,
+          action: 'Weather',
+          result: `${weatherDef?.name || weatherId} began!`,
+          synergyTriggered: false
+        });
+      } else if (move.effect === 'setScreen' && move.screen) {
+        const battlefield = ensureBattlefield(battleState);
+        const sideKey = attacker.key === 'player' ? 'playerSide' : 'enemySide';
+        const screenDef = ScreenRegistry[move.screen];
+        const existingIndex = battlefield.screens[sideKey].findIndex((screen) => {
+          const screenId = typeof screen === 'string' ? screen : screen.id;
+          return screenId === move.screen;
+        });
+        const duration = move.duration || screenDef?.duration || 5;
+        if (existingIndex >= 0) {
+          battlefield.screens[sideKey][existingIndex] = { id: move.screen, duration };
+        } else {
+          battlefield.screens[sideKey].push({ id: move.screen, duration });
+        }
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: attacker.pokemon.nickname || attacker.pokemon.species,
+          action: 'Screen',
+          result: `${screenDef?.name || move.screen} protected the ${sideKey === 'playerSide' ? 'team' : 'foes'}!`,
+          synergyTriggered: false
+        });
+      } else if (move.effect === 'breakScreens') {
+        const battlefield = ensureBattlefield(battleState);
+        const targetSide = attacker.key === 'player' ? 'enemySide' : 'playerSide';
+        battlefield.screens[targetSide] = [];
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: attacker.pokemon.nickname || attacker.pokemon.species,
+          action: 'Screens',
+          result: 'Barrier effects were shattered!',
+          synergyTriggered: false
+        });
+      } else if (move.effect === 'removeHazards') {
+        const battlefield = ensureBattlefield(battleState);
+        const sideKey = attacker.key === 'player' ? 'playerSide' : 'enemySide';
+        battlefield.hazards[sideKey] = [];
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: attacker.pokemon.nickname || attacker.pokemon.species,
+          action: 'Hazards',
+          result: 'Entry hazards were cleared!',
+          synergyTriggered: false
+        });
+      }
+
       // Echo Thread - copy last turn's stat changes
       if (move.effect.copyLastStatChanges) {
         const targetKey = defender.key;
