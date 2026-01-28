@@ -119,5 +119,58 @@ export const TalentRegistry = {
       Rare: { description: "10% chance to dodge and counter." },
       Epic: { description: "15% chance to dodge and counter with -2 Speed." }
     }
+  },
+
+  verdantInstinct: {
+    id: "verdantInstinct",
+    name: "Verdant Instinct",
+    grade: "Rare",
+    description: "Boosts Speed and restores HP in Grassy Terrain.",
+    fieldTrigger: "grassy",
+    onEnterField: ({ pokemon, log }) => {
+      log(`${pokemon.name || pokemon.nickname || pokemon.species}'s Verdant Instinct activates!`);
+      if (pokemon.statStages) {
+        pokemon.statStages.Speed += 1;
+      }
+
+      const maxHp = pokemon.stats?.hp ?? pokemon.maxHP ?? pokemon.maxHp ?? 0;
+      const currentHp = pokemon.currentHp ?? pokemon.hp ?? maxHp;
+      const heal = Math.floor(maxHp / 16);
+      const nextHp = Math.min(maxHp, currentHp + heal);
+      if (pokemon.currentHp !== undefined) {
+        pokemon.currentHp = nextHp;
+      } else {
+        pokemon.hp = nextHp;
+      }
+      log(`${pokemon.name || pokemon.nickname || pokemon.species} recovered ${heal} HP!`);
+    }
+  },
+
+  sporeAffinity: {
+    id: "sporeAffinity",
+    name: "Spore Affinity",
+    grade: "Basic",
+    description: "Heals status conditions in Grassy Terrain.",
+    fieldTrigger: "grassy",
+    onEnterField: ({ pokemon, log }) => {
+      if (pokemon.status) {
+        log(`${pokemon.name || pokemon.nickname || pokemon.species}'s Spore Affinity cured its ${pokemon.status}!`);
+        pokemon.status = null;
+      }
+    }
+  },
+
+  solarInstinct: {
+    id: "solarInstinct",
+    name: "Solar Instinct",
+    grade: "Rare",
+    description: "Boosts Sp. Atk in sunny weather.",
+    weatherTrigger: "sunny",
+    onEnterWeather: ({ pokemon, log }) => {
+      if (pokemon.statStages) {
+        pokemon.statStages["Sp. Atk"] += 2;
+      }
+      log(`${pokemon.name || pokemon.nickname || pokemon.species}'s Solar Instinct sharply boosted its Sp. Atk!`);
+    }
   }
 };
