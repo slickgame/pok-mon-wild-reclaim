@@ -7,7 +7,13 @@ import { getTalentDescription, getTalentGradeColor } from '@/components/talents/
 import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
 
 export default function TalentsTab({ pokemon }) {
-  if (!pokemon.talents || pokemon.talents.length === 0) {
+  const talentList = Array.isArray(pokemon.talents)
+    ? pokemon.talents
+    : pokemon.talents
+      ? [pokemon.talents]
+      : [];
+
+  if (talentList.length === 0) {
     return (
       <div className="glass rounded-xl p-12 text-center">
         <Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-600" />
@@ -26,12 +32,16 @@ export default function TalentsTab({ pokemon }) {
         </div>
         
         <div className="space-y-3">
-          {pokemon.talents.map((talent, index) => {
-            const talentId = talent.id || talent.name;
+          {talentList.map((talent, index) => {
+            const talentId = typeof talent === 'string' ? talent : talent.id || talent.name;
             const talentData = TalentRegistry[talentId];
-            const gradeLabel = normalizeTalentGrade(talent.grade || 'Basic');
+            const gradeLabel = normalizeTalentGrade(
+              typeof talent === 'object' ? (talent.grade || 'Basic') : 'Basic'
+            );
             const displayName = talentData?.name || formatTalentName(talentId);
-            const description = getTalentDescription(talentId, gradeLabel);
+            const description = typeof talent === 'object' && typeof talent.description === 'string'
+              ? talent.description
+              : getTalentDescription(talentId, gradeLabel);
             const gradeColorClass = getTalentGradeColor(gradeLabel);
             
             return (

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import TalentTooltip from '@/components/talents/TalentTooltip';
 import RevenantIndicator from './RevenantIndicator';
 import { getPokemonStats } from './usePokemonStats';
+import { formatTalentName } from '@/components/utils/talentUtils';
 
 const typeColors = {
   Normal: 'from-gray-400 to-gray-500',
@@ -48,6 +49,19 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
     : pokemon.roles
       ? [pokemon.roles]
       : [];
+
+  const resolveTalentDisplayName = (talent) => {
+    if (typeof talent === 'string') {
+      return formatTalentName(talent);
+    }
+    if (typeof talent?.name === 'string') {
+      return talent.name;
+    }
+    if (typeof talent?.id === 'string') {
+      return formatTalentName(talent.id);
+    }
+    return 'Unknown Talent';
+  };
   
   if (compact) {
     return (
@@ -176,10 +190,7 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
         {talentList.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {talentList.slice(0, 2).map((talent, idx) => {
-              const talentName = typeof talent === 'string' ? talent : talent.name || talent;
-              const displayName = typeof talentName === 'string' 
-                ? talentName.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim()
-                : talentName;
+              const displayName = resolveTalentDisplayName(talent);
               const grade = typeof talent === 'object' ? talent.grade : null;
               
               return (
