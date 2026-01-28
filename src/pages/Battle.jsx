@@ -18,6 +18,9 @@ import CaptureSuccessModal from '@/components/battle/CaptureSuccessModal';
 import BattleSummaryModal from '@/components/battle/BattleSummaryModal';
 import { BattleEngine, triggerTalent } from '@/components/battle/BattleEngine';
 import { createDefaultStatStages } from '@/components/battle/statStageUtils';
+import BattlefieldStatus from '@/components/battle/BattlefieldStatus';
+import { HazardRegistry } from '@/components/data/HazardRegistry';
+import { inflictStatus } from '@/components/data/StatusRegistry';
 import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 import { getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
@@ -28,6 +31,21 @@ import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
 import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zones/wildPokemonData';
 import { getMoveData } from '@/components/utils/getMoveData';
+
+const createDefaultBattlefield = () => ({
+  terrain: null,
+  terrainDuration: 0,
+  weather: null,
+  weatherDuration: 0,
+  hazards: {
+    playerSide: [],
+    enemySide: []
+  },
+  screens: {
+    playerSide: [],
+    enemySide: []
+  }
+});
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
@@ -175,6 +193,7 @@ export default function BattlePage() {
       ],
       playerStatus: { conditions: [], buffs: [] },
       enemyStatus: { conditions: [], buffs: [] },
+      battlefield: createDefaultBattlefield(),
       synergyChains: 0,
       isWildBattle: true
     });
@@ -220,9 +239,54 @@ export default function BattlePage() {
       ],
       playerStatus: { conditions: [], buffs: [] },
       enemyStatus: { conditions: [], buffs: [] },
+      battlefield: createDefaultBattlefield(),
       synergyChains: 0,
       isWildBattle: false
     });
+  };
+
+  const applyEntryHazards = ({ battleState: state, sideKey, pokemon, applyStatChange }) => {
+    const battlefield = state.battlefield || createDefaultBattlefield();
+    state.battlefield = battlefield;
+    const hazards = battlefield.hazards?.[sideKey] || [];
+    const hazardLogs = [];
+    const actorName = pokemon.nickname || pokemon.species;
+
+    const addBattleLog = (message, action = 'Hazard') => {
+      hazardLogs.push({
+        turn: state.turnNumber,
+        actor: actorName,
+        action,
+        result: message,
+        synergyTriggered: false
+      });
+    };
+
+    const applyDamage = (amount) => {
+      if (sideKey === 'playerSide') {
+        state.playerHP = Math.max(0, state.playerHP - amount);
+        pokemon.currentHp = state.playerHP;
+      } else {
+        state.enemyHP = Math.max(0, state.enemyHP - amount);
+        pokemon.currentHp = state.enemyHP;
+      }
+    };
+
+    const applyStatus = (statusId) => inflictStatus(pokemon, statusId, state, (message) => addBattleLog(message, 'Status'));
+
+    hazards.forEach((hazardId) => {
+      const hazard = HazardRegistry[hazardId];
+      hazard?.onSwitchIn?.({
+        mon: pokemon,
+        battleState: state,
+        applyDamage,
+        addBattleLog,
+        applyStatChange,
+        inflictStatus: applyStatus
+      });
+    });
+
+    return hazardLogs;
   };
 
   // Attempt capture with selected Pokéball
@@ -723,13 +787,27 @@ export default function BattlePage() {
 
     const switchTalentLogs = [];
     const switchEngine = new BattleEngine(newPokemon, battleState.enemyPokemon);
+    const hazardLogs = applyEntryHazards({
+      battleState: newBattleState,
+      sideKey: 'playerSide',
+      pokemon: newPokemon,
+      applyStatChange: (stat, stages) => switchEngine.applyStatChange(newPokemon, stat, stages, newBattleState)
+    });
+
+    const mappedWeather = newBattleState.battlefield?.weather === 'sunny'
+      ? 'sun'
+      : newBattleState.battlefield?.weather;
+    const mappedTerrain = newBattleState.battlefield?.terrain === 'grassy'
+      ? 'grass'
+      : newBattleState.battlefield?.terrain;
+
     triggerTalent('onSwitchIn', {
       playerTeam: [newPokemon],
       enemyTeam: [battleState.enemyPokemon],
       battleState: newBattleState,
       turnCount: newBattleState.turnNumber,
-      weather: newBattleState.weather,
-      terrain: newBattleState.terrain,
+      weather: mappedWeather,
+      terrain: mappedTerrain,
       isFirstTurn: newBattleState.turnNumber === 1,
       addBattleLog: (message, user, talentDef) => {
         switchTalentLogs.push({
@@ -747,7 +825,7 @@ export default function BattlePage() {
 
     setBattleState({
       ...newBattleState,
-      battleLog: [...newBattleState.battleLog, ...switchTalentLogs]
+      battleLog: [...newBattleState.battleLog, ...hazardLogs, ...switchTalentLogs]
     });
     setActionMenu('main');
   };
@@ -1073,6 +1151,7 @@ export default function BattlePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Battle Field */}
         <div className="lg:col-span-2 space-y-4">
+          <BattlefieldStatus battlefield={battleState.battlefield} />
           {/* Enemy Pokemon */}
           <BattleHUD
             pokemon={battleState.enemyPokemon}
