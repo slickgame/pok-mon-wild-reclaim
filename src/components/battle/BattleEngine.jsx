@@ -73,6 +73,43 @@ export const triggerTalent = (event, ctx) => {
   }
 };
 
+const resolveTalentDefinition = (talentEntry) => {
+  if (!talentEntry) return null;
+  if (typeof talentEntry === 'string') {
+    return TalentRegistry[talentEntry] || Object.values(TalentRegistry).find((entry) => entry.name === talentEntry);
+  }
+  const talentKey = talentEntry.id || talentEntry.name;
+  return TalentRegistry[talentKey] || Object.values(TalentRegistry).find((entry) => entry.name === talentKey);
+};
+
+const triggerFieldChangeTalents = ({ battleState, battlefield, allPokemon, log }) => {
+  allPokemon.forEach((pokemon) => {
+    const talents = pokemon.talents || [];
+    talents.forEach((talentEntry) => {
+      const talent = resolveTalentDefinition(talentEntry);
+      if (!talent) return;
+
+      if (talent.fieldTrigger && talent.fieldTrigger === battlefield.terrain) {
+        talent.onEnterField?.({ pokemon, battle: battleState, battlefield, log });
+      }
+      if (talent.weatherTrigger && talent.weatherTrigger === battlefield.weather) {
+        talent.onEnterWeather?.({ pokemon, battle: battleState, battlefield, log });
+      }
+    });
+  });
+};
+
+const triggerFieldTurnTalents = ({ battleState, battlefield, allPokemon, log }) => {
+  allPokemon.forEach((pokemon) => {
+    const talents = pokemon.talents || [];
+    talents.forEach((talentEntry) => {
+      const talent = resolveTalentDefinition(talentEntry);
+      if (!talent?.onFieldTurn) return;
+      talent.onFieldTurn({ pokemon, battle: battleState, battlefield, log });
+    });
+  });
+};
+
 // Battle Engine - Core logic for turn-based combat
 // INTEGRATION: Uses centralized MOVE_DATA for all move metadata
 export class BattleEngine {
@@ -730,6 +767,13 @@ export class BattleEngine {
       battlefield.screens[sideKey] = updatedScreens;
     });
 
+    triggerFieldTurnTalents({
+      battleState,
+      battlefield,
+      allPokemon: [this.playerPokemon, this.enemyPokemon],
+      log
+    });
+
     if (this.playerPokemon.currentHp !== undefined) {
       battleState.playerHP = Math.min(
         battleState.playerPokemon?.stats?.maxHp ?? this.playerPokemon.stats?.maxHp ?? battleState.playerHP,
@@ -1142,6 +1186,18 @@ export class BattleEngine {
           result: `${terrainDef?.name || move.terrain} took hold!`,
           synergyTriggered: false
         });
+        triggerFieldChangeTalents({
+          battleState,
+          battlefield,
+          allPokemon: [this.playerPokemon, this.enemyPokemon],
+          log: (message) => logs.push({
+            turn: battleState.turnNumber,
+            actor: 'Talent',
+            action: 'Field',
+            result: message,
+            synergyTriggered: true
+          })
+        });
       } else if (move.effect === 'weather' && move.weather) {
         const battlefield = ensureBattlefield(battleState);
         const weatherId = move.weather === 'sun' ? 'sunny' : move.weather;
@@ -1154,6 +1210,18 @@ export class BattleEngine {
           action: 'Weather',
           result: `${weatherDef?.name || weatherId} began!`,
           synergyTriggered: false
+        });
+        triggerFieldChangeTalents({
+          battleState,
+          battlefield,
+          allPokemon: [this.playerPokemon, this.enemyPokemon],
+          log: (message) => logs.push({
+            turn: battleState.turnNumber,
+            actor: 'Talent',
+            action: 'Weather',
+            result: message,
+            synergyTriggered: true
+          })
         });
       } else if (move.effect === 'setScreen' && move.screen) {
         const battlefield = ensureBattlefield(battleState);
