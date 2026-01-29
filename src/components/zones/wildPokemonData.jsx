@@ -45,6 +45,8 @@ function convertPokemonData(jsonData) {
 // Wild Pokémon species data for encounters (uses PokemonRegistry)
 export const wildPokemonData = {
   Caterpie: convertPokemonData(PokemonRegistry.caterpie),
+  Metapod: convertPokemonData(PokemonRegistry.metapod),
+  Butterfree: convertPokemonData(PokemonRegistry.butterfree),
   Pidgey: convertPokemonData(PokemonRegistry.pidgey),
 
   Oddish: {
@@ -100,8 +102,8 @@ export const verdantHollowEncounters = {
   zoneName: "Verdant Hollow",
   encounterRate: 0.20, // 20% chance per exploration action
   encounters: [
-    { species: "Pidgey", rarity: "Common", levelRange: [4, 8], weight: 40 },
-    { species: "Caterpie", rarity: "Common", levelRange: [3, 7], weight: 40 },
+    { species: "Pidgey", rarity: "Common", levelRange: [4, 8], weight: 35 },
+    { species: "Caterpie", rarity: "Common", levelRange: [3, 7], weight: 30 },
     { species: "Oddish", rarity: "Uncommon", levelRange: [5, 10], weight: 15 },
     { species: "Pikachu", rarity: "Rare", levelRange: [8, 12], weight: 5 }
   ]
@@ -175,10 +177,15 @@ export function rollTalentCount() {
 }
 
 export function assignWildTalents(species) {
-  const pool = PokemonRegistry[species?.toLowerCase()]?.talentPool || [];
+  const talentSource = PokemonRegistry[species?.toLowerCase()]?.talentPool || [];
+  const pool = Array.isArray(talentSource) ? talentSource : (talentSource.options || []);
   if (pool.length === 0) return [];
 
-  const count = rollTalentCount();
+  const rolledCount = rollTalentCount();
+  const maxTalents = !Array.isArray(talentSource) && talentSource.max
+    ? talentSource.max
+    : rolledCount;
+  const count = Math.min(rolledCount, maxTalents);
   const assigned = [];
 
   for (let i = 0; i < count; i += 1) {

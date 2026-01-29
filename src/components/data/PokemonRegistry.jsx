@@ -1,4 +1,6 @@
 import { caterpieData } from './pokemon/caterpie';
+import { metapodData } from './pokemon/metapod';
+import { butterfreeData } from './pokemon/butterfree';
 import { pidgeyData } from './pokemon/pidgey';
 import { pidgeottoData } from './pokemon/pidgeotto';
 import { pidgeotData } from './pokemon/pidgeot';
@@ -9,6 +11,8 @@ import { pidgeotData } from './pokemon/pidgeot';
  */
 export const PokemonRegistry = {
   caterpie: caterpieData,
+  metapod: metapodData,
+  butterfree: butterfreeData,
   pidgey: pidgeyData,
   pidgeotto: pidgeottoData,
   pidgeot: pidgeotData,

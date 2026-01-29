@@ -7,6 +7,8 @@ import RoleIndicator from './RoleIndicator';
 import RevenantIndicator from '../pokemon/RevenantIndicator';
 import StatusIndicator from './StatusIndicator';
 import { StatusRegistry } from '@/components/data/StatusRegistry';
+import { StatusEffectRegistry } from '@/components/data/StatusEffectRegistry';
+import { renderStatusTooltip } from '@/components/utils/tooltipUtils';
 import { STAT_STAGE_ORDER } from './statStageUtils';
 
 const statDescriptions = {
@@ -19,6 +21,16 @@ const statDescriptions = {
   Accuracy: "Affects chance to hit.",
   Evasion: "Affects chance to dodge."
 };
+
+function resolveStatusIcon(statusId) {
+  if (!statusId) return '';
+  const key = typeof statusId === 'string' ? statusId : `${statusId}`;
+  const normalized = key.charAt(0).toUpperCase() + key.slice(1);
+  return StatusEffectRegistry[key]?.icon
+    || StatusEffectRegistry[normalized]?.icon
+    || StatusEffectRegistry[key.toLowerCase()]?.icon
+    || '';
+}
 
 function StatStageDisplay({ stat, stage }) {
   if (stage === 0) return null;
@@ -40,6 +52,9 @@ function StatStageDisplay({ stat, stage }) {
 export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false, roles = [] }) {
   const hpPercent = (hp / maxHp) * 100;
   const hpColor = hpPercent > 50 ? 'bg-emerald-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+  const statusKey = pokemon.status?.id || pokemon.activeStatus?.type || null;
+  const statusIcon = statusKey ? resolveStatusIcon(statusKey) : '';
+  const statusTooltip = statusKey ? renderStatusTooltip(statusKey) : '';
 
   return (
     <motion.div
@@ -72,11 +87,21 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
 
         {/* Pokemon sprite */}
         {pokemon.spriteUrl && (
-          <img 
-            src={pokemon.spriteUrl} 
-            alt={pokemon.species}
-            className={`w-20 h-20 object-contain ${isPlayer ? '' : 'transform scale-x-[-1]'}`}
-          />
+          <div className="relative">
+            <img 
+              src={pokemon.spriteUrl} 
+              alt={pokemon.species}
+              className={`w-20 h-20 object-contain ${isPlayer ? '' : 'transform scale-x-[-1]'}`}
+            />
+            {statusIcon && (
+              <span
+                className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 text-sm"
+                title={statusTooltip}
+              >
+                {statusIcon}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -95,7 +120,7 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
         <div className="mt-2">
           <Badge 
             className="bg-red-500/20 text-red-300 border-red-500/50 text-xs"
-            title={StatusRegistry[pokemon.status.id]?.description}
+            title={statusTooltip || StatusRegistry[pokemon.status.id]?.description}
           >
             {StatusRegistry[pokemon.status.id]?.icon} {StatusRegistry[pokemon.status.id]?.name}
           </Badge>

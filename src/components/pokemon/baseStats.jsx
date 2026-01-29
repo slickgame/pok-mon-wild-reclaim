@@ -114,7 +114,7 @@ export const EV_YIELDS = {
   
   Caterpie: { hp: 1, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 },
   Metapod: { hp: 0, atk: 0, def: 2, spAtk: 0, spDef: 0, spd: 0 },
-  Butterfree: { hp: 0, atk: 0, def: 0, spAtk: 2, spDef: 1, spd: 0 },
+  Butterfree: { hp: 0, atk: 0, def: 0, spAtk: 2, spDef: 0, spd: 0 },
   
   Weedle: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 1 },
   Kakuna: { hp: 0, atk: 0, def: 2, spAtk: 0, spDef: 0, spd: 0 },
