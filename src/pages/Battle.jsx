@@ -23,7 +23,7 @@ import { HazardRegistry } from '@/components/data/HazardRegistry';
 import { inflictStatus } from '@/components/data/StatusRegistry';
 import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
-import { getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
+import { getAllMovesUpToLevel, getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
 import MoveLearnModal from '@/components/battle/MoveLearnModal';
 import { checkEvolution, getEvolvedStats, getEvolvedRoles, evolvePokemon } from '@/components/pokemon/evolutionData';
 import EvolutionModal from '@/components/pokemon/EvolutionModal';
@@ -613,9 +613,11 @@ export default function BattlePage() {
       triggerTutorial('first_victory');
 
       // Check for evolution first (only active Pokemon)
-      const evolutionData = activePokemonUpdate ? checkEvolution(newBattleState.playerPokemon, activePokemonUpdate.level) : null;
+      const evolutionData = activePokemonUpdate
+        ? checkEvolution(newBattleState.playerPokemon, activePokemonUpdate.level)
+        : null;
       
-      if (evolutionData) {
+      if (evolutionData?.canEvolve) {
         // Store evolution state
         setEvolutionState({
           pokemon: newBattleState.playerPokemon,
@@ -984,6 +986,14 @@ export default function BattlePage() {
         { level: pendingUpdate.level, nature: pokemon.nature, ivs: pokemon.ivs, evs: pendingUpdate.evs },
         baseStats
       );
+
+      const currentMoves = pokemon.abilities || [];
+      const unlockedTalents = pokemon.unlockedTalents || [];
+      const isButterfreeEvolution = evolvesInto === 'Butterfree';
+      const updatedMoves = isButterfreeEvolution && !currentMoves.includes('Gust')
+        ? [...currentMoves, 'Gust']
+        : currentMoves;
+      const currentHp = pokemon.currentHp ?? pokemon.stats?.hp;
       
       // Update Pokemon with evolution (preserves talents + adds canLearnNewTalents flag)
       await base44.entities.Pokemon.update(pendingUpdate.id, {
@@ -992,27 +1002,28 @@ export default function BattlePage() {
         level: pendingUpdate.level,
         evs: pendingUpdate.evs,
         stats: calculatedStats,
-        currentHp: calculatedStats.hp,
+        currentHp: Math.min(currentHp ?? calculatedStats.hp, calculatedStats.hp),
         roles: evolvedPokemon.roles,
         talents: evolvedPokemon.talents, // Preserved from pre-evolution
-        canLearnNewTalents: true // Future NPC teaching system
+        canLearnNewTalents: true, // Future NPC teaching system
+        unlockedTalents,
+        abilities: updatedMoves
       });
       
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
       
       // Check for moves the evolved form learns at current level
-      const movesAtLevel = getMovesLearnedAtLevel(evolvesInto, pendingUpdate.level);
-      const currentMoves = pokemon.abilities || [];
-      const learnableMoves = movesAtLevel.filter(move => !currentMoves.includes(move));
+      const movesUpToLevel = getAllMovesUpToLevel(evolvesInto, pendingUpdate.level);
+      const learnableMoves = movesUpToLevel.filter(move => !updatedMoves.includes(move));
       
       // Combine with level-up moves if any
       const allNewMoves = [...new Set([...(pendingUpdate.movesLearned || []), ...learnableMoves])];
       
       if (allNewMoves.length > 0) {
         setMoveLearnState({
-          pokemon: { ...pokemon, species: evolvesInto },
+          pokemon: { ...pokemon, species: evolvesInto, abilities: updatedMoves },
           newMoves: allNewMoves,
-          currentMoves: currentMoves,
+          currentMoves: updatedMoves,
           pendingUpdate: {
             id: pendingUpdate.id,
             experience: pendingUpdate.experience,

@@ -23,5 +23,49 @@ export const ItemRegistry = {
     name: "Ancient Shard",
     description: "A fragment of mysterious origin. Often found after battles.",
     sellPrice: 50
+  },
+  hardenedShell: {
+    id: "hardenedShell",
+    name: "Hardened Shell",
+    description: "A dense shell fragment prized for defensive crafting.",
+    sellPrice: 35
+  },
+  flutterWing: {
+    id: "flutterWing",
+    name: "Flutter Wing",
+    description: "A delicate wing scale that shimmers with powder.",
+    sellPrice: 40
+  },
+  powderSpore: {
+    id: "powderSpore",
+    name: "Powder Spore",
+    description: "A fine spore used in status concoctions.",
+    sellPrice: 30
+  },
+  silverPowder: {
+    id: "silverPowder",
+    name: "Silver Powder",
+    description: "Boosts Bug-type moves by 20%.",
+    type: "held",
+    effect: {
+      type: "BoostMoveType",
+      moveType: "Bug",
+      multiplier: 1.2
+    },
+    sellPrice: 120
+  },
+  healingPollen: {
+    id: "healingPollen",
+    name: "Healing Pollen",
+    description: "Used in advanced healing item crafting.",
+    type: "material",
+    sellPrice: 45
+  },
+  butterflyScale: {
+    id: "butterflyScale",
+    name: "Butterfly Scale",
+    description: "A rare and beautiful scale used for special gear.",
+    type: "material",
+    sellPrice: 150
   }
 };

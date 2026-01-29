@@ -90,6 +90,24 @@ export const POKEDEX_DATA = {
     baseStats: { hp: 45, atk: 30, def: 35, spAtk: 20, spDef: 20, spd: 45 },
     evolution: { evolvesTo: "Metapod", method: "Level", level: 7 }
   },
+  11: {
+    dexNumber: 11,
+    species: "Metapod",
+    types: ["Bug"],
+    role: "Tank",
+    evolutionStage: "Stage 1",
+    baseStats: { hp: 50, atk: 20, def: 55, spAtk: 25, spDef: 25, spd: 30 },
+    evolution: { evolvesTo: "Butterfree", method: "Level", level: 10 }
+  },
+  12: {
+    dexNumber: 12,
+    species: "Butterfree",
+    types: ["Bug", "Flying"],
+    role: "Support",
+    evolutionStage: "Final",
+    baseStats: { hp: 60, atk: 45, def: 50, spAtk: 90, spDef: 80, spd: 70 },
+    evolution: null
+  },
   25: {
     dexNumber: 25,
     species: "Pikachu",

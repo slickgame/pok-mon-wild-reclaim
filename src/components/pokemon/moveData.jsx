@@ -282,8 +282,13 @@ const BASE_MOVE_DATA = {
     power: 0,
     accuracy: 75,
     pp: 15,
-    description: 'Puts target to sleep.',
-    effect: 'sleep'
+    description: 'Scatters a cloud of sleep-inducing dust around the target.',
+    effect: 'sleep',
+    effectDetails: {
+      type: 'ApplyStatus',
+      status: 'Sleep',
+      chance: 100
+    }
   },
   'Synthesis': {
     type: 'Grass',
@@ -301,8 +306,136 @@ const BASE_MOVE_DATA = {
     power: 0,
     accuracy: 75,
     pp: 35,
-    description: 'Poisons the target.',
-    effect: 'poison'
+    description: 'A cloud of toxic dust is scattered around the target.',
+    effect: 'poison',
+    effectDetails: {
+      type: 'ApplyStatus',
+      status: 'Poison',
+      chance: 100
+    }
+  },
+  'Harden': {
+    type: 'Normal',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 30,
+    description: "The user stiffens its muscles to boost its Defense stat.",
+    effect: 'raiseDefense',
+    stages: 1,
+    effectDetails: {
+      type: 'StatBoost',
+      target: 'Self',
+      stat: 'Defense',
+      stages: 1
+    }
+  },
+  'Confusion': {
+    type: 'Psychic',
+    category: 'Special',
+    power: 50,
+    accuracy: 100,
+    pp: 25,
+    description: 'A telekinetic attack that may also leave the target confused.',
+    effect: 'confuse',
+    effectChance: 10,
+    effectDetails: {
+      type: 'ChanceStatus',
+      status: 'Confused',
+      chance: 10
+    }
+  },
+  'Stun Spore': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: 75,
+    pp: 30,
+    description: 'Scatters a powder that may paralyze the target.',
+    effect: 'paralyze',
+    effectChance: 100,
+    effectDetails: {
+      type: 'ApplyStatus',
+      status: 'Paralysis',
+      chance: 100
+    }
+  },
+  'Bug Buzz': {
+    type: 'Bug',
+    category: 'Special',
+    power: 90,
+    accuracy: 100,
+    pp: 10,
+    description: 'Generates a damaging sound wave that may reduce Sp. Def.',
+    effect: 'lowerSpDef',
+    effectChance: 10,
+    effectDetails: {
+      type: 'ChanceStatDrop',
+      target: 'Target',
+      stat: 'Sp. Def',
+      stages: 1,
+      chance: 10
+    }
+  },
+  'Quiver Dance': {
+    type: 'Bug',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'A mystical dance that boosts Sp. Atk, Sp. Def, and Speed.',
+    effect: 'boostMultiple',
+    effectDetails: {
+      type: 'StatBoostMulti',
+      target: 'Self',
+      stats: {
+        'Sp. Atk': 1,
+        'Sp. Def': 1,
+        Speed: 1
+      }
+    }
+  },
+  'Pollen Puff': {
+    type: 'Bug',
+    category: 'Special',
+    power: 90,
+    accuracy: 100,
+    pp: 10,
+    description: 'May damage a foe or heal an ally based on target.',
+    effect: 'conditional',
+    effectDetails: {
+      type: 'ConditionalEffect',
+      conditions: [
+        {
+          condition: 'TargetIsAlly',
+          result: {
+            type: 'Heal',
+            amount: 0.5
+          }
+        },
+        {
+          condition: 'TargetIsEnemy',
+          result: {
+            type: 'Damage'
+          }
+        }
+      ]
+    }
+  },
+  'Hurricane': {
+    type: 'Flying',
+    category: 'Special',
+    power: 110,
+    accuracy: 70,
+    pp: 10,
+    description: 'A powerful storm that may confuse the target.',
+    effect: 'confuse',
+    effectChance: 30,
+    effectDetails: {
+      type: 'ChanceStatus',
+      status: 'Confused',
+      chance: 30
+    }
   },
   'Magical Leaf': {
     type: 'Grass',
@@ -319,8 +452,25 @@ const BASE_MOVE_DATA = {
     power: 0,
     accuracy: null,
     pp: 5,
-    description: 'Heals all allies of status conditions.',
-    effect: 'healStatusAllies'
+    description: 'Heals all status problems for the user\'s party.',
+    effect: 'cureAllStatuses',
+    effectDetails: {
+      type: 'CureAllStatuses',
+      target: 'Team'
+    }
+  },
+  'Heal Bell': {
+    type: 'Normal',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 5,
+    description: 'The user makes a soothing bell chime to heal all allies\' status problems.',
+    effect: 'cureAllStatuses',
+    effectDetails: {
+      type: 'CureAllStatuses',
+      target: 'Team'
+    }
   },
   'Giga Drain': {
     type: 'Grass',
@@ -997,17 +1147,129 @@ const BASE_MOVE_DATA = {
       }
     }
   },
+  'Whirlwind': {
+    type: 'Normal',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    priority: -6,
+    description: 'The user blows away the target, ending wild battles or switching out.',
+    effect: 'forceSwitch',
+    effectDetails: {
+      type: 'ForceSwitch',
+      condition: 'TargetIsEnemy'
+    }
+  },
+  'Air Cutter': {
+    type: 'Flying',
+    category: 'Special',
+    power: 60,
+    accuracy: 95,
+    pp: 25,
+    description: 'Hurls a blade of air. High critical-hit ratio.',
+    effect: 'criticalBoost',
+    effectDetails: {
+      type: 'CriticalBoost',
+      multiplier: 2
+    }
+  },
+  'Silver Wind': {
+    type: 'Bug',
+    category: 'Special',
+    power: 60,
+    accuracy: 100,
+    pp: 5,
+    description: 'A powdery wind that may raise all stats.',
+    effect: 'raiseAllStats',
+    effectChance: 10,
+    effectDetails: {
+      type: 'ChanceStatBoostMulti',
+      chance: 10,
+      stats: {
+        Attack: 1,
+        Defense: 1,
+        'Sp. Atk': 1,
+        'Sp. Def': 1,
+        Speed: 1
+      }
+    }
+  },
   'Safeguard': {
     type: 'Normal',
     category: 'Status',
     power: 0,
     accuracy: null,
     pp: 25,
-    description: 'The user creates a protective field that prevents status conditions for five turns.',
-    effect: {
-      teamWide: true,
-      blocksStatus: true,
-      duration: 5
+    description: 'Creates a barrier that prevents status conditions for 5 turns.',
+    effect: 'safeguard',
+    effectDetails: {
+      type: 'ApplyFieldStatus',
+      status: 'Safeguard',
+      duration: 5,
+      team: 'Ally'
+    }
+  },
+  'Tailwind': {
+    type: 'Flying',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 15,
+    description: 'Boosts the Speed of allies for 4 turns.',
+    effect: 'tailwind',
+    effectDetails: {
+      type: 'ApplyFieldBuff',
+      stat: 'Speed',
+      multiplier: 2.0,
+      duration: 4,
+      team: 'Ally'
+    }
+  },
+  'Rage Powder': {
+    type: 'Bug',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    priority: 2,
+    description: 'Draws attention to itself, redirecting single-target moves.',
+    effect: 'redirect',
+    effectDetails: {
+      type: 'ApplyStatus',
+      status: 'TauntTargeting',
+      duration: 1,
+      target: 'Self'
+    }
+  },
+  'Mirror Move': {
+    type: 'Flying',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 20,
+    description: 'Counters the target with the move it last used.',
+    effect: 'copyLastMove',
+    effectDetails: {
+      type: 'CopyLastMove',
+      target: 'LastEnemy'
+    }
+  },
+  'Dream Eater': {
+    type: 'Psychic',
+    category: 'Special',
+    power: 100,
+    accuracy: 100,
+    pp: 15,
+    description: 'Steals HP from a sleeping target.',
+    effect: 'conditionalDrain',
+    effectDetails: {
+      type: 'ConditionalEffect',
+      condition: 'TargetStatus == Sleep',
+      result: {
+        type: 'DrainHP',
+        percentage: 0.5
+      }
     }
   },
   'Silk Bomb': {
