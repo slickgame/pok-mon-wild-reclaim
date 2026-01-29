@@ -11,17 +11,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import TalentTooltip from '@/components/talents/TalentTooltip';
+import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 
 const gradeColors = {
-  F: 'bg-gray-700/30 text-gray-400 border-gray-600/50',
-  D: 'bg-amber-900/30 text-amber-500 border-amber-700/50',
-  C: 'bg-amber-700/30 text-amber-400 border-amber-600/50',
-  B: 'bg-slate-400/30 text-slate-200 border-slate-400/50',
-  A: 'bg-yellow-500/30 text-yellow-300 border-yellow-500/50',
-  S: 'bg-cyan-400/30 text-cyan-200 border-cyan-400/50',
+  Basic: 'bg-amber-700/30 text-amber-400 border-amber-600/50',
+  Rare: 'bg-slate-400/30 text-slate-200 border-slate-400/50',
+  Epic: 'bg-yellow-500/30 text-yellow-300 border-yellow-500/50',
+  Diamond: 'bg-cyan-400/30 text-cyan-200 border-cyan-400/50',
 };
 
-const gradeOrder = ['F', 'D', 'C', 'B', 'A', 'S'];
+const gradeOrder = ['Basic', 'Rare', 'Epic', 'Diamond'];
 
 export default function TalentUpgradeModal({ 
   open, 
@@ -34,7 +33,8 @@ export default function TalentUpgradeModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState(null);
 
-  const currentGradeIndex = gradeOrder.indexOf(talent?.grade || 'F');
+  const normalizedGrade = normalizeTalentGrade(talent?.grade);
+  const currentGradeIndex = gradeOrder.indexOf(normalizedGrade || 'Basic');
   const nextGrade = currentGradeIndex < gradeOrder.length - 1 ? gradeOrder[currentGradeIndex + 1] : null;
 
   const getUpgradeInfo = () => {
@@ -48,12 +48,12 @@ export default function TalentUpgradeModal({
           icon: RefreshCw,
           color: 'from-purple-500 to-indigo-500',
         };
-      case 'grade':
+      case 'scroll':
         return {
           title: 'Upgrade Grade',
           description: `Attempt to upgrade this talent to grade ${nextGrade || 'MAX'}`,
-          requiredItem: 'Master Training Scroll',
-          successRate: 70,
+          requiredItem: 'Training Scroll',
+          successRate: '70% / 25% / 5%',
           icon: TrendingUp,
           color: 'from-emerald-500 to-cyan-500',
         };
@@ -82,35 +82,13 @@ export default function TalentUpgradeModal({
 
   const handleConfirm = async () => {
     setIsProcessing(true);
-    
-    // Simulate processing
+    const upgradeResult = await onConfirm(talent, upgradeType);
+    setResult(upgradeResult);
     setTimeout(() => {
-      const random = Math.random() * 100;
-      const info = getUpgradeInfo();
-      
-      if (upgradeType === 'grade') {
-        if (random <= 70) {
-          setResult({ success: true, message: `Talent upgraded to grade ${nextGrade}!` });
-        } else if (random <= 95) {
-          setResult({ success: false, message: 'Upgrade failed. Talent unchanged.' });
-        } else {
-          setResult({ success: false, message: 'Critical failure! Grade decreased.', downgrade: true });
-        }
-      } else if (upgradeType === 'reroll') {
-        setResult({ success: true, message: 'Talent re-rolled successfully!', newTalent: 'Fire Shield [B]' });
-      } else {
-        setResult({ success: true, message: `Talent upgraded to grade ${nextGrade}!` });
-      }
-      
-      setTimeout(() => {
-        if (result?.success) {
-          onConfirm(talent, upgradeType);
-        }
-        setIsProcessing(false);
-        setResult(null);
-        onClose();
-      }, 2000);
-    }, 1500);
+      setIsProcessing(false);
+      setResult(null);
+      onClose();
+    }, 2000);
   };
 
   const info = getUpgradeInfo();
@@ -142,7 +120,7 @@ export default function TalentUpgradeModal({
                 <TalentTooltip talent={talent}>
                   <span className="text-white font-semibold">{talent.name}</span>
                 </TalentTooltip>
-                <Badge className={gradeColors[talent.grade]}>{talent.grade}</Badge>
+                <Badge className={gradeColors[normalizedGrade]}>{normalizedGrade}</Badge>
               </div>
               <p className="text-xs text-slate-400 mt-2">{talent.description}</p>
             </div>
@@ -154,16 +132,16 @@ export default function TalentUpgradeModal({
                 <span className="text-sm text-white">{info.requiredItem}</span>
                 <Badge className="bg-emerald-500/20 text-emerald-300">Available</Badge>
               </div>
-              {upgradeType === 'grade' && (
+              {upgradeType === 'scroll' && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-white">Success Rate</span>
-                  <span className="text-sm text-slate-300">{info.successRate}%</span>
+                  <span className="text-sm text-slate-300">{info.successRate}</span>
                 </div>
               )}
             </div>
 
             {/* Warning for risky upgrades */}
-            {upgradeType === 'grade' && (
+            {upgradeType === 'scroll' && (
               <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
                 <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
                 <div className="text-xs text-yellow-300">
