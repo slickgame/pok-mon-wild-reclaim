@@ -7,7 +7,7 @@ export const pidgeotData = {
   rarity: "Rare",
   zone: "Verdant Hollow",
   types: ["Normal", "Flying"],
-  levelRange: [36, 100],
+  levelRange: [36, 50],
   baseStats: {
     HP: 83,
     Attack: 80,
@@ -29,20 +29,20 @@ export const pidgeotData = {
     female: 0.5
   },
   battleRole: "Speed Sweeper / AoE Support",
-  signatureMove: "Aerial Mastery",
+  role: "Speedster / Aerial Striker",
+  signatureMove: "Hurricane",
   evolvesFrom: "Pidgeotto",
+  evolvesTo: null,
+  evolutionLevel: null,
   talentPool: [
-    "aerialGrace",
-    "skyDominion",
-    "windcaller",
-    "fleetfoot",
     "gustResonance",
-    "slipstream",
-    "skyPredator",
-    "clearSkyAlpha",
-    "stormfrontPulse",
-    "hurricaneProwess"
+    "tailwindMomentum",
+    "keenEyes",
+    "aerialAuthority",
+    "finalGale",
+    "momentumShift"
   ],
+  dropTable: "Pidgeot",
   typeEffectiveness: {
     Electric: 2,
     Ice: 2,

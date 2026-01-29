@@ -702,6 +702,16 @@ const BASE_MOVE_DATA = {
     effect: 'flinch',
     effectChance: 30
   },
+  'Hurricane': {
+    type: 'Flying',
+    category: 'Special',
+    power: 110,
+    accuracy: 70,
+    pp: 10,
+    description: 'A fierce wind buffets the target. May cause confusion.',
+    effect: 'confuse',
+    effectChance: 30
+  },
   'Dragon Claw': {
     type: 'Dragon',
     category: 'Physical',

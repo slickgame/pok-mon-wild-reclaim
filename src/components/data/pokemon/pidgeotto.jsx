@@ -29,24 +29,23 @@ export const pidgeottoData = {
     female: 0.5
   },
   battleRole: "Speedster / Field Disruptor",
-  signatureMove: "Tailwind Gust",
+  role: "Speedster",
+  signatureMove: "Feather Dance",
   evolvesFrom: "Pidgey",
+  evolvesTo: "Pidgeot",
+  evolutionLevel: 36,
   evolution: {
     to: "Pidgeot",
     level: 36
   },
   talentPool: [
-    "tailwindMomentum",
-    "aerialGrace",
     "gustResonance",
-    "windcaller",
-    "skyPredator",
-    "slipstream",
-    "skyDominion",
-    "fleetfoot",
-    "eyeOfTheStorm",
-    "evasiveFeatherstep"
+    "tailwindMomentum",
+    "keenEyes",
+    "agileWings",
+    "momentumShift"
   ],
+  dropTable: "Pidgeotto",
   typeEffectiveness: {
     Electric: 2,
     Ice: 2,
