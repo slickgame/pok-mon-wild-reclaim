@@ -1,7 +1,11 @@
 import { PokemonRegistry } from '@/components/data/PokemonRegistry';
+import { DropTableRegistry } from '@/components/data/DropTableRegistry';
+import { TalentRegistry } from '@/data/TalentRegistry';
 
 // Convert new format to old format for compatibility
 function convertPokemonData(jsonData) {
+  const dropTable = DropTableRegistry[jsonData.species] || jsonData.dropItems || [];
+
   return {
     species: jsonData.species,
     dexId: jsonData.dexId,
@@ -24,7 +28,7 @@ function convertPokemonData(jsonData) {
       spd: jsonData.evYield.Speed || 0
     },
     baseXpYield: jsonData.baseExp,
-    dropItems: jsonData.dropItems.map(d => ({
+    dropItems: dropTable.map(d => ({
       item: d.itemId,
       itemId: d.itemId,
       chance: d.chance
@@ -41,28 +45,7 @@ function convertPokemonData(jsonData) {
 // Wild Pokémon species data for encounters (uses PokemonRegistry)
 export const wildPokemonData = {
   Caterpie: convertPokemonData(PokemonRegistry.caterpie),
-
-  Pidgey: {
-    species: "Pidgey",
-    type1: "Normal",
-    type2: "Flying",
-    baseStats: { hp: 40, atk: 45, def: 40, spAtk: 35, spDef: 35, spd: 56 },
-    evYield: { spd: 1 },
-    baseXpYield: 50,
-    dropItems: [
-      { item: "Feather", chance: 0.25 },
-      { item: "Sky Shard", chance: 0.10 }
-    ],
-    talentPool: ["Keen Eye", "Swift Wings"],
-    battleRole: "Scout",
-    signatureMove: "Gust",
-    learnset: {
-      1: ["Tackle", "Sand Attack"],
-      5: ["Gust"],
-      9: ["Quick Attack"]
-    },
-    catchRate: 0.50
-  },
+  Pidgey: convertPokemonData(PokemonRegistry.pidgey),
 
   Oddish: {
     species: "Oddish",
@@ -117,10 +100,10 @@ export const verdantHollowEncounters = {
   zoneName: "Verdant Hollow",
   encounterRate: 0.20, // 20% chance per exploration action
   encounters: [
-    { species: "Caterpie", levelRange: [3, 7], weight: 40 },
-    { species: "Pidgey", levelRange: [4, 8], weight: 35 },
-    { species: "Oddish", levelRange: [5, 10], weight: 15 },
-    { species: "Pikachu", levelRange: [8, 12], weight: 10 }
+    { species: "Pidgey", rarity: "Common", levelRange: [4, 8], weight: 40 },
+    { species: "Caterpie", rarity: "Common", levelRange: [3, 7], weight: 40 },
+    { species: "Oddish", rarity: "Uncommon", levelRange: [5, 10], weight: 15 },
+    { species: "Pikachu", rarity: "Rare", levelRange: [8, 12], weight: 5 }
   ]
 };
 
@@ -147,12 +130,12 @@ export function randomLevel(min, max) {
 // Generate random IVs (1-31 per stat)
 export function generateRandomIVs() {
   return {
-    hp: Math.floor(Math.random() * 31) + 1,
-    atk: Math.floor(Math.random() * 31) + 1,
-    def: Math.floor(Math.random() * 31) + 1,
-    spAtk: Math.floor(Math.random() * 31) + 1,
-    spDef: Math.floor(Math.random() * 31) + 1,
-    spd: Math.floor(Math.random() * 31) + 1
+    hp: Math.floor(Math.random() * 32),
+    atk: Math.floor(Math.random() * 32),
+    def: Math.floor(Math.random() * 32),
+    spAtk: Math.floor(Math.random() * 32),
+    spDef: Math.floor(Math.random() * 32),
+    spd: Math.floor(Math.random() * 32)
   };
 }
 
@@ -178,34 +161,68 @@ export function randomTalent(talentPool) {
 // Roll talent grade
 export function rollTalentGrade() {
   const roll = Math.random();
-  if (roll < 0.70) return "Basic";
+  if (roll < 0.75) return "Basic";
   if (roll < 0.95) return "Rare";
   return "Epic";
 }
 
-// Assign random talents with weighted count
-export function assignRandomTalents(talentPool) {
-  if (!talentPool || talentPool.length === 0) return [];
-  
-  // Weighted random: 0-3 talents (most get 1-2)
-  const countRoll = Math.random();
-  let numTalents = 1;
-  if (countRoll < 0.20) numTalents = 0;
-  else if (countRoll < 0.60) numTalents = 1;
-  else if (countRoll < 0.90) numTalents = 2;
-  else numTalents = 3;
-  
-  const shuffled = [...talentPool].sort(() => Math.random() - 0.5);
+export function rollTalentCount() {
+  const roll = Math.random();
+  if (roll < 0.4) return 0;
+  if (roll < 0.75) return 1;
+  if (roll < 0.95) return 2;
+  return 3;
+}
+
+export function assignWildTalents(species) {
+  const pool = PokemonRegistry[species?.toLowerCase()]?.talentPool || [];
+  if (pool.length === 0) return [];
+
+  const count = rollTalentCount();
   const assigned = [];
-  
-  for (let i = 0; i < Math.min(numTalents, shuffled.length); i++) {
+
+  for (let i = 0; i < count; i += 1) {
+    const remaining = pool.filter((talent) => !assigned.some((entry) => entry.id === talent));
+    if (remaining.length === 0) break;
+    const talentId = remaining[Math.floor(Math.random() * remaining.length)];
     assigned.push({
-      id: shuffled[i],
+      id: talentId,
       grade: rollTalentGrade()
     });
   }
-  
+
   return assigned;
+}
+
+export function applyFieldTalents(party, context) {
+  let updatedContext = { ...context };
+  party.forEach((mon) => {
+    const talents = mon?.talents || [];
+    talents.forEach((talentEntry) => {
+      const talentId = talentEntry.id || talentEntry;
+      const grade = talentEntry.grade || 'Basic';
+      const effect = TalentRegistry[talentId]?.trigger?.onExplore?.[grade];
+      if (effect) {
+        updatedContext = effect(updatedContext);
+      }
+    });
+  });
+
+  return updatedContext;
+}
+
+export function rollEncounter(encounterTable, party, environment) {
+  const baseRate = encounterTable.encounterRate ?? 0;
+  const context = applyFieldTalents(party, {
+    environment,
+    encounterRate: baseRate
+  });
+
+  if (Math.random() < context.encounterRate) {
+    return generateWildPokemon(encounterTable);
+  }
+
+  return null;
 }
 
 // Calculate XP gained from wild Pokémon (scaled by level)
@@ -261,7 +278,7 @@ export function generateWildPokemon(encounterTable) {
   }
   
   // Assign random talents from pool
-  const talents = assignRandomTalents(speciesData.talentPool);
+  const talents = assignWildTalents(speciesData.species);
   
   return {
     species: speciesData.species,

@@ -132,6 +132,58 @@ export class BattleEngine {
     this.attachModifyStat(this.enemyPokemon);
   }
 
+  handleBattleEvent(eventType, context, logs, battleState) {
+    const { pokemon } = context;
+    const talents = pokemon?.talents || [];
+
+    talents.forEach((talentEntry) => {
+      const talentId = talentEntry.id || talentEntry;
+      const gradeKey = normalizeTalentGrade(talentEntry.grade);
+      const talentDef = TalentRegistry[talentId];
+      const gradeDef = talentDef?.grades?.[gradeKey];
+      const triggerFn = gradeDef?.trigger?.[eventType]?.[gradeKey];
+
+      if (!triggerFn) return;
+
+      const addTalentLog = (message) => {
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: pokemon.nickname || pokemon.species,
+          action: talentDef?.name || 'Talent',
+          result: message,
+          synergyTriggered: true
+        });
+      };
+
+      const modifyStatStage = (target, stat, stages) => {
+        const changeResult = this.applyStatChange(target, stat, stages, battleState);
+        if (changeResult.actualChange !== 0) {
+          battleState.currentTurnStatChanges[target === this.playerPokemon ? 'player' : 'enemy'] =
+            battleState.currentTurnStatChanges[target === this.playerPokemon ? 'player' : 'enemy'] || [];
+          battleState.currentTurnStatChanges[target === this.playerPokemon ? 'player' : 'enemy'].push({
+            stat: normalizeStatStageKey(stat),
+            stages: changeResult.actualChange
+          });
+        }
+
+        const message = this.formatStatStageLogMessage(stat, stages, changeResult.actualChange);
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: this.getPossessiveName(target),
+          action: message,
+          result: '',
+          synergyTriggered: true
+        });
+      };
+
+      triggerFn({
+        ...context,
+        modifyStatStage,
+        showTalentEffect: addTalentLog
+      });
+    });
+  }
+
   attachModifyStat(pokemon) {
     pokemon.modifyStat = (stat, delta, battleState) => {
       const result = this.modifyStatStage(pokemon, stat, delta, battleState);
@@ -896,6 +948,11 @@ export class BattleEngine {
       });
       return { logs };
     }
+
+    this.handleBattleEvent('onMoveUsed', {
+      pokemon: attacker.pokemon,
+      move
+    }, logs, battleState);
     
     // Check accuracy (never-miss moves skip this)
     if (!move.neverMiss && move.accuracy) {
