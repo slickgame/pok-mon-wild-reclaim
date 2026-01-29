@@ -5,8 +5,10 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, Zap, Plus, Minus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ShopInventory } from '@/data/ShopInventory';
+import { ItemRegistry } from '@/data/ItemRegistry';
 
-const SHOP_ITEMS = [
+const BASE_SHOP_ITEMS = [
   { name: 'Pokéball', price: 200, type: 'Capture Gear', description: 'A standard ball for catching Pokémon', rarity: 'Common' },
   { name: 'Great Ball', price: 600, type: 'Capture Gear', description: 'Better catch rate than a Pokéball', rarity: 'Uncommon' },
   { name: 'Potion', price: 300, type: 'Potion', description: 'Restores 50 HP', rarity: 'Common' },
@@ -74,6 +76,20 @@ export default function ShopBuyTab({ player, inventory }) {
     setQuantities(prev => ({ ...prev, [itemName]: newQty }));
   };
 
+  const registryItems = (ShopInventory?.Meera || []).map((entry) => {
+    const item = ItemRegistry?.[entry.id];
+    if (!item) return null;
+    return {
+      name: item.name,
+      price: entry.price,
+      type: item.type || 'Item',
+      description: item.description || 'A useful item.',
+      rarity: item.rarity || 'Common'
+    };
+  }).filter(Boolean);
+
+  const shopItems = [...BASE_SHOP_ITEMS, ...registryItems];
+
   return (
     <div className="space-y-4">
       {/* Player Gold */}
@@ -98,7 +114,7 @@ export default function ShopBuyTab({ player, inventory }) {
 
       {/* Shop Items */}
       <div className="space-y-3">
-        {SHOP_ITEMS.map((item, idx) => {
+        {shopItems.map((item, idx) => {
           const quantity = getQuantity(item.name);
           const totalCost = item.price * quantity;
           const canAfford = player.gold >= totalCost;
