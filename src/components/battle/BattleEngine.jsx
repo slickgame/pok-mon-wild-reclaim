@@ -5,6 +5,7 @@ import { normalizeTalentGrade } from '@/components/utils/talentUtils';
 import { applyMoveEffect } from '@/components/data/MoveEffectRegistry';
 import { TalentEffectHandlers } from '@/engine/TalentEffectHandlers';
 import { StatusRegistry, processStatusEffects, checkStatusPreventsAction, inflictStatus } from '@/components/data/StatusRegistry';
+import { handleMoveAttempt, handleTurnEnd, handleTurnStart } from '@/components/data/StatusEffectRegistry';
 import { WeatherRegistry } from '@/components/data/WeatherRegistry';
 import { TerrainRegistry } from '@/components/data/TerrainRegistry';
 import { ScreenRegistry } from '@/components/data/ScreenRegistry';
@@ -467,6 +468,12 @@ export class BattleEngine {
     const statusId = effect === 'paralysis' ? 'paralyze' : effect;
     const success = inflictStatus(target, statusId, battleState, addBattleLog);
     const statusName = StatusRegistry[statusId]?.name || statusId;
+    if (success) {
+      triggerTalent('onStatusApply', this.createTalentContext(battleState, [], {
+        target,
+        status: statusName
+      }));
+    }
 
     return { success, status: statusName };
   }
@@ -864,7 +871,16 @@ export class BattleEngine {
       result: '',
       synergyTriggered: false
     });
-    
+
+    const playerStartStatus = handleTurnStart(this.playerPokemon);
+    if (playerStartStatus?.log) {
+      addLog(playerStartStatus.log);
+    }
+    const enemyStartStatus = handleTurnStart(this.enemyPokemon);
+    if (enemyStartStatus?.log) {
+      addLog(enemyStartStatus.log);
+    }
+
     processStatusEffects(this.playerPokemon, battleState, addLog);
     processStatusEffects(this.enemyPokemon, battleState, addLog);
     battleState.playerHP = this.playerPokemon.currentHp;
@@ -909,6 +925,18 @@ export class BattleEngine {
       });
     });
 
+    const playerEndStatus = handleTurnEnd(this.playerPokemon);
+    if (playerEndStatus?.log) {
+      addLog(playerEndStatus.log);
+    }
+    const enemyEndStatus = handleTurnEnd(this.enemyPokemon);
+    if (enemyEndStatus?.log) {
+      addLog(enemyEndStatus.log);
+    }
+
+    battleState.playerHP = this.playerPokemon.currentHp;
+    battleState.enemyHP = this.enemyPokemon.currentHp;
+
     battleState.lastTurnStatChanges = battleState.currentTurnStatChanges;
     battleState.playerPokemon = this.playerPokemon;
     battleState.enemyPokemon = this.enemyPokemon;
@@ -928,6 +956,14 @@ export class BattleEngine {
       result: message,
       synergyTriggered: false
     });
+
+    const moveAttempt = handleMoveAttempt(attacker.pokemon);
+    if (moveAttempt?.log) {
+      addLog(moveAttempt.log);
+    }
+    if (moveAttempt?.cancel) {
+      return { logs };
+    }
     
     if (checkStatusPreventsAction(attacker.pokemon, addLog)) {
       return { logs };
@@ -953,6 +989,12 @@ export class BattleEngine {
       pokemon: attacker.pokemon,
       move
     }, logs, battleState);
+
+    triggerTalent('onMoveInit', this.createTalentContext(battleState, logs, {
+      attacker: attacker.pokemon,
+      target: defender.pokemon,
+      move
+    }));
     
     // Check accuracy (never-miss moves skip this)
     if (!move.neverMiss && move.accuracy) {
@@ -1035,7 +1077,14 @@ export class BattleEngine {
       triggerTalent('onHit', this.createTalentContext(battleState, logs, {
         attacker: attacker.pokemon,
         target: defender.pokemon,
-        damage
+        damage,
+        move
+      }));
+      triggerTalent('onMoveHit', this.createTalentContext(battleState, logs, {
+        attacker: attacker.pokemon,
+        target: defender.pokemon,
+        damage,
+        move
       }));
       
       // Check for faint and trigger onFaintCheck

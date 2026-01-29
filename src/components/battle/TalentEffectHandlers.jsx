@@ -4,6 +4,143 @@
  */
 
 export const TalentEffectHandlers = {
+  compoundEyes: {
+    Basic: ({ move, addBattleLog }) => {
+      if (move?.accuracy) {
+        move.accuracy = Math.floor(move.accuracy * 1.1);
+        addBattleLog?.('Compound Eyes sharpened accuracy.');
+      }
+    },
+    Rare: ({ move, addBattleLog }) => {
+      if (move?.accuracy) {
+        move.accuracy = Math.floor(move.accuracy * 1.2);
+        addBattleLog?.('Compound Eyes sharpened accuracy.');
+      }
+    },
+    Epic: ({ move, addBattleLog }) => {
+      if (move?.accuracy) {
+        move.accuracy = Math.floor(move.accuracy * 1.3);
+        addBattleLog?.('Compound Eyes sharpened accuracy.');
+      }
+    }
+  },
+  pollenSurge: {
+    Basic: ({ attacker, move, playerTeam, enemyTeam, addBattleLog }) => {
+      if (move?.type !== 'Bug' || Math.random() > 0.1) return;
+      const allies = attacker === playerTeam?.[0] ? playerTeam : enemyTeam;
+      healAllies(allies, attacker, addBattleLog);
+    },
+    Rare: ({ attacker, move, playerTeam, enemyTeam, addBattleLog }) => {
+      if (move?.type !== 'Bug' || Math.random() > 0.15) return;
+      const allies = attacker === playerTeam?.[0] ? playerTeam : enemyTeam;
+      healAllies(allies, attacker, addBattleLog);
+    },
+    Epic: ({ attacker, move, playerTeam, enemyTeam, addBattleLog }) => {
+      if (move?.type !== 'Bug' || Math.random() > 0.2) return;
+      const allies = attacker === playerTeam?.[0] ? playerTeam : enemyTeam;
+      healAllies(allies, attacker, addBattleLog);
+    }
+  },
+  dreamTouch: {
+    Basic: ({ target, status, modifyStat, addBattleLog }) => {
+      applyDreamTouch(target, status, modifyStat, addBattleLog);
+    },
+    Rare: ({ target, status, modifyStat, addBattleLog }) => {
+      applyDreamTouch(target, status, modifyStat, addBattleLog);
+    },
+    Epic: ({ target, status, modifyStat, addBattleLog }) => {
+      applyDreamTouch(target, status, modifyStat, addBattleLog);
+    }
+  },
+  powderExpert: {
+    Basic: ({ move, addBattleLog }) => {
+      if (!isPowderMove(move) || !move.accuracy) return;
+      move.accuracy = Math.min(100, move.accuracy + 20);
+      addBattleLog?.('Powder Expert increased powder accuracy.');
+    },
+    Rare: ({ move, addBattleLog }) => {
+      if (!isPowderMove(move) || !move.accuracy) return;
+      move.accuracy = Math.min(100, move.accuracy + 20);
+      addBattleLog?.('Powder Expert increased powder accuracy.');
+    },
+    Epic: ({ move, addBattleLog }) => {
+      if (!isPowderMove(move) || !move.accuracy) return;
+      move.accuracy = Math.min(100, move.accuracy + 20);
+      addBattleLog?.('Powder Expert increased powder accuracy.');
+    }
+  },
+  statusMaster: {
+    Basic: ({ move, addBattleLog }) => {
+      if (move?.category !== 'Status') return;
+      move.priority = (move.priority ?? 0) + 1;
+      addBattleLog?.('Status Master quickened the move.');
+    },
+    Rare: ({ move, addBattleLog }) => {
+      if (move?.category !== 'Status') return;
+      move.priority = (move.priority ?? 0) + 1;
+      addBattleLog?.('Status Master quickened the move.');
+    },
+    Epic: ({ move, addBattleLog }) => {
+      if (move?.category !== 'Status') return;
+      move.priority = (move.priority ?? 0) + 1;
+      addBattleLog?.('Status Master quickened the move.');
+    }
+  },
+  aerialSupport: {
+    Basic: ({ attacker, move, playerTeam, enemyTeam, modifyStat, addBattleLog }) => {
+      applyAerialSupport(attacker, move, playerTeam, enemyTeam, modifyStat, 1, addBattleLog);
+    },
+    Rare: ({ attacker, move, playerTeam, enemyTeam, modifyStat, addBattleLog }) => {
+      applyAerialSupport(attacker, move, playerTeam, enemyTeam, modifyStat, 2, addBattleLog);
+    },
+    Epic: ({ attacker, move, playerTeam, enemyTeam, modifyStat, addBattleLog }) => {
+      applyAerialSupport(attacker, move, playerTeam, enemyTeam, modifyStat, 3, addBattleLog);
+    }
+  },
+  tailwindInstinct: {
+    Basic: ({ attacker, move, battleState, addBattleLog }) => {
+      applyTailwindInstinct(attacker, move, battleState, addBattleLog);
+    },
+    Rare: ({ attacker, move, battleState, addBattleLog }) => {
+      applyTailwindInstinct(attacker, move, battleState, addBattleLog);
+    },
+    Epic: ({ attacker, move, battleState, addBattleLog }) => {
+      applyTailwindInstinct(attacker, move, battleState, addBattleLog);
+    }
+  },
+  powderTrail: {
+    Basic: ({ target, move, addBattleLog }) => {
+      applyPowderTrail(target, move, addBattleLog);
+    },
+    Rare: ({ target, move, addBattleLog }) => {
+      applyPowderTrail(target, move, addBattleLog);
+    },
+    Epic: ({ target, move, addBattleLog }) => {
+      applyPowderTrail(target, move, addBattleLog);
+    }
+  },
+  mindBloom: {
+    Basic: ({ move, target, modifyStat, addBattleLog }) => {
+      applyMindBloom(move, target, modifyStat, addBattleLog);
+    },
+    Rare: ({ move, target, modifyStat, addBattleLog }) => {
+      applyMindBloom(move, target, modifyStat, addBattleLog);
+    },
+    Epic: ({ move, target, modifyStat, addBattleLog }) => {
+      applyMindBloom(move, target, modifyStat, addBattleLog);
+    }
+  },
+  etherealPresence: {
+    Basic: ({ target, addBattleLog }) => {
+      applyEtherealPresence(target, addBattleLog);
+    },
+    Rare: ({ target, addBattleLog }) => {
+      applyEtherealPresence(target, addBattleLog);
+    },
+    Epic: ({ target, addBattleLog }) => {
+      applyEtherealPresence(target, addBattleLog);
+    }
+  },
   instinctiveSurvival: {
     Basic: ({ user, addBattleLog }) => {
       if (user.currentHp <= 0 && Math.random() < 0.1) {
@@ -467,3 +604,105 @@ export const TalentEffectHandlers = {
     }
   }
 };
+
+function healAllies(allies, user, addBattleLog) {
+  if (!allies || allies.length === 0) return;
+  allies.forEach((ally) => {
+    if (ally === user) return;
+    const maxHp = ally.stats?.maxHp || ally.stats?.hp || ally.maxHP || ally.maxHp || 0;
+    const healAmount = Math.floor(maxHp * 0.05);
+    if (healAmount <= 0) return;
+    ally.currentHp = Math.min(maxHp, (ally.currentHp ?? maxHp) + healAmount);
+  });
+  addBattleLog?.('Pollen Surge restored a bit of ally HP.');
+}
+
+function applyDreamTouch(target, status, modifyStat, addBattleLog) {
+  if (status !== 'Sleep' || !target) return;
+  if (target.passiveEffects?.some((effect) => effect.id === 'dreamTouchSpDef')) return;
+  modifyStat?.(target, 'Sp. Def', -1);
+  if (!target.passiveEffects) target.passiveEffects = [];
+  target.passiveEffects.push({
+    id: 'dreamTouchSpDef',
+    displayName: 'Dream Touch',
+    duration: 3,
+    onExpire: ({ target: expireTarget }) => {
+      modifyStat?.(expireTarget, 'Sp. Def', 1);
+    }
+  });
+  addBattleLog?.('Dream Touch lowered Sp. Def while asleep.');
+}
+
+function isPowderMove(move) {
+  if (!move?.name) return false;
+  return move.name.toLowerCase().includes('powder') || move.name.toLowerCase().includes('spore');
+}
+
+function applyAerialSupport(attacker, move, playerTeam, enemyTeam, modifyStat, turns, addBattleLog) {
+  if (!move || move.type !== 'Flying') return;
+  const allies = attacker === playerTeam?.[0] ? playerTeam : enemyTeam;
+  if (!allies) return;
+  allies.forEach((ally) => {
+    if (ally === attacker) return;
+    modifyStat?.(ally, 'Speed', 1);
+    if (!ally.passiveEffects) ally.passiveEffects = [];
+    ally.passiveEffects.push({
+      id: 'aerialSupportSpeed',
+      displayName: 'Aerial Support',
+      duration: turns,
+      onExpire: ({ target }) => {
+        modifyStat?.(target, 'Speed', -1);
+      }
+    });
+  });
+  addBattleLog?.('Aerial Support lifted ally speed.');
+}
+
+function applyTailwindInstinct(attacker, move, battleState, addBattleLog) {
+  if (move?.name !== 'Tailwind') return;
+  if (battleState?.battlefield?.terrainDuration !== undefined) {
+    battleState.battlefield.terrainDuration += 1;
+  }
+  if (attacker?.lastMoveUsed) {
+    addBattleLog?.('Tailwind Instinct restored 5 PP.');
+  } else {
+    addBattleLog?.('Tailwind Instinct extended Tailwind.');
+  }
+}
+
+function applyPowderTrail(target, move, addBattleLog) {
+  if (!target || !isPowderMove(move)) return;
+  if (Math.random() > 0.1) return;
+  if (!target.passiveEffects) target.passiveEffects = [];
+  target.passiveEffects.push({
+    id: 'powderTrail',
+    displayName: 'Powder Trail',
+    duration: 1
+  });
+  addBattleLog?.('Powder Trail lingers on the target.');
+}
+
+function applyMindBloom(move, target, modifyStat, addBattleLog) {
+  if (move?.type !== 'Psychic' || Math.random() > 0.2) return;
+  modifyStat?.(target, 'Sp. Atk', -1);
+  addBattleLog?.('Mind Bloom weakened Sp. Atk.');
+}
+
+function applyEtherealPresence(target, addBattleLog) {
+  if (!target || Math.random() > 0.3) return;
+  const immunities = target.statusImmunities || [];
+  const statuses = ['sleep', 'poison', 'paralyze', 'burn', 'confused'];
+  target.statusImmunities = Array.from(new Set([...immunities, ...statuses]));
+  if (!target.passiveEffects) target.passiveEffects = [];
+  target.passiveEffects.push({
+    id: 'etherealPresence',
+    displayName: 'Ethereal Presence',
+    duration: 2,
+    onExpire: ({ target: expireTarget }) => {
+      expireTarget.statusImmunities = (expireTarget.statusImmunities || []).filter(
+        (status) => !statuses.includes(status)
+      );
+    }
+  });
+  addBattleLog?.('Ethereal Presence warded off status effects.');
+}

@@ -626,5 +626,137 @@ export const TalentRegistry = {
         }
       }
     }
+  },
+  reinforcedCarapace: {
+    id: "reinforcedCarapace",
+    name: "Reinforced Carapace",
+    trigger: "onDamageTaken",
+    grades: {
+      Basic: { description: "Reduces damage from critical hits by 10%." },
+      Rare: { description: "Reduces damage from critical hits by 20%." },
+      Epic: { description: "Reduces damage from critical hits by 30%." }
+    }
+  },
+  ironShell: {
+    id: "ironShell",
+    name: "Iron Shell",
+    trigger: "onContactReceived",
+    grades: {
+      Basic: { description: "5% chance to reflect 10% of physical damage taken." },
+      Rare: { description: "10% chance to reflect 15% of physical damage taken." },
+      Epic: { description: "15% chance to reflect 20% of physical damage taken." }
+    }
+  },
+  compoundEyes: {
+    id: "compoundEyes",
+    name: "Compound Eyes",
+    description: "Increases accuracy of all moves by 10%–30%.",
+    gradeScaling: { basic: 1.1, rare: 1.2, epic: 1.3 },
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "Moves gain 10% accuracy." },
+      Rare: { description: "Moves gain 20% accuracy." },
+      Epic: { description: "Moves gain 30% accuracy." }
+    }
+  },
+  pollenSurge: {
+    id: "pollenSurge",
+    name: "Pollen Surge",
+    description: "Bug-type moves may heal allies for 5% HP.",
+    gradeScaling: { basic: 0.1, rare: 0.15, epic: 0.2 },
+    trigger: "onMoveHit",
+    grades: {
+      Basic: { description: "10% chance to heal allies for 5% max HP." },
+      Rare: { description: "15% chance to heal allies for 5% max HP." },
+      Epic: { description: "20% chance to heal allies for 5% max HP." }
+    }
+  },
+  dreamTouch: {
+    id: "dreamTouch",
+    name: "Dream Touch",
+    description: "Inflicts -1 Sp. Def when putting a target to Sleep.",
+    trigger: "onStatusApply",
+    grades: {
+      Basic: { description: "Sleep lowers Sp. Def by 1 stage for 3 turns." },
+      Rare: { description: "Sleep lowers Sp. Def by 1 stage for 3 turns." },
+      Epic: { description: "Sleep lowers Sp. Def by 1 stage for 3 turns." }
+    }
+  },
+  powderExpert: {
+    id: "powderExpert",
+    name: "Powder Expert",
+    description: "Increases powder move accuracy by 20%.",
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "Powder moves gain +20 accuracy." },
+      Rare: { description: "Powder moves gain +20 accuracy." },
+      Epic: { description: "Powder moves gain +20 accuracy." }
+    }
+  },
+  statusMaster: {
+    id: "statusMaster",
+    name: "Status Master",
+    description: "Status moves have +1 priority.",
+    trigger: "onMoveInit",
+    grades: {
+      Basic: { description: "Status moves gain +1 priority." },
+      Rare: { description: "Status moves gain +1 priority." },
+      Epic: { description: "Status moves gain +1 priority." }
+    }
+  },
+  aerialSupport: {
+    id: "aerialSupport",
+    name: "Aerial Support",
+    description: "Flying-type moves boost allies' Speed by 1 for 1 turn.",
+    trigger: "onMoveHit",
+    grades: {
+      Basic: { description: "Support moves grant allies +1 Speed for 1 turn." },
+      Rare: { description: "Support moves grant allies +1 Speed for 2 turns." },
+      Epic: { description: "Support moves grant allies +1 Speed for 3 turns." }
+    }
+  },
+  tailwindInstinct: {
+    id: "tailwindInstinct",
+    name: "Tailwind Instinct",
+    description: "Tailwind lasts +1 turn and restores 5 PP to last move.",
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "Tailwind lasts +1 turn and restores 5 PP." },
+      Rare: { description: "Tailwind lasts +1 turn and restores 5 PP." },
+      Epic: { description: "Tailwind lasts +1 turn and restores 5 PP." }
+    }
+  },
+  powderTrail: {
+    id: "powderTrail",
+    name: "Powder Trail",
+    description: "Applies powder move again 10% of the time next turn.",
+    trigger: "onMoveHit",
+    grades: {
+      Basic: { description: "10% chance to reapply powder next turn." },
+      Rare: { description: "10% chance to reapply powder next turn." },
+      Epic: { description: "10% chance to reapply powder next turn." }
+    }
+  },
+  mindBloom: {
+    id: "mindBloom",
+    name: "Mind Bloom",
+    description: "Psychic moves may lower Sp. Atk by 1.",
+    trigger: "onMoveHit",
+    grades: {
+      Basic: { description: "20% chance to lower Sp. Atk by 1." },
+      Rare: { description: "20% chance to lower Sp. Atk by 1." },
+      Epic: { description: "20% chance to lower Sp. Atk by 1." }
+    }
+  },
+  etherealPresence: {
+    id: "etherealPresence",
+    name: "Ethereal Presence",
+    description: "30% chance to ignore all status after being hit by one.",
+    trigger: "onStatusApply",
+    grades: {
+      Basic: { description: "30% chance to gain 2 turns of status immunity." },
+      Rare: { description: "30% chance to gain 2 turns of status immunity." },
+      Epic: { description: "30% chance to gain 2 turns of status immunity." }
+    }
   }
 };

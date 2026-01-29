@@ -4,6 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { TalentRegistry } from '@/data/TalentRegistry';
 import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
 import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { renderTalentTooltip } from '@/components/utils/tooltipUtils';
 
 function resolveTalentData(talentKey) {
   if (!talentKey) return null;
@@ -24,6 +25,7 @@ export default function TalentTooltip({ talent, children }) {
   const description = talent?.description
     || getTalentDescription(talentData?.id || talentKey, gradeLabel);
   const gradeColorClass = getTalentGradeColor(gradeLabel);
+  const tooltipText = renderTalentTooltip(talentKey || talentData?.id, gradeLabel);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -42,6 +44,7 @@ export default function TalentTooltip({ talent, children }) {
               </Badge>
             </div>
             <p className="text-xs leading-relaxed text-slate-200">{description}</p>
+            <p className="text-[10px] text-slate-400">{tooltipText}</p>
             <div className="border-t border-white/10 pt-2 text-[10px] text-slate-300">
               <p className="font-semibold text-slate-200">About Talents</p>
               <p>Talents provide unique battle effects and synergies.</p>
