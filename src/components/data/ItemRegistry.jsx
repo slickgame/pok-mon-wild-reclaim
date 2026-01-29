@@ -67,6 +67,7 @@ export const ItemRegistry = {
     description: "A rare and beautiful scale used for special gear.",
     type: "material",
     sellPrice: 150
+  },
   talentCrystal: {
     id: "talentCrystal",
     name: "Talent Crystal",
