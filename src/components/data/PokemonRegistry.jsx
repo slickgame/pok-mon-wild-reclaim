@@ -1,4 +1,7 @@
 import { caterpieData } from './pokemon/caterpie';
+import { pidgeyData } from './pokemon/pidgey';
+import { pidgeottoData } from './pokemon/pidgeotto';
+import { pidgeotData } from './pokemon/pidgeot';
 
 /**
  * Central Pokemon Registry
@@ -6,6 +9,9 @@ import { caterpieData } from './pokemon/caterpie';
  */
 export const PokemonRegistry = {
   caterpie: caterpieData,
+  pidgey: pidgeyData,
+  pidgeotto: pidgeottoData,
+  pidgeot: pidgeotData,
   // Add future Pokemon below
 };
 
