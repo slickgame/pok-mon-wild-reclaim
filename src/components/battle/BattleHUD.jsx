@@ -9,6 +9,17 @@ import StatusIndicator from './StatusIndicator';
 import { StatusRegistry } from '@/components/data/StatusRegistry';
 import { STAT_STAGE_ORDER } from './statStageUtils';
 
+const statDescriptions = {
+  HP: "Determines total health.",
+  Attack: "Affects damage of physical moves.",
+  Defense: "Reduces damage from physical moves.",
+  "Sp. Atk": "Affects damage of special moves.",
+  "Sp. Def": "Reduces damage from special moves.",
+  Speed: "Determines move order.",
+  Accuracy: "Affects chance to hit.",
+  Evasion: "Affects chance to dodge."
+};
+
 function StatStageDisplay({ stat, stage }) {
   if (stage === 0) return null;
 
@@ -16,7 +27,11 @@ function StatStageDisplay({ stat, stage }) {
   const sign = stage > 0 ? '+' : '';
 
   return (
-    <div className="stat-stage" style={{ color }}>
+    <div
+      className="stat-stage"
+      style={{ color }}
+      title={`${statDescriptions[stat] || stat} Currently: ${sign}${stage}`}
+    >
       {stat}: {sign}{stage}
     </div>
   );

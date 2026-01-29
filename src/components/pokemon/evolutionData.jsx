@@ -1,4 +1,5 @@
 // Pokémon evolution chains and conditions
+import { PokemonRegistry } from '@/components/data/PokemonRegistry';
 
 export const EVOLUTION_CHAINS = {
   // Starter evolutions
@@ -271,6 +272,11 @@ export function evolvePokemon(pokemon, evolvesInto) {
 
   const newStats = getEvolvedStats(evolvesInto, currentStats);
   const newRoles = getEvolvedRoles(evolvesInto, pokemon.roles || []);
+  const newSpecies = PokemonRegistry[evolvesInto?.toLowerCase()];
+  const retainedTalents = (pokemon.talents || []).filter((talent) => {
+    if (!newSpecies?.talentPool) return true;
+    return newSpecies.talentPool.includes(talent.id);
+  });
 
   return {
     ...pokemon,
@@ -278,8 +284,8 @@ export function evolvePokemon(pokemon, evolvesInto) {
     roles: newRoles,
     stats: newStats,
     currentHp: newStats.maxHp, // Heal to full on evolution
-    // Preserve talents from pre-evolution
-    talents: [...(pokemon.talents || [])],
+    // Preserve talents from pre-evolution, filter invalid ones
+    talents: retainedTalents,
     // Flag for future NPC talent teaching
     canLearnNewTalents: true
   };
