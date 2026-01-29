@@ -175,6 +175,28 @@ export const LEVEL_UP_LEARNSETS = {
     5: ['Bug Bite'],
     9: ['String Shot'],
   },
+  Metapod: {
+    1: ['Harden'],
+    7: ['Harden'],
+  },
+  Butterfree: {
+    1: ['Harden', 'Tackle', 'String Shot', 'Bug Bite'],
+    4: ['Gust'],
+    8: ['Confusion'],
+    12: ['Poison Powder', 'Stun Spore', 'Sleep Powder'],
+    16: ['Psybeam'],
+    20: ['Whirlwind'],
+    24: ['Air Cutter'],
+    28: ['Silver Wind'],
+    32: ['Safeguard'],
+    36: ['Tailwind'],
+    40: ['Bug Buzz'],
+    44: ['Rage Powder'],
+    48: ['Quiver Dance'],
+    52: ['Hurricane'],
+    56: ['Pollen Puff'],
+    60: ['Dream Eater'],
+  },
 
   // Electric types
   Pikachu: {

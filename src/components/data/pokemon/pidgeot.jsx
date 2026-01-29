@@ -6,6 +6,7 @@ export const pidgeotData = {
   displayName: "Pidgeot",
   rarity: "Rare",
   zone: "Verdant Hollow",
+  wildEligible: false,
   types: ["Normal", "Flying"],
   levelRange: [36, 50],
   baseStats: {

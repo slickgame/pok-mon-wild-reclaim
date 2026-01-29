@@ -183,37 +183,52 @@ export function checkEvolution(pokemon, newLevel = null, itemUsed = null, condit
   
   // Handle multiple evolution paths (like Eevee)
   const evolutions = Array.isArray(evolution) ? evolution : [evolution];
+  const levelToCheck = newLevel ?? pokemon.level;
   
   for (const evo of evolutions) {
     // Level-based evolution
-    if (evo.method === 'level' && newLevel && newLevel >= evo.requirement) {
+    if (evo.method === 'level') {
+      const canEvolve = levelToCheck >= evo.requirement;
       return {
         evolvesInto: evo.evolvesInto,
-        method: 'level',
-        level: evo.requirement
+        evolvesTo: evo.evolvesInto,
+        method: 'Level',
+        requirement: evo.requirement,
+        canEvolve,
+        reason: canEvolve ? null : `Reach level ${evo.requirement}`
       };
     }
     
     // Item-based evolution
-    if (evo.method === 'item' && itemUsed === evo.requirement) {
+    if (evo.method === 'item') {
+      const canEvolve = itemUsed === evo.requirement;
       return {
         evolvesInto: evo.evolvesInto,
-        method: 'item',
-        item: evo.requirement
+        evolvesTo: evo.evolvesInto,
+        method: 'Item',
+        requirement: evo.requirement,
+        canEvolve,
+        reason: canEvolve ? null : `Use ${evo.requirement}`
       };
     }
     
     // Happiness-based evolution
-    if (evo.method === 'happiness' && conditions.happiness >= evo.requirement) {
-      // Check time of day if required
-      if (evo.timeOfDay) {
-        const currentTime = conditions.timeOfDay || 'Day';
-        if (currentTime !== evo.timeOfDay) continue;
-      }
+    if (evo.method === 'happiness') {
+      const currentTime = conditions.timeOfDay || 'Day';
+      const meetsHappiness = (conditions.happiness || 0) >= evo.requirement;
+      const meetsTime = !evo.timeOfDay || currentTime === evo.timeOfDay;
+      const canEvolve = meetsHappiness && meetsTime;
       return {
         evolvesInto: evo.evolvesInto,
-        method: 'happiness',
-        happiness: evo.requirement,
+        evolvesTo: evo.evolvesInto,
+        method: 'Happiness',
+        requirement: evo.requirement,
+        canEvolve,
+        reason: canEvolve
+          ? null
+          : evo.timeOfDay && !meetsTime
+            ? `Evolve during the ${evo.timeOfDay.toLowerCase()}`
+            : 'Increase happiness to evolve',
         timeOfDay: evo.timeOfDay
       };
     }

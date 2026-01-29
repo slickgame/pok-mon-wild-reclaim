@@ -14,5 +14,14 @@ export const DropTableRegistry = {
     { itemId: "featherRare", chance: 0.8 },
     { itemId: "windDust", chance: 0.4 },
     { itemId: "ancientShard", chance: 0.15 }
+  ],
+  Metapod: [
+    { itemId: "hardenedShell", chance: 0.4 },
+    { itemId: "ancientShard", chance: 0.05 }
+  ],
+  Butterfree: [
+    { itemId: "silverPowder", chance: 0.5 },
+    { itemId: "healingPollen", chance: 0.25 },
+    { itemId: "butterflyScale", chance: 0.1 }
   ]
 };
