@@ -13,7 +13,9 @@ function resolveTalentData(talentKey) {
 }
 
 export default function TalentTooltip({ talent, children }) {
-  const talentKey = typeof talent === 'string' ? talent : talent?.id || talent?.name;
+  const talentKey = typeof talent === 'string'
+    ? talent
+    : talent?.id || talent?.talentId || talent?.key || talent?.name;
   const talentData = resolveTalentData(talentKey);
   const gradeLabel = normalizeTalentGrade(
     typeof talent === 'object' ? (talent?.grade || 'Basic') : 'Basic'
