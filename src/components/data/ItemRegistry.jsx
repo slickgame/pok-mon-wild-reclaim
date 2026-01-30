@@ -4,25 +4,25 @@ export const ItemRegistry = {
     id: "featherSoft",
     name: "Soft Feather",
     description: "A downy feather often shed by Flying-types.",
-    sellPrice: 10
+    sellPrice: 10,
   },
   windDust: {
     id: "windDust",
     name: "Wind Dust",
     description: "Grit left behind by aerial skirmishes. Used in crafting.",
-    sellPrice: 25
+    sellPrice: 25,
   },
   featherRare: {
     id: "featherRare",
     name: "Rare Feather",
     description: "A shimmering feather from a powerful flier. Valued by collectors.",
-    sellPrice: 100
+    sellPrice: 100,
   },
   ancientShard: {
     id: "ancientShard",
     name: "Ancient Shard",
     description: "A fragment of mysterious origin. Often found after battles.",
-    sellPrice: 50
+    sellPrice: 50,
   },
   hardenedShell: {
     id: "hardenedShell",
@@ -77,7 +77,7 @@ export const ItemRegistry = {
     rarity: "Uncommon",
     sellValue: 250,
     usable: false,
-    category: "upgrade"
+    category: "upgrade",
   },
   trainingScroll: {
     id: "trainingScroll",
@@ -88,6 +88,6 @@ export const ItemRegistry = {
     rarity: "Rare",
     sellValue: 400,
     usable: false,
-    category: "upgrade"
-  }
+    category: "upgrade",
+  },
 };

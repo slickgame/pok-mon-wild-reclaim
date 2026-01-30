@@ -68,7 +68,7 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
       return talent.displayName;
     }
     if (typeof talent?.name === 'string') {
-      return talent.name;
+      return formatTalentName(talent.name);
     }
     if (typeof talentKey === 'string') {
       return formatTalentName(talentKey);
