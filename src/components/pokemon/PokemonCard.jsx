@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import TalentTooltip from '@/components/talents/TalentTooltip';
 import RevenantIndicator from './RevenantIndicator';
 import { getPokemonStats } from './usePokemonStats';
-import { formatTalentName } from '@/components/utils/talentUtils';
+import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
 
 const typeColors = {
   Normal: 'from-gray-400 to-gray-500',
@@ -51,14 +52,18 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
       : [];
 
   const resolveTalentDisplayName = (talent) => {
-    if (typeof talent === 'string') {
-      return formatTalentName(talent);
+    const talentKey = typeof talent === 'string' ? talent : talent?.id || talent?.name;
+    const talentData = TalentRegistry[talentKey]
+      || Object.values(TalentRegistry).find((entry) => entry.name === talentKey);
+
+    if (talentData?.name) {
+      return talentData.name;
     }
     if (typeof talent?.name === 'string') {
-      return talent.name;
+      return formatTalentName(talent.name);
     }
-    if (typeof talent?.id === 'string') {
-      return formatTalentName(talent.id);
+    if (typeof talentKey === 'string') {
+      return formatTalentName(talentKey);
     }
     return 'Unknown Talent';
   };
@@ -192,10 +197,15 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
             {talentList.slice(0, 2).map((talent, idx) => {
               const displayName = resolveTalentDisplayName(talent);
               const grade = typeof talent === 'object' ? talent.grade : null;
+              const normalizedGrade = grade ? normalizeTalentGrade(grade) : null;
               
               return (
                 <TalentTooltip key={idx} talent={talent}>
-                  <Badge className={`text-[10px] ${grade ? gradeColors[grade] : 'bg-slate-700'}`}>
+                  <Badge
+                    className={`text-[10px] ${
+                      normalizedGrade ? gradeColors[normalizedGrade] : 'bg-slate-700'
+                    }`}
+                  >
                     {displayName}
                   </Badge>
                 </TalentTooltip>
