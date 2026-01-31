@@ -192,9 +192,16 @@ export function assignWildTalents(species) {
     const remaining = pool.filter((talent) => !assigned.some((entry) => entry.id === talent));
     if (remaining.length === 0) break;
     const talentId = remaining[Math.floor(Math.random() * remaining.length)];
+    
+    // Get talent name from registry
+    const talentData = TalentRegistry[talentId];
+    const grade = rollTalentGrade();
+    
     assigned.push({
       id: talentId,
-      grade: rollTalentGrade()
+      name: talentData?.name || talentId,
+      grade: grade,
+      description: talentData?.grades?.[grade]?.description || null
     });
   }
 
