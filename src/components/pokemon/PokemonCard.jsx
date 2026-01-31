@@ -51,6 +51,11 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
       ? [pokemon.roles]
       : [];
 
+  const resolveTalentKey = (talent) => {
+    if (typeof talent === 'string') return talent;
+    return talent?.id || talent?.talentId || talent?.key || talent?.name;
+  };
+
   const resolveTalentDisplayName = (talent) => {
     const talentKey = resolveTalentKey(talent);
     const talentData = TalentRegistry[talentKey]
@@ -63,7 +68,7 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
       return talent.displayName;
     }
     if (typeof talent?.name === 'string') {
-      return talent.name;
+      return formatTalentName(talent.name);
     }
     if (typeof talentKey === 'string') {
       return talentKey.includes(' ') ? talentKey : formatTalentName(talentKey);
