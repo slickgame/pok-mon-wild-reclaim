@@ -198,6 +198,25 @@ const BASE_MOVE_DATA = {
     effect: 'protect',
     priority: 4
   },
+  'Paralysis Spore': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: 85,
+    pp: 15,
+    description: 'A specialized spore that paralyzes the target and lingers, slowing them for several turns.',
+    signature: true,
+    signatureFor: ['Status Inflicter / Drain Tank'],
+    tags: ['Spore', 'Powder', 'Status'],
+    effects: {
+      status: 'Paralysis',
+      lingerEffect: {
+        type: 'SpeedDropOverTime',
+        amount: -1,
+        duration: 3
+      }
+    }
+  },
   'Aqua Ring': {
     type: 'Water',
     category: 'Status',
@@ -247,8 +266,66 @@ const BASE_MOVE_DATA = {
     accuracy: 90,
     pp: 10,
     description: 'Seeds foe to sap HP each turn.',
+    tags: ['Drain'],
     effect: 'leechSeed',
     drainPercentage: 0.125
+  },
+  'Absorb': {
+    type: 'Grass',
+    category: 'Special',
+    power: 20,
+    accuracy: 100,
+    pp: 25,
+    description: 'A nutrient-draining attack.',
+    tags: ['Drain', 'Healing'],
+    effect: 'drain',
+    drainPercentage: 0.5
+  },
+  'Mega Drain': {
+    type: 'Grass',
+    category: 'Special',
+    power: 40,
+    accuracy: 100,
+    pp: 15,
+    description: 'A stronger drain attack.',
+    tags: ['Drain', 'Healing'],
+    effect: 'drain',
+    drainPercentage: 0.5
+  },
+  'Moonlight': {
+    type: 'Fairy',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 5,
+    description: 'Restores the user’s HP. Healing varies with the weather.',
+    tags: ['Healing'],
+    effect: 'healSelf',
+    healPercentage: 0.5,
+    weatherMultipliers: {
+      Sunny: 0.66,
+      Rain: 0.25
+    }
+  },
+  'Venoshock': {
+    type: 'Poison',
+    category: 'Special',
+    power: 65,
+    accuracy: 100,
+    pp: 10,
+    description: 'Deals more damage if the target is poisoned.',
+    tags: []
+  },
+  'Toxic Spores': {
+    type: 'Poison',
+    category: 'Status',
+    power: 0,
+    accuracy: 85,
+    pp: 10,
+    description: 'Laces the field with toxic spores.',
+    tags: ['Spore', 'Powder', 'Status'],
+    effect: 'statusField',
+    statusField: 'ToxicSpread'
   },
   'Sap Bind': {
     type: 'Grass',
@@ -283,6 +360,7 @@ const BASE_MOVE_DATA = {
     accuracy: 75,
     pp: 15,
     description: 'Scatters a cloud of sleep-inducing dust around the target.',
+    tags: ['Spore', 'Powder', 'Status'],
     effect: 'sleep',
     effectDetails: {
       type: 'ApplyStatus',
@@ -307,6 +385,7 @@ const BASE_MOVE_DATA = {
     accuracy: 75,
     pp: 35,
     description: 'A cloud of toxic dust is scattered around the target.',
+    tags: ['Spore', 'Powder', 'Status'],
     effect: 'poison',
     effectDetails: {
       type: 'ApplyStatus',
@@ -337,6 +416,7 @@ const BASE_MOVE_DATA = {
     accuracy: 100,
     pp: 25,
     description: 'A telekinetic attack that may also leave the target confused.',
+    tags: [],
     effect: 'confuse',
     effectChance: 10,
     effectDetails: {
@@ -352,6 +432,7 @@ const BASE_MOVE_DATA = {
     accuracy: 75,
     pp: 30,
     description: 'Scatters a powder that may paralyze the target.',
+    tags: ['Spore', 'Powder', 'Status'],
     effect: 'paralyze',
     effectChance: 100,
     effectDetails: {
@@ -429,6 +510,7 @@ const BASE_MOVE_DATA = {
     accuracy: 70,
     pp: 10,
     description: 'A powerful storm that may confuse the target.',
+    tags: ['Status'],
     effect: 'confuse',
     effectChance: 30,
     effectDetails: {
@@ -453,6 +535,7 @@ const BASE_MOVE_DATA = {
     accuracy: null,
     pp: 5,
     description: 'Heals all status problems for the user\'s party.',
+    tags: ['Healing', 'Cleanse'],
     effect: 'cureAllStatuses',
     effectDetails: {
       type: 'CureAllStatuses',
@@ -479,6 +562,7 @@ const BASE_MOVE_DATA = {
     accuracy: 100,
     pp: 10,
     description: 'Deals damage and heals for 50% of it.',
+    tags: ['Drain', 'Healing'],
     effect: 'drain',
     drainPercentage: 0.5
   },
@@ -683,6 +767,7 @@ const BASE_MOVE_DATA = {
     accuracy: 90,
     pp: 10,
     description: 'Badly poisons foe.',
+    tags: ['Status'],
     effect: 'badlyPoison'
   },
   'Grassy Terrain': {
@@ -692,6 +777,7 @@ const BASE_MOVE_DATA = {
     accuracy: null,
     pp: 10,
     description: 'Heals grass types & boosts moves.',
+    tags: ['Terrain'],
     effect: 'setTerrain',
     terrain: 'grassy'
   },
@@ -702,6 +788,7 @@ const BASE_MOVE_DATA = {
     accuracy: 100,
     pp: 10,
     description: '2–3 turns; confusion after.',
+    tags: [],
     effect: 'confuseAfter',
     lockTurns: [2, 3]
   },
@@ -796,6 +883,7 @@ const BASE_MOVE_DATA = {
     accuracy: 100,
     pp: 10,
     description: 'May poison target.',
+    tags: [],
     effect: 'poison',
     effectChance: 30
   },
@@ -849,6 +937,7 @@ const BASE_MOVE_DATA = {
     accuracy: 95,
     pp: 15,
     description: 'May cause flinch.',
+    tags: [],
     effect: 'flinch',
     effectChance: 30
   },
@@ -859,6 +948,7 @@ const BASE_MOVE_DATA = {
     accuracy: 70,
     pp: 10,
     description: 'A fierce wind buffets the target. May cause confusion.',
+    tags: ['Status'],
     effect: 'confuse',
     effectChance: 30
   },
@@ -1079,7 +1169,8 @@ const BASE_MOVE_DATA = {
     power: 40,
     accuracy: 100,
     pp: 35,
-    description: 'A full-body charge attack.'
+    description: 'A full-body charge attack.',
+    tags: []
   },
   'String Shot': {
     type: 'Bug',
@@ -1088,6 +1179,7 @@ const BASE_MOVE_DATA = {
     accuracy: 95,
     pp: 40,
     description: 'The opposing Pokémon are bound with silk blown from the user\'s mouth that harshly lowers their Speed.',
+    tags: ['Status'],
     effect: {
       targetStatChange: {
         Speed: -2
@@ -1101,6 +1193,7 @@ const BASE_MOVE_DATA = {
     accuracy: 100,
     pp: 25,
     description: 'The user bites the target. If the target is holding a Berry, the user eats it and gains its effect.',
+    tags: [],
     effect: {
       stealBerry: true
     }
@@ -1112,6 +1205,7 @@ const BASE_MOVE_DATA = {
     accuracy: 90,
     pp: 15,
     description: 'The user releases an extremely adhesive thread. It harshly lowers the target\'s Speed and slightly lowers their Accuracy.',
+    tags: ['Status'],
     effect: {
       targetStatChange: {
         Speed: -2,
@@ -1128,6 +1222,7 @@ const BASE_MOVE_DATA = {
     accuracy: 100,
     pp: 20,
     description: 'The target is infested and trapped for 4 turns. It takes damage over time and cannot switch out.',
+    tags: ['Status'],
     effect: {
       trap: true,
       duration: 4
@@ -1165,11 +1260,21 @@ const BASE_MOVE_DATA = {
     pp: 20,
     priority: -6,
     description: 'The user blows away the target, ending wild battles or switching out.',
+    tags: ['Status'],
     effect: 'forceSwitch',
     effectDetails: {
       type: 'ForceSwitch',
       condition: 'TargetIsEnemy'
     }
+  },
+  'Gust': {
+    type: 'Flying',
+    category: 'Special',
+    power: 40,
+    accuracy: 100,
+    pp: 35,
+    description: 'Whips up a gust of wind to strike the target.',
+    tags: []
   },
   'Air Cutter': {
     type: 'Flying',
@@ -1178,6 +1283,7 @@ const BASE_MOVE_DATA = {
     accuracy: 95,
     pp: 25,
     description: 'Hurls a blade of air. High critical-hit ratio.',
+    tags: [],
     effect: 'criticalBoost',
     effectDetails: {
       type: 'CriticalBoost',
@@ -1212,6 +1318,7 @@ const BASE_MOVE_DATA = {
     accuracy: null,
     pp: 25,
     description: 'Creates a barrier that prevents status conditions for 5 turns.',
+    tags: ['Cleanse'],
     effect: 'safeguard',
     effectDetails: {
       type: 'ApplyFieldStatus',
@@ -1227,6 +1334,7 @@ const BASE_MOVE_DATA = {
     accuracy: null,
     pp: 15,
     description: 'Boosts the Speed of allies for 4 turns.',
+    tags: ['Terrain'],
     effect: 'tailwind',
     effectDetails: {
       type: 'ApplyFieldBuff',
@@ -1235,6 +1343,39 @@ const BASE_MOVE_DATA = {
       duration: 4,
       team: 'Ally'
     }
+  },
+  'Feather Dance': {
+    type: 'Flying',
+    category: 'Status',
+    power: 0,
+    accuracy: 100,
+    pp: 15,
+    description: 'Lowers the target\'s Attack by two stages.',
+    tags: ['Status'],
+    effect: 'lowerAttack',
+    stages: 2
+  },
+  'Roost': {
+    type: 'Flying',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 10,
+    description: 'Restores the user\'s HP.',
+    tags: ['Healing'],
+    effect: 'healSelf',
+    healPercentage: 0.5
+  },
+  'Sky Attack': {
+    type: 'Flying',
+    category: 'Physical',
+    power: 140,
+    accuracy: 90,
+    pp: 5,
+    description: 'Charges on the first turn, then strikes on the next.',
+    tags: [],
+    effect: 'chargeAttack',
+    chargeTurns: 1
   },
   'Rage Powder': {
     type: 'Bug',
@@ -1303,6 +1444,7 @@ const BASE_MOVE_DATA = {
     accuracy: null,
     pp: 5,
     description: 'The user repeats the target\'s stat changes from the previous turn.',
+    tags: ['Status'],
     effect: {
       copyLastStatChanges: true
     }
@@ -1338,8 +1480,19 @@ const BASE_MOVE_DATA = {
     accuracy: 100,
     pp: 30,
     description: 'Always strikes first.',
-    tags: ['priority'],
+    tags: [],
     priority: 1
+  },
+  'Agility': {
+    type: 'Psychic',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 30,
+    description: 'Relaxes the body to sharply raise Speed.',
+    tags: ['Status'],
+    effect: 'raiseSpeed',
+    stages: 2
   },
 
   // Add more moves as needed

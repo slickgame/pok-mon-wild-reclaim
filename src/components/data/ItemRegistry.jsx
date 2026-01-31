@@ -90,4 +90,20 @@ export const ItemRegistry = {
     usable: false,
     category: "upgrade",
   },
+  leafStone: {
+    id: "Leaf Stone",
+    name: "Leaf Stone",
+    description: "A mysterious green stone that causes certain Pokémon to evolve.",
+    rarity: "rare",
+    type: "evolution",
+    value: 3000
+  },
+  sunStone: {
+    id: "Sun Stone",
+    name: "Sun Stone",
+    description: "A brilliant stone that radiates warmth. Used to evolve some Pokémon.",
+    rarity: "rare",
+    type: "evolution",
+    value: 3500
+  },
 };

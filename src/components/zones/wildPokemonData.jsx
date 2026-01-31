@@ -51,25 +51,287 @@ export const wildPokemonData = {
 
   Oddish: {
     species: "Oddish",
+    dexId: 43,
     type1: "Grass",
     type2: "Poison",
     baseStats: { hp: 45, atk: 50, def: 55, spAtk: 75, spDef: 65, spd: 30 },
     evYield: { spAtk: 1 },
-    baseXpYield: 64,
+    baseXpYield: 78,
     dropItems: [
       { item: "Leaf Fragment", chance: 0.35 },
       { item: "Poison Barb", chance: 0.20 },
       { item: "Moonleaf", chance: 0.08 }
     ],
-    talentPool: ["Chlorophyll", "Poison Touch"],
-    battleRole: "Support",
-    signatureMove: "Absorb",
-    learnset: {
-      1: ["Absorb", "Growth"],
-      7: ["Acid"],
-      10: ["Poison Powder"]
-    },
-    catchRate: 0.40
+    talentPool: [
+      "nightBlooming",
+      "toxicAffinity",
+      "sporeSynthesis",
+      "symbioticRoot",
+      "drowsyAllure",
+      "adaptogenic",
+      "photosensitiveGrowth",
+      "parasiticDrain",
+      "resilientWeed",
+      "mushroomBond"
+    ],
+    battleRole: "Status Inflicter / Drain Tank",
+    signatureMove: "Paralysis Spore",
+    learnset: [
+      {
+        name: "Absorb",
+        level: 1,
+        type: "Grass",
+        category: "Special",
+        power: 20,
+        accuracy: 100,
+        pp: 25,
+        description: "A nutrient-draining attack. Restores HP equal to half the damage dealt.",
+        effects: {
+          drain: 0.5
+        }
+      },
+      {
+        name: "Poison Powder",
+        level: 4,
+        type: "Poison",
+        category: "Status",
+        power: null,
+        accuracy: 75,
+        pp: 35,
+        description: "Scatters toxic dust that may poison the target.",
+        effects: {
+          status: "Poison"
+        }
+      },
+      {
+        name: "Stun Spore",
+        level: 6,
+        type: "Grass",
+        category: "Status",
+        power: null,
+        accuracy: 75,
+        pp: 30,
+        description: "Scatters powder that paralyzes the target.",
+        effects: {
+          status: "Paralysis"
+        }
+      },
+      {
+        name: "Sleep Powder",
+        level: 8,
+        type: "Grass",
+        category: "Status",
+        power: null,
+        accuracy: 75,
+        pp: 15,
+        description: "Scatters powder that puts the target to sleep.",
+        effects: {
+          status: "Sleep"
+        }
+      },
+      {
+        name: "Mega Drain",
+        level: 10,
+        type: "Grass",
+        category: "Special",
+        power: 40,
+        accuracy: 100,
+        pp: 15,
+        description: "A stronger drain attack. Restores HP equal to half the damage dealt.",
+        effects: {
+          drain: 0.5
+        }
+      },
+      {
+        name: "Growth",
+        level: 12,
+        type: "Normal",
+        category: "Status",
+        power: null,
+        accuracy: null,
+        pp: 20,
+        description: "The user’s Special Attack is raised.",
+        effects: {
+          statMod: {
+            self: { spa: 1 }
+          }
+        }
+      },
+      {
+        name: "Toxic Spores",
+        level: 14,
+        type: "Poison",
+        category: "Status",
+        power: null,
+        accuracy: 85,
+        pp: 10,
+        description: "Laces the field with toxic spores. May badly poison all enemies over time.",
+        effects: {
+          statusField: "ToxicSpread"
+        }
+      },
+      {
+        name: "Acid",
+        level: 16,
+        type: "Poison",
+        category: "Special",
+        power: 40,
+        accuracy: 100,
+        pp: 30,
+        description: "Sprays a hide-melting acid. May lower target's Defense.",
+        effects: {
+          chance: 0.3,
+          statMod: {
+            target: { def: -1 }
+          }
+        }
+      },
+      {
+        name: "Giga Drain",
+        level: 18,
+        type: "Grass",
+        category: "Special",
+        power: 75,
+        accuracy: 100,
+        pp: 10,
+        description: "A powerful HP-stealing attack.",
+        effects: {
+          drain: 0.5
+        }
+      },
+      {
+        name: "Leech Seed",
+        level: 20,
+        type: "Grass",
+        category: "Status",
+        power: null,
+        accuracy: 90,
+        pp: 10,
+        description: "Plants a seed on the target that drains HP every turn.",
+        effects: {
+          status: "LeechSeed"
+        }
+      },
+      {
+        name: "Venoshock",
+        level: 22,
+        type: "Poison",
+        category: "Special",
+        power: 65,
+        accuracy: 100,
+        pp: 10,
+        description: "Deals more damage if the target is poisoned.",
+        effects: {
+          conditionalPower: {
+            condition: "targetStatus.Poison",
+            multiplier: 2.0
+          }
+        }
+      },
+      {
+        name: "Aromatherapy",
+        level: 24,
+        type: "Grass",
+        category: "Status",
+        power: null,
+        accuracy: null,
+        pp: 5,
+        description: "Heals all status conditions of the party.",
+        effects: {
+          cleanseStatus: "allAllies"
+        }
+      },
+      {
+        name: "Toxic",
+        level: 26,
+        type: "Poison",
+        category: "Status",
+        power: null,
+        accuracy: 90,
+        pp: 10,
+        description: "Badly poisons the target. Damage increases each turn.",
+        effects: {
+          status: "Toxic"
+        }
+      },
+      {
+        name: "Moonlight",
+        level: 28,
+        type: "Fairy",
+        category: "Status",
+        power: null,
+        accuracy: null,
+        pp: 5,
+        description: "Restores the user’s HP. Healing varies with the weather.",
+        effects: {
+          heal: {
+            amount: 0.5,
+            weatherMultiplier: {
+              Sunny: 0.66,
+              Rain: 0.25
+            }
+          }
+        }
+      },
+      {
+        name: "Petal Dance",
+        level: 30,
+        type: "Grass",
+        category: "Special",
+        power: 120,
+        accuracy: 100,
+        pp: 10,
+        description: "The user attacks for 2–3 turns then becomes confused.",
+        effects: {
+          multiTurn: 3,
+          selfConfuse: true
+        }
+      },
+      {
+        name: "Grassy Terrain",
+        level: 33,
+        type: "Grass",
+        category: "Status",
+        power: null,
+        accuracy: null,
+        pp: 10,
+        description: "Turns the ground into Grassy Terrain for 5 turns. Restores HP each turn.",
+        effects: {
+          fieldEffect: "GrassyTerrain",
+          duration: 5
+        }
+      },
+      {
+        name: "Sludge Bomb",
+        level: 36,
+        type: "Poison",
+        category: "Special",
+        power: 90,
+        accuracy: 100,
+        pp: 10,
+        description: "Fires a toxic sludge. May poison the target.",
+        effects: {
+          chance: 0.3,
+          status: "Poison"
+        }
+      },
+      {
+        name: "Gloom Burst",
+        level: 40,
+        type: "Poison",
+        category: "Special",
+        power: 110,
+        accuracy: 85,
+        pp: 5,
+        description: "A violent blast of toxic pollen. Reduces the user’s Special Attack.",
+        effects: {
+          recoilStat: {
+            self: { spa: -1 }
+          }
+        }
+      }
+    ],
+    catchRate: 1
   },
 
   Pikachu: {

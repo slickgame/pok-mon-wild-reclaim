@@ -133,9 +133,6 @@ export default function Layout({ children, currentPageName }) {
               <TimeWidget gameTime={gameTime} />
             </div>
           )}
-          <div className="hidden lg:block text-xs text-slate-500 text-center">
-            © 2024 Pokémon Wild Reclaim
-          </div>
         </div>
         </aside>
 
