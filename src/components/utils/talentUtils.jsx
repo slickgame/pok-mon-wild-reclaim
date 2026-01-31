@@ -39,10 +39,27 @@ export function normalizeTalentGrade(grade) {
  */
 export function resolveTalentKey(talent) {
   if (!talent) return null;
-  if (typeof talent === 'string') return talent;
-  const direct = talent.id || talent.talentId || talent.key || talent.slug || talent.name;
-  if (direct) return direct;
-  const nested = talent.talent || talent.data || talent.definition;
+  if (typeof talent === 'string') return talent.trim();
+  const directCandidates = [
+    talent.id,
+    talent.talentId,
+    talent.talentID,
+    talent.talent_id,
+    talent.talentKey,
+    talent.talentName,
+    talent.key,
+    talent.slug,
+    talent.name,
+    talent.displayName,
+    talent.title,
+    talent.label,
+    talent.value
+  ];
+  for (const candidate of directCandidates) {
+    if (!candidate) continue;
+    return typeof candidate === 'string' ? candidate.trim() : resolveTalentKey(candidate);
+  }
+  const nested = talent.talent || talent.data || talent.definition || talent.details || talent.info;
   if (nested) return resolveTalentKey(nested);
   return null;
 }
