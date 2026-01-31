@@ -19,21 +19,42 @@ const gradeColors = {
 };
 
 const resolveTalentData = (talent) => {
+  console.log('🔍 TalentDisplay: Resolving talent:', talent);
+  
   const talentKey = resolveTalentKey(talent);
-  if (!talentKey) return null;
+  console.log('🔑 TalentDisplay: Resolved key:', talentKey);
+  
+  if (!talentKey) {
+    console.warn('⚠️ TalentDisplay: No talent key found');
+    return null;
+  }
   
   // Try direct lookup
-  if (TalentRegistry[talentKey]) return TalentRegistry[talentKey];
+  if (TalentRegistry[talentKey]) {
+    console.log('✅ TalentDisplay: Found via direct lookup:', TalentRegistry[talentKey]);
+    return TalentRegistry[talentKey];
+  }
   
   // Try case-insensitive lookup by key
   const lowerKey = talentKey.toLowerCase();
   const registryKey = Object.keys(TalentRegistry).find(k => k.toLowerCase() === lowerKey);
-  if (registryKey) return TalentRegistry[registryKey];
+  if (registryKey) {
+    console.log('✅ TalentDisplay: Found via case-insensitive lookup:', TalentRegistry[registryKey]);
+    return TalentRegistry[registryKey];
+  }
   
   // Try by name match
-  return Object.values(TalentRegistry).find((entry) => 
+  const byName = Object.values(TalentRegistry).find((entry) => 
     entry.name?.toLowerCase() === talentKey.toLowerCase()
   );
+  
+  if (byName) {
+    console.log('✅ TalentDisplay: Found via name match:', byName);
+    return byName;
+  }
+  
+  console.error('❌ TalentDisplay: Failed to resolve talent. Key:', talentKey, 'Available keys:', Object.keys(TalentRegistry).slice(0, 10));
+  return null;
 };
 
 const formatTalentDisplayName = (talent, talentData) => {
