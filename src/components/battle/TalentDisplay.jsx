@@ -21,8 +21,19 @@ const gradeColors = {
 const resolveTalentData = (talent) => {
   const talentKey = resolveTalentKey(talent);
   if (!talentKey) return null;
-  return TalentRegistry[talentKey]
-    || Object.values(TalentRegistry).find((entry) => entry.name === talentKey);
+  
+  // Try direct lookup
+  if (TalentRegistry[talentKey]) return TalentRegistry[talentKey];
+  
+  // Try case-insensitive lookup by key
+  const lowerKey = talentKey.toLowerCase();
+  const registryKey = Object.keys(TalentRegistry).find(k => k.toLowerCase() === lowerKey);
+  if (registryKey) return TalentRegistry[registryKey];
+  
+  // Try by name match
+  return Object.values(TalentRegistry).find((entry) => 
+    entry.name?.toLowerCase() === talentKey.toLowerCase()
+  );
 };
 
 const formatTalentDisplayName = (talent, talentData) => {
