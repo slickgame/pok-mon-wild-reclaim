@@ -838,7 +838,29 @@ export default function BattlePage() {
 
     let healAmount = 0;
     let itemEffect = '';
+    const isEvolutionItem = item.type === 'evolution';
     
+    // Evolution items
+    if (isEvolutionItem) {
+      const evolutionData = checkEvolution(battleState.playerPokemon, null, item.name);
+      if (evolutionData?.canEvolve) {
+        setEvolutionState({
+          pokemon: battleState.playerPokemon,
+          evolvesInto: evolutionData.evolvesInto,
+          pendingUpdate: {
+            id: battleState.playerPokemon.id,
+            experience: battleState.playerPokemon.experience,
+            level: battleState.playerPokemon.level,
+            evs: battleState.playerPokemon.evs,
+            movesLearned: []
+          },
+          itemUsed: item
+        });
+        return;
+      }
+      itemEffect = `${item.name} had no effect.`;
+    }
+
     // Potions
     if (item.name === 'Potion') healAmount = 50;
     if (item.name === 'Super Potion') healAmount = 100;
@@ -854,7 +876,7 @@ export default function BattlePage() {
     // Determine item type for log message
     if (item.type === 'Potion' || item.name.toLowerCase().includes('potion')) {
       itemEffect = `Restored ${healedAmount} HP`;
-    } else {
+    } else if (!itemEffect) {
       itemEffect = item.effects || 'Used item';
     }
 
@@ -874,8 +896,9 @@ export default function BattlePage() {
 
     setBattleState(newBattleState);
 
-    // Consume item
+    // Consume item (non-evolution items)
     try {
+      if (isEvolutionItem) return;
       if (item.quantity > 1) {
         await base44.entities.Item.update(item.id, { quantity: item.quantity - 1 });
       } else {
@@ -975,7 +998,7 @@ export default function BattlePage() {
     if (!evolutionState) return;
 
     try {
-      const { pokemon, evolvesInto, pendingUpdate } = evolutionState;
+      const { pokemon, evolvesInto, pendingUpdate, itemUsed } = evolutionState;
       
       // Use centralized evolution function
       const evolvedPokemon = evolvePokemon(pokemon, evolvesInto);
@@ -1011,6 +1034,16 @@ export default function BattlePage() {
       });
       
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+
+      if (itemUsed) {
+        if (itemUsed.quantity > 1) {
+          await base44.entities.Item.update(itemUsed.id, { quantity: itemUsed.quantity - 1 });
+        } else {
+          await base44.entities.Item.delete(itemUsed.id);
+        }
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        setItemsUsed(prev => [...prev, itemUsed.name]);
+      }
       
       // Check for moves the evolved form learns at current level
       const movesUpToLevel = getAllMovesUpToLevel(evolvesInto, pendingUpdate.level);

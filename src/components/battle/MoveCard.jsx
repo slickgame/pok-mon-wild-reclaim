@@ -10,6 +10,17 @@ const categoryColors = {
   Status: 'from-slate-500 to-slate-600',
 };
 
+const tagStyles = {
+  Drain: 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30',
+  Spore: 'bg-lime-500/20 text-lime-200 border border-lime-400/30',
+  Powder: 'bg-lime-400/20 text-lime-200 border border-lime-300/30',
+  Healing: 'bg-green-500/20 text-green-200 border border-green-400/30',
+  Status: 'bg-yellow-500/20 text-yellow-200 border border-yellow-400/30',
+  Terrain: 'bg-teal-500/20 text-teal-200 border border-teal-400/30'
+};
+
+const getTagClass = (tag) => tagStyles[tag] || 'bg-slate-700/50 text-slate-200 border border-slate-500/30';
+
 export default function MoveCard({ move, onUse, disabled, showSynergy = true, pokemon = null }) {
   const [showDetails, setShowDetails] = useState(false);
   const hasSynergy = move.synergyConditions && move.synergyConditions.length > 0;
@@ -76,6 +87,19 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
         >
           {move.description || "No description available."}
         </motion.div>
+      )}
+
+      {showDetails && move.tags?.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {move.tags.map((tag) => (
+            <span
+              key={tag}
+              className={`text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide ${getTagClass(tag)}`}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
       )}
 
       {/* Synergy indicators (on hover) */}

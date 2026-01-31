@@ -64,6 +64,12 @@ export const EVOLUTION_CHAINS = {
     method: 'level',
     requirement: 10
   },
+
+  Oddish: {
+    evolvesInto: 'Gloom',
+    method: 'level',
+    requirement: 21
+  },
   
   // Stone evolutions
   Pikachu: {

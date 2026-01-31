@@ -9,6 +9,7 @@ export const caterpieMoves = {
     pp: 40,
     priority: 0,
     description: 'Lowers target\'s Speed by shooting sticky string.',
+    tags: ['Status'],
     effect: {
       targetStatChange: { Speed: -1 }
     }
@@ -22,7 +23,8 @@ export const caterpieMoves = {
     accuracy: 100,
     pp: 20,
     priority: 0,
-    description: 'Bites the target. If the target is holding a Berry, the user eats it and gains its effect.'
+    description: 'Bites the target. If the target is holding a Berry, the user eats it and gains its effect.',
+    tags: []
   },
   
   'Sticky Thread': {
@@ -34,6 +36,7 @@ export const caterpieMoves = {
     pp: 20,
     priority: 0,
     description: 'Reduces the target\'s Speed by entangling them in sticky silk.',
+    tags: ['Status'],
     effect: {
       targetStatChange: { Speed: -1 }
     },
@@ -50,6 +53,7 @@ export const caterpieMoves = {
     pp: 20,
     priority: 0,
     description: 'Traps and damages the target for 4 turns.',
+    tags: ['Status'],
     effect: {
       trap: true,
       duration: 4
@@ -91,6 +95,7 @@ export const caterpieMoves = {
     pp: 25,
     priority: 0,
     description: 'Protects the party from status conditions for 5 turns.',
+    tags: ['Cleanse'],
     neverMiss: true
   },
   
@@ -118,6 +123,7 @@ export const caterpieMoves = {
     pp: 10,
     priority: 0,
     description: 'Copies the last stat change inflicted on the opponent.',
+    tags: ['Status'],
     effect: {
       copyLastStatChanges: true
     }

@@ -985,6 +985,8 @@ export class BattleEngine {
       return { logs };
     }
 
+    if (!move.tags) move.tags = [];
+
     this.handleBattleEvent('onMoveUsed', {
       pokemon: attacker.pokemon,
       move
