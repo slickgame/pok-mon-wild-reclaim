@@ -2,7 +2,7 @@ import React from 'react';
 import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import TalentTooltip from '@/components/talents/TalentTooltip';
-import { TalentRegistry } from '@/data/TalentRegistry';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
 import { formatTalentName, normalizeTalentGrade, resolveTalentKey } from '@/components/utils/talentUtils';
 
