@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { getTalentDescription } from '@/components/talents/TalentDescriptions';
 import TalentTooltip from '@/components/talents/TalentTooltip';
 import { formatTalentName, normalizeTalentGrade, resolveTalentKey } from '@/components/utils/talentUtils';
-import { TalentRegistry } from '@/data/TalentRegistry';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
 
 const gradeColors = {
   Basic: 'bg-amber-700/30 text-amber-400 border-amber-600/50',
