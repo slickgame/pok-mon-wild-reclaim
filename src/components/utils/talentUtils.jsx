@@ -31,3 +31,35 @@ export function normalizeTalentGrade(grade) {
   
   return gradeMap[grade?.toLowerCase()] || grade || 'Basic';
 }
+
+/**
+ * Resolve a talent key from various talent shapes.
+ * @param {string|object} talent
+ * @returns {string|null}
+ */
+export function resolveTalentKey(talent) {
+  if (!talent) return null;
+  if (typeof talent === 'string') return talent.trim();
+  const directCandidates = [
+    talent.id,
+    talent.talentId,
+    talent.talentID,
+    talent.talent_id,
+    talent.talentKey,
+    talent.talentName,
+    talent.key,
+    talent.slug,
+    talent.name,
+    talent.displayName,
+    talent.title,
+    talent.label,
+    talent.value
+  ];
+  for (const candidate of directCandidates) {
+    if (!candidate) continue;
+    return typeof candidate === 'string' ? candidate.trim() : resolveTalentKey(candidate);
+  }
+  const nested = talent.talent || talent.data || talent.definition || talent.details || talent.info;
+  if (nested) return resolveTalentKey(nested);
+  return null;
+}

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import TalentTooltip from '@/components/talents/TalentTooltip';
 import { TalentRegistry } from '@/data/TalentRegistry';
 import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
-import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { formatTalentName, normalizeTalentGrade, resolveTalentKey } from '@/components/utils/talentUtils';
 
 export default function TalentsTab({ pokemon }) {
   const talentList = Array.isArray(pokemon.talents)
@@ -33,12 +33,17 @@ export default function TalentsTab({ pokemon }) {
         
         <div className="space-y-3">
           {talentList.map((talent, index) => {
-            const talentId = typeof talent === 'string' ? talent : talent.id || talent.name;
-            const talentData = TalentRegistry[talentId];
+            const talentId = resolveTalentKey(talent);
+            const talentData = TalentRegistry[talentId]
+              || Object.values(TalentRegistry).find((entry) => entry.name === talentId);
             const gradeLabel = normalizeTalentGrade(
               typeof talent === 'object' ? (talent.grade || 'Basic') : 'Basic'
             );
-            const displayName = talentData?.name || formatTalentName(talentId);
+            const displayName = talentData?.name
+              || talent?.displayName
+              || (talentId
+                ? (talentId.includes(' ') ? talentId : formatTalentName(talentId))
+                : 'Unknown Talent');
             const description = typeof talent === 'object' && typeof talent.description === 'string'
               ? talent.description
               : getTalentDescription(talentId, gradeLabel);

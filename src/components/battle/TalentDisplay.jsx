@@ -4,7 +4,7 @@ import { Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getTalentDescription } from '@/components/talents/TalentDescriptions';
 import TalentTooltip from '@/components/talents/TalentTooltip';
-import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { formatTalentName, normalizeTalentGrade, resolveTalentKey } from '@/components/utils/talentUtils';
 import { TalentRegistry } from '@/data/TalentRegistry';
 
 const gradeColors = {
@@ -19,7 +19,7 @@ const gradeColors = {
 };
 
 const resolveTalentData = (talent) => {
-  const talentKey = typeof talent === 'string' ? talent : talent?.id || talent?.name;
+  const talentKey = resolveTalentKey(talent);
   if (!talentKey) return null;
   return TalentRegistry[talentKey]
     || Object.values(TalentRegistry).find((entry) => entry.name === talentKey);
@@ -27,7 +27,7 @@ const resolveTalentData = (talent) => {
 
 const formatTalentDisplayName = (talent, talentData) => {
   if (talentData?.name) return talentData.name;
-  const rawName = typeof talent === 'string' ? talent : talent?.name || talent?.id;
+  const rawName = resolveTalentKey(talent);
   if (!rawName) return 'Unknown Talent';
   return rawName.includes(' ') ? rawName : formatTalentName(rawName);
 };
@@ -63,7 +63,7 @@ export default function TalentDisplay({ talents, showDescription = false, compac
         const description = talent?.description
           || (talentData
             ? getTalentDescription(talentData.id, normalizedGrade)
-            : getTalentDescription(talent.id || talent.name, normalizedGrade));
+            : getTalentDescription(resolveTalentKey(talent), normalizedGrade));
 
         return (
           <motion.div
