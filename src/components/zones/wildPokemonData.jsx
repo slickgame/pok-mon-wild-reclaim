@@ -1,6 +1,6 @@
 import { PokemonRegistry } from '@/components/data/PokemonRegistry';
 import { DropTableRegistry } from '@/components/data/DropTableRegistry';
-import { TalentRegistry } from '@/data/TalentRegistry';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
 
 // Convert new format to old format for compatibility
 function convertPokemonData(jsonData) {
