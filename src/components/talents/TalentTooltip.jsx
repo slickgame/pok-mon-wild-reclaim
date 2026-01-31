@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TalentRegistry } from '@/data/TalentRegistry';
 import { getTalentDescription, getTalentGradeColor } from '@/components/talents/TalentDescriptions';
-import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { formatTalentName, normalizeTalentGrade, resolveTalentKey } from '@/components/utils/talentUtils';
 import { renderTalentTooltip } from '@/components/utils/tooltipUtils';
 
 function resolveTalentData(talentKey) {
@@ -13,17 +13,15 @@ function resolveTalentData(talentKey) {
 }
 
 export default function TalentTooltip({ talent, children }) {
-  const talentKey = typeof talent === 'string'
-    ? talent
-    : talent?.id || talent?.talentId || talent?.key || talent?.name;
+  const talentKey = resolveTalentKey(talent);
   const talentData = resolveTalentData(talentKey);
   const gradeLabel = normalizeTalentGrade(
     typeof talent === 'object' ? (talent?.grade || 'Basic') : 'Basic'
   );
   const displayName = talentData?.name
     || (typeof talent === 'string'
-      ? formatTalentName(talent)
-      : talent?.name || formatTalentName(talent?.id));
+      ? (talent.includes(' ') ? talent : formatTalentName(talent))
+      : talent?.displayName || talent?.name || formatTalentName(resolveTalentKey(talent)));
   const description = talent?.description
     || getTalentDescription(talentData?.id || talentKey, gradeLabel);
   const gradeColorClass = getTalentGradeColor(gradeLabel);

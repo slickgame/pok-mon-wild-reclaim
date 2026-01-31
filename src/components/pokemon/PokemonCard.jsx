@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import TalentTooltip from '@/components/talents/TalentTooltip';
 import RevenantIndicator from './RevenantIndicator';
 import { getPokemonStats } from './usePokemonStats';
-import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
+import { formatTalentName, normalizeTalentGrade, resolveTalentKey } from '@/components/utils/talentUtils';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 
 const typeColors = {
@@ -71,7 +71,7 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
       return formatTalentName(talent.name);
     }
     if (typeof talentKey === 'string') {
-      return formatTalentName(talentKey);
+      return talentKey.includes(' ') ? talentKey : formatTalentName(talentKey);
     }
     return 'Unknown Talent';
   };

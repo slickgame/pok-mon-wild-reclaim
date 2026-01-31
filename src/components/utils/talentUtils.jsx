@@ -31,3 +31,18 @@ export function normalizeTalentGrade(grade) {
   
   return gradeMap[grade?.toLowerCase()] || grade || 'Basic';
 }
+
+/**
+ * Resolve a talent key from various talent shapes.
+ * @param {string|object} talent
+ * @returns {string|null}
+ */
+export function resolveTalentKey(talent) {
+  if (!talent) return null;
+  if (typeof talent === 'string') return talent;
+  const direct = talent.id || talent.talentId || talent.key || talent.slug || talent.name;
+  if (direct) return direct;
+  const nested = talent.talent || talent.data || talent.definition;
+  if (nested) return resolveTalentKey(nested);
+  return null;
+}
