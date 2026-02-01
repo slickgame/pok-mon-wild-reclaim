@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, MapPin, Calendar, TrendingUp, Shield, Heart, Zap, ArrowRight, HelpCircle } from 'lucide-react';
 import StatDisplay from '@/components/pokemon/StatDisplay';
+import { getLevelUpLearnset } from '@/components/pokemon/levelUpLearnsets';
+import { getMoveData } from '@/components/utils/getMoveData';
+import MoveTagBadges from '@/components/moves/MoveTagBadges';
+import { getMatchingTalents } from '@/components/utils/moveTalentUtils';
 
-export default function PokedexDetailView({ species }) {
+export default function PokedexDetailView({ species, pokemon = null }) {
   const roleIcons = {
     Tank: Shield,
     Striker: Zap,
@@ -24,6 +28,13 @@ export default function PokedexDetailView({ species }) {
       </div>
     );
   }
+
+  const learnsetEntries = useMemo(() => {
+    const learnset = getLevelUpLearnset(species.species);
+    return Object.entries(learnset)
+      .map(([level, moves]) => ({ level: Number(level), moves }))
+      .sort((a, b) => a.level - b.level);
+  }, [species.species]);
 
   return (
     <div className="space-y-6 pt-6">
@@ -167,6 +178,49 @@ export default function PokedexDetailView({ species }) {
           </div>
         </div>
       )}
+
+      {/* Move Tags */}
+      <div className="glass rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-white mb-3">Move Tags</h3>
+        {learnsetEntries.length === 0 ? (
+          <p className="text-sm text-slate-400">No learnset data recorded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {learnsetEntries.map(({ level, moves }) => (
+              <div key={level} className="rounded-lg border border-slate-700/60 p-3">
+                <div className="text-xs text-slate-400 mb-2">Level {level}</div>
+                <div className="space-y-2">
+                  {moves.map((moveName) => {
+                    const moveData = getMoveData(moveName);
+                    const matchingTalents = getMatchingTalents(moveData || {}, pokemon?.talents || []);
+                    return (
+                      <div key={moveName} className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm text-white font-medium">{moveName}</span>
+                          <span className="text-[0.7rem] text-slate-400">Tags:</span>
+                          <MoveTagBadges tags={moveData?.tags} />
+                        </div>
+                        {matchingTalents.length > 0 && (
+                          <div className="text-xs text-emerald-300">
+                            <strong>Talent Synergy:</strong>
+                            <ul className="mt-1 space-y-1">
+                              {matchingTalents.map((talent) => (
+                                <li key={`${moveName}-${talent.id}`}>
+                                  ✅ Boosted by {talent.name}{talent.grade ? ` (${talent.grade})` : ''}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

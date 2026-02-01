@@ -13,6 +13,7 @@ import NPCCard from '@/components/npc/NPCCard';
 import StatBar from '@/components/ui/StatBar';
 import NPCScheduleCalendar from '@/components/time/NPCScheduleCalendar';
 import MoveTutorModal from '@/components/npc/MoveTutorModal';
+import MoveTutorTab from '@/components/npc/MoveTutorTab';
 import { MOVE_TUTORS } from '@/components/pokemon/moveTutors';
 import ResearchQuestManager from '@/components/research/ResearchQuestManager';
 import ShopBuyTab from '@/components/shop/ShopBuyTab';
@@ -245,7 +246,11 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
 
       {/* Tabs for Services, Quests & Schedule */}
       <Tabs defaultValue={npc.role === 'Merchant' ? 'shop' : 'services'} className="mt-6">
-        <TabsList className="w-full bg-slate-800/50 grid grid-cols-4">
+        <TabsList
+          className={`w-full bg-slate-800/50 grid ${
+            npc.name === 'Professor Maple' ? 'grid-cols-5' : 'grid-cols-4'
+          }`}
+        >
           {npc.role === 'Merchant' && (
             <TabsTrigger value="shop" className="data-[state=active]:bg-indigo-500">
               Shop
@@ -257,6 +262,11 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
           {npc.name === 'Professor Maple' && (
             <TabsTrigger value="research" className="data-[state=active]:bg-indigo-500">
               Research
+            </TabsTrigger>
+          )}
+          {npc.name === 'Professor Maple' && (
+            <TabsTrigger value="move-tutor" className="data-[state=active]:bg-indigo-500">
+              Move Tutor
             </TabsTrigger>
           )}
           <TabsTrigger value="quests" className="data-[state=active]:bg-indigo-500">
@@ -375,6 +385,12 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
         {npc.name === 'Professor Maple' && (
           <TabsContent value="research" className="mt-4">
             <ResearchQuestManager />
+          </TabsContent>
+        )}
+
+        {npc.name === 'Professor Maple' && (
+          <TabsContent value="move-tutor" className="mt-4">
+            <MoveTutorTab />
           </TabsContent>
         )}
 
