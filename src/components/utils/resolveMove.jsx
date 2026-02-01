@@ -20,7 +20,19 @@ export function resolveMove(moveName, pokemon) {
       );
       if (moveFromLearnset) {
         if (moveFromLearnset.type) {
-          return moveFromLearnset;
+          const globalMove = MOVE_DATA[moveName];
+          const merged = {
+            name: moveName,
+            ...(globalMove || {}),
+            ...moveFromLearnset,
+          };
+          if (!moveFromLearnset.tags) {
+            merged.tags = globalMove?.tags || [];
+          }
+          if (!merged.tags) {
+            merged.tags = [];
+          }
+          return merged;
         }
       }
     }
@@ -41,6 +53,7 @@ export function resolveMove(moveName, pokemon) {
     accuracy: 100,
     pp: 35,
     priority: 0,
+    tags: [],
     description: 'Move data not found.'
   };
 }

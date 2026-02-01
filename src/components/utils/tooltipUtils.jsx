@@ -1,4 +1,5 @@
 import { StatusEffectRegistry } from '@/components/data/StatusEffectRegistry';
+import { TagRegistry } from '@/components/data/TagRegistry';
 import { TalentRegistry } from '@/data/TalentRegistry';
 import { formatTalentName } from '@/components/utils/talentUtils';
 
@@ -21,6 +22,22 @@ export function renderTalentTooltip(talentKey, grade) {
   const name = talent.name || formatTalentName(talentKey);
   const label = grade ? capitalize(grade) : 'Basic';
   return `${name} (${label}): ${talent.description || 'No description yet.'}`;
+}
+
+export function getTagDescription(tag) {
+  if (!tag) return 'Unknown tag.';
+  const key = resolveTagKey(tag);
+  return TagRegistry[key]?.description || 'Unknown tag.';
+}
+
+export function resolveTagKey(tag) {
+  if (!tag) return '';
+  const normalized = `${tag}`.trim();
+  const direct = Object.keys(TagRegistry).find(
+    (registryKey) => registryKey.toLowerCase() === normalized.toLowerCase()
+  );
+  if (direct) return direct;
+  return normalized;
 }
 
 function capitalize(value) {

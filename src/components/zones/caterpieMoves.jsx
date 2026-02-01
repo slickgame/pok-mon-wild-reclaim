@@ -9,7 +9,7 @@ export const caterpieMoves = {
     pp: 40,
     priority: 0,
     description: 'Lowers target\'s Speed by shooting sticky string.',
-    tags: ['Status'],
+    tags: ['Status', 'Debuff'],
     effect: {
       targetStatChange: { Speed: -1 }
     }
@@ -24,7 +24,7 @@ export const caterpieMoves = {
     pp: 20,
     priority: 0,
     description: 'Bites the target. If the target is holding a Berry, the user eats it and gains its effect.',
-    tags: []
+    tags: ['Consume', 'Berry']
   },
   
   'Sticky Thread': {
@@ -36,7 +36,7 @@ export const caterpieMoves = {
     pp: 20,
     priority: 0,
     description: 'Reduces the target\'s Speed by entangling them in sticky silk.',
-    tags: ['Status'],
+    tags: ['Status', 'Debuff'],
     effect: {
       targetStatChange: { Speed: -1 }
     },
@@ -53,7 +53,7 @@ export const caterpieMoves = {
     pp: 20,
     priority: 0,
     description: 'Traps and damages the target for 4 turns.',
-    tags: ['Status'],
+    tags: ['Passive', 'Multi-Turn', 'Debuff'],
     effect: {
       trap: true,
       duration: 4
@@ -69,6 +69,7 @@ export const caterpieMoves = {
     pp: 20,
     priority: 0,
     description: 'Changes user\'s type based on terrain.',
+    tags: ['Status'],
     neverMiss: true
   },
   
@@ -81,6 +82,7 @@ export const caterpieMoves = {
     pp: 10,
     priority: 0,
     description: 'Attacks and lowers the target\'s Special Attack.',
+    tags: ['Debuff', 'Physical'],
     effect: {
       targetStatChange: { SpAttack: -1 }
     }
@@ -108,6 +110,7 @@ export const caterpieMoves = {
     pp: 15,
     priority: 0,
     description: 'Explodes sticky silk on impact. May lower Speed.',
+    tags: ['Debuff'],
     effect: {
       targetStatChange: { Speed: -1 }
     },
@@ -123,7 +126,7 @@ export const caterpieMoves = {
     pp: 10,
     priority: 0,
     description: 'Copies the last stat change inflicted on the opponent.',
-    tags: ['Status'],
+    tags: ['Status', 'Debuff'],
     effect: {
       copyLastStatChanges: true
     }
@@ -138,6 +141,7 @@ export const caterpieMoves = {
     pp: 10,
     priority: 0,
     description: 'Raises Defense and Special Defense by 1 stage.',
+    tags: ['Buff', 'Status'],
     neverMiss: true,
     effect: {
       selfStatChange: {

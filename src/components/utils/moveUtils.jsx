@@ -16,5 +16,10 @@ export function hasTag(move, tag) {
  */
 export function hasAnyTag(move, tags = []) {
   if (!move?.tags) return false;
-  return tags.some((tag) => move.tags.includes(tag));
+  const normalizedMoveTags = move.tags.map((tag) => normalizeTag(tag));
+  return tags.some((tag) => normalizedMoveTags.includes(normalizeTag(tag)));
+}
+
+function normalizeTag(tag) {
+  return `${tag || ''}`.trim().toLowerCase();
 }

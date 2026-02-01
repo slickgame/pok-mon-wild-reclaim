@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Zap, Target, Star, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import MoveTagBadges from '@/components/moves/MoveTagBadges';
+import { getMatchingTalents } from '@/components/utils/moveTalentUtils';
 
 const categoryColors = {
   Physical: 'from-red-500 to-orange-500',
@@ -10,20 +12,10 @@ const categoryColors = {
   Status: 'from-slate-500 to-slate-600',
 };
 
-const tagStyles = {
-  Drain: 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30',
-  Spore: 'bg-lime-500/20 text-lime-200 border border-lime-400/30',
-  Powder: 'bg-lime-400/20 text-lime-200 border border-lime-300/30',
-  Healing: 'bg-green-500/20 text-green-200 border border-green-400/30',
-  Status: 'bg-yellow-500/20 text-yellow-200 border border-yellow-400/30',
-  Terrain: 'bg-teal-500/20 text-teal-200 border border-teal-400/30'
-};
-
-const getTagClass = (tag) => tagStyles[tag] || 'bg-slate-700/50 text-slate-200 border border-slate-500/30';
-
 export default function MoveCard({ move, onUse, disabled, showSynergy = true, pokemon = null }) {
   const [showDetails, setShowDetails] = useState(false);
   const hasSynergy = move.synergyConditions && move.synergyConditions.length > 0;
+  const matchingTalents = getMatchingTalents(move, pokemon?.talents || []);
 
   return (
     <motion.div
@@ -89,16 +81,13 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
         </motion.div>
       )}
 
-      {showDetails && move.tags?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {move.tags.map((tag) => (
-            <span
-              key={tag}
-              className={`text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide ${getTagClass(tag)}`}
-            >
-              {tag}
-            </span>
-          ))}
+      {move.tags?.length > 0 && (
+        <MoveTagBadges tags={move.tags} className={showDetails ? 'mb-2' : 'mt-2'} />
+      )}
+
+      {matchingTalents.length > 0 && (
+        <div className="mt-2 text-[0.7rem] text-amber-300">
+          ⭐ Synergizes with {matchingTalents.map((talent) => talent.name).join(', ')}
         </div>
       )}
 
