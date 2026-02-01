@@ -26,6 +26,11 @@ const getTagStyle = (tag) => {
   };
 };
 
+const normalizeTagClass = (tag) => {
+  if (!tag) return '';
+  return `tag-${resolveTagKey(tag).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+};
+
 export default function MoveTagBadges({ tags = [], className = '' }) {
   if (!tags || tags.length === 0) return null;
 
@@ -36,7 +41,7 @@ export default function MoveTagBadges({ tags = [], className = '' }) {
           <Tooltip key={tag}>
             <TooltipTrigger asChild>
               <span
-                className={`move-tag tag-tooltip text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide border ${
+                className={`move-tag tag-tooltip ${normalizeTagClass(tag)} text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide border ${
                   resolveRegistryEntry(tag) ? '' : 'unknown-tag'
                 }`}
                 style={getTagStyle(tag)}

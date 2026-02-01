@@ -1,5 +1,6 @@
 // Pokémon evolution chains and conditions
 import { PokemonRegistry } from '@/components/data/PokemonRegistry';
+import { assignRandomTalents } from '@/components/utils/talentAssignment';
 
 export const EVOLUTION_CHAINS = {
   // Starter evolutions
@@ -274,6 +275,17 @@ export function getEvolvedRoles(evolvedSpecies, currentRoles) {
   return EVOLUTION_ROLE_CHANGES[evolvedSpecies] || currentRoles;
 }
 
+export function getEvolutionMoveOptions(evolvedSpecies) {
+  const speciesData = PokemonRegistry[evolvedSpecies?.toLowerCase()];
+  if (!speciesData?.learnset) return [];
+  if (Array.isArray(speciesData.learnset)) {
+    return speciesData.learnset
+      .filter((move) => move.level === 1)
+      .map((move) => move.name || move.move);
+  }
+  return speciesData.learnset[1] || [];
+}
+
 /**
  * Evolve a Pokémon and update all relevant data
  * @param {Object} pokemon - Pokemon object to evolve
@@ -298,6 +310,11 @@ export function evolvePokemon(pokemon, evolvesInto) {
     if (!newSpecies?.talentPool) return true;
     return newSpecies.talentPool.includes(talent.id);
   });
+  const evolvedTalents = newSpecies?.talentPool
+    ? assignRandomTalents({ talentPool: newSpecies.talentPool, talents: retainedTalents }, {
+      existingTalents: retainedTalents
+    })
+    : retainedTalents;
 
   return {
     ...pokemon,
@@ -305,8 +322,9 @@ export function evolvePokemon(pokemon, evolvesInto) {
     roles: newRoles,
     stats: newStats,
     currentHp: newStats.maxHp, // Heal to full on evolution
+    evolutionMoveOptions: getEvolutionMoveOptions(evolvesInto),
     // Preserve talents from pre-evolution, filter invalid ones
-    talents: retainedTalents,
+    talents: evolvedTalents,
     // Flag for future NPC talent teaching
     canLearnNewTalents: true
   };

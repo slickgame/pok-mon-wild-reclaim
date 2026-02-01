@@ -4,6 +4,7 @@ import { Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getTalentDescription } from '@/components/talents/TalentDescriptions';
 import TalentTooltip from '@/components/talents/TalentTooltip';
+import MoveTagBadges from '@/components/moves/MoveTagBadges';
 import { formatTalentName, normalizeTalentGrade, resolveTalentKey } from '@/components/utils/talentUtils';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 
@@ -17,17 +18,6 @@ const gradeColors = {
   Silver: 'bg-slate-400/30 text-slate-200 border-slate-400/50',
   Gold: 'bg-yellow-500/30 text-yellow-300 border-yellow-500/50',
 };
-
-const tagStyles = {
-  Drain: 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30',
-  Spore: 'bg-lime-500/20 text-lime-200 border border-lime-400/30',
-  Powder: 'bg-lime-400/20 text-lime-200 border border-lime-300/30',
-  Healing: 'bg-green-500/20 text-green-200 border border-green-400/30',
-  Status: 'bg-yellow-500/20 text-yellow-200 border border-yellow-400/30',
-  Terrain: 'bg-teal-500/20 text-teal-200 border border-teal-400/30'
-};
-
-const getTagClass = (tag) => tagStyles[tag] || 'bg-slate-700/50 text-slate-200 border border-slate-500/30';
 
 const resolveTalentData = (talent) => {
   console.log('🔍 TalentDisplay: Resolving talent:', talent);
@@ -107,7 +97,7 @@ export default function TalentDisplay({ talents, showDescription = false, compac
           || (talentData
             ? getTalentDescription(talentData.id, normalizedGrade)
             : getTalentDescription(resolveTalentKey(talent), normalizedGrade));
-        const tagsAffected = talentData?.tagsAffected || [];
+        const tagsAffected = talentData?.tags || talentData?.tagsAffected || [];
 
         return (
           <motion.div
@@ -138,16 +128,7 @@ export default function TalentDisplay({ talents, showDescription = false, compac
                   </p>
                 )}
                 {tagsAffected.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {tagsAffected.map((tag) => (
-                      <span
-                        key={tag}
-                        className={`text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide ${getTagClass(tag)}`}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  <MoveTagBadges tags={tagsAffected} className="mt-2" />
                 )}
               </div>
             </div>

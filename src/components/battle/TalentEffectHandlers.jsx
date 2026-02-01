@@ -278,6 +278,308 @@ export const TalentEffectHandlers = {
     }
   },
 
+  staticField: {
+    Basic: ({ user, attacker, addBattleLog }) => {
+      if (!attacker || attacker.hasStatus?.("Paralyze")) return;
+      if (Math.random() < 0.3) {
+        attacker.applyStatus?.("Paralyze");
+        addBattleLog(`${user.nickname || user.species}'s Static Field paralyzed the attacker!`);
+      }
+    },
+    Rare: ({ user, attacker, addBattleLog }) => {
+      if (!attacker || attacker.hasStatus?.("Paralyze")) return;
+      if (Math.random() < 0.5) {
+        attacker.applyStatus?.("Paralyze");
+        addBattleLog(`${user.nickname || user.species}'s Static Field paralyzed the attacker!`);
+      }
+    },
+    Epic: ({ user, attacker, addBattleLog }) => {
+      if (!attacker || attacker.hasStatus?.("Paralyze")) return;
+      attacker.applyStatus?.("Paralyze");
+      addBattleLog(`${user.nickname || user.species}'s Static Field paralyzed the attacker!`);
+    }
+  },
+
+  shockAffinity: {
+    Basic: ({ user, attacker, move, addBattleLog }) => {
+      if (attacker !== user || move?.type !== "Electric" || !move?.power) return;
+      move.power *= 1.1;
+      addBattleLog(`${user.nickname || user.species}'s Shock Affinity boosted its power!`);
+    },
+    Rare: ({ user, attacker, move, addBattleLog }) => {
+      if (attacker !== user || move?.type !== "Electric" || !move?.power) return;
+      move.power *= 1.2;
+      addBattleLog(`${user.nickname || user.species}'s Shock Affinity boosted its power!`);
+    },
+    Epic: ({ user, attacker, move, addBattleLog }) => {
+      if (attacker !== user || move?.type !== "Electric" || !move?.power) return;
+      move.power *= 1.3;
+      addBattleLog(`${user.nickname || user.species}'s Shock Affinity boosted its power!`);
+    }
+  },
+
+  quickstep: {
+    Basic: ({ user, turnCount, modifyStat, addBattleLog }) => {
+      if (user._quickstepUsed || turnCount !== 1) return;
+      modifyStat(user, "speed", 1);
+      user._quickstepUsed = true;
+      addBattleLog(`${user.nickname || user.species} darted forward with Quickstep!`);
+    },
+    Rare: ({ user, turnCount, modifyStat, addBattleLog }) => {
+      if (user._quickstepUsed || turnCount !== 1) return;
+      modifyStat(user, "speed", 2);
+      user._quickstepUsed = true;
+      addBattleLog(`${user.nickname || user.species} darted forward with Quickstep!`);
+    },
+    Epic: ({ user, turnCount, modifyStat, addBattleLog }) => {
+      if (user._quickstepUsed || turnCount !== 1) return;
+      modifyStat(user, "speed", 3);
+      user._quickstepUsed = true;
+      addBattleLog(`${user.nickname || user.species} darted forward with Quickstep!`);
+    }
+  },
+
+  voltageStorage: {
+    Basic: ({ user, attacker, target, move, addBattleLog }) => {
+      if (target === user && attacker !== user) {
+        user._voltageStorageCharged = true;
+        addBattleLog(`${user.nickname || user.species} stored electric charge!`);
+        return;
+      }
+      if (attacker === user && move?.type === "Electric" && user._voltageStorageCharged) {
+        move.power *= 1.2;
+        user._voltageStorageCharged = false;
+        addBattleLog(`${user.nickname || user.species} released stored voltage!`);
+      }
+    },
+    Rare: ({ user, attacker, target, move, addBattleLog }) => {
+      if (target === user && attacker !== user) {
+        user._voltageStorageCharged = true;
+        addBattleLog(`${user.nickname || user.species} stored electric charge!`);
+        return;
+      }
+      if (attacker === user && move?.type === "Electric" && user._voltageStorageCharged) {
+        move.power *= 1.5;
+        user._voltageStorageCharged = false;
+        addBattleLog(`${user.nickname || user.species} released stored voltage!`);
+      }
+    },
+    Epic: ({ user, attacker, target, move, addBattleLog }) => {
+      if (target === user && attacker !== user) {
+        user._voltageStorageCharged = true;
+        addBattleLog(`${user.nickname || user.species} stored electric charge!`);
+        return;
+      }
+      if (attacker === user && move?.type === "Electric" && user._voltageStorageCharged) {
+        move.power *= 2;
+        user._voltageStorageCharged = false;
+        addBattleLog(`${user.nickname || user.species} released stored voltage!`);
+      }
+    }
+  },
+
+  burstFocus: {
+    Basic: ({ user, attacker, move, modifyStat, addBattleLog }) => {
+      if (attacker !== user || (move?.priority ?? 0) <= 0) return;
+      modifyStat(user, "atk", 1);
+      addBattleLog(`${user.nickname || user.species} gained Attack from Burst Focus!`);
+    },
+    Rare: ({ user, attacker, move, modifyStat, addBattleLog }) => {
+      if (attacker !== user || (move?.priority ?? 0) <= 0) return;
+      modifyStat(user, "atk", 2);
+      addBattleLog(`${user.nickname || user.species} gained Attack from Burst Focus!`);
+    },
+    Epic: ({ user, attacker, move, modifyStat, addBattleLog }) => {
+      if (attacker !== user || (move?.priority ?? 0) <= 0) return;
+      modifyStat(user, "atk", 2);
+      addBattleLog(`${user.nickname || user.species} gained Attack from Burst Focus!`);
+    }
+  },
+
+  stormAttractor: {
+    Basic: ({ user, target, move, modifyStat, addBattleLog }) => {
+      if (target !== user || move?.type !== "Electric") return;
+      modifyStat(user, "speed", 1);
+      move.power = 0;
+      addBattleLog(`${user.nickname || user.species} absorbed the electric move!`);
+    },
+    Rare: ({ user, target, move, modifyStat, addBattleLog }) => {
+      if (target !== user || move?.type !== "Electric") return;
+      modifyStat(user, "speed", 2);
+      move.power = 0;
+      addBattleLog(`${user.nickname || user.species} absorbed the electric move!`);
+    },
+    Epic: ({ user, target, move, modifyStat, addBattleLog }) => {
+      if (target !== user || move?.type !== "Electric") return;
+      modifyStat(user, "speed", 2);
+      move.power = 0;
+      addBattleLog(`${user.nickname || user.species} absorbed the electric move!`);
+    }
+  },
+
+  circuitSync: {
+    Basic: ({ user, playerTeam, enemyTeam, modifyStat, addBattleLog }) => {
+      const others = [...(playerTeam || []), ...(enemyTeam || [])].filter((mon) => mon && mon !== user);
+      if (!others.some((mon) => mon.hasStatus?.("Paralyze"))) return;
+      modifyStat(user, "speed", 1);
+      addBattleLog(`${user.nickname || user.species} synced with the paralysis!`);
+    },
+    Rare: ({ user, playerTeam, enemyTeam, modifyStat, addBattleLog }) => {
+      const others = [...(playerTeam || []), ...(enemyTeam || [])].filter((mon) => mon && mon !== user);
+      if (!others.some((mon) => mon.hasStatus?.("Paralyze"))) return;
+      modifyStat(user, "speed", 2);
+      addBattleLog(`${user.nickname || user.species} synced with the paralysis!`);
+    },
+    Epic: ({ user, playerTeam, enemyTeam, modifyStat, addBattleLog }) => {
+      const others = [...(playerTeam || []), ...(enemyTeam || [])].filter((mon) => mon && mon !== user);
+      if (!others.some((mon) => mon.hasStatus?.("Paralyze"))) return;
+      modifyStat(user, "speed", 2);
+      addBattleLog(`${user.nickname || user.species} synced with the paralysis!`);
+    }
+  },
+
+  voltaicCoat: {
+    Basic: ({ user, target, attacker, move, damage, addBattleLog }) => {
+      if (target !== user || move?.category !== "Physical") return;
+      const healed = Math.floor((damage || 0) * 0.2);
+      if (healed > 0) {
+        user.currentHp = Math.min(user.stats.hp, user.currentHp + healed);
+      }
+      if (attacker && Math.random() < 0.1) {
+        attacker.applyStatus?.("Paralyze");
+      }
+      addBattleLog(`${user.nickname || user.species}'s Voltaic Coat crackled.`);
+    },
+    Rare: ({ user, target, attacker, move, damage, addBattleLog }) => {
+      if (target !== user || move?.category !== "Physical") return;
+      const healed = Math.floor((damage || 0) * 0.3);
+      if (healed > 0) {
+        user.currentHp = Math.min(user.stats.hp, user.currentHp + healed);
+      }
+      if (attacker && Math.random() < 0.2) {
+        attacker.applyStatus?.("Paralyze");
+      }
+      addBattleLog(`${user.nickname || user.species}'s Voltaic Coat crackled.`);
+    },
+    Epic: ({ user, target, attacker, move, damage, addBattleLog }) => {
+      if (target !== user || move?.category !== "Physical") return;
+      const healed = Math.floor((damage || 0) * 0.4);
+      if (healed > 0) {
+        user.currentHp = Math.min(user.stats.hp, user.currentHp + healed);
+      }
+      if (attacker && Math.random() < 0.3) {
+        attacker.applyStatus?.("Paralyze");
+      }
+      addBattleLog(`${user.nickname || user.species}'s Voltaic Coat crackled.`);
+    }
+  },
+
+  hyperReflex: {
+    Basic: ({ user, target, move, addBattleLog }) => {
+      if (target !== user || (move?.priority ?? 0) <= 0) return;
+      move.power = 0;
+      addBattleLog(`${user.nickname || user.species} brushed off the priority strike!`);
+    },
+    Rare: ({ user, target, move, addBattleLog }) => {
+      if (target !== user || (move?.priority ?? 0) <= 0) return;
+      move.power = 0;
+      addBattleLog(`${user.nickname || user.species} brushed off the priority strike!`);
+    },
+    Epic: ({ user, target, move, addBattleLog }) => {
+      if (target !== user || (move?.priority ?? 0) <= 0) return;
+      move.power = 0;
+      addBattleLog(`${user.nickname || user.species} brushed off the priority strike!`);
+    }
+  },
+
+  batteryPack: {
+    Basic: ({ user, addBattleLog }) => {
+      restoreElectricPP(user, 1);
+      addBattleLog(`${user.nickname || user.species} recharged its battery pack!`);
+    },
+    Rare: ({ user, addBattleLog }) => {
+      restoreElectricPP(user, 2);
+      addBattleLog(`${user.nickname || user.species} recharged its battery pack!`);
+    },
+    Epic: ({ user, addBattleLog }) => {
+      restoreElectricPP(user, 2);
+      addBattleLog(`${user.nickname || user.species} recharged its battery pack!`);
+    }
+  },
+
+  overchargeWave: {
+    Basic: ({ user, move, target, addBattleLog }) => {
+      if (move?.type !== "Electric" || !target) return;
+      user._overchargeWaveCount = (user._overchargeWaveCount || 0) + 1;
+      if (user._overchargeWaveCount % 4 !== 0) return;
+      addBattleLog(`${user.nickname || user.species} unleashed an Overcharge Wave!`);
+    },
+    Rare: ({ user, move, target, addBattleLog }) => {
+      if (move?.type !== "Electric" || !target) return;
+      user._overchargeWaveCount = (user._overchargeWaveCount || 0) + 1;
+      if (user._overchargeWaveCount % 3 !== 0) return;
+      addBattleLog(`${user.nickname || user.species} unleashed an Overcharge Wave!`);
+    },
+    Epic: ({ user, move, target, addBattleLog }) => {
+      if (move?.type !== "Electric" || !target) return;
+      user._overchargeWaveCount = (user._overchargeWaveCount || 0) + 1;
+      if (user._overchargeWaveCount % 3 !== 0) return;
+      addBattleLog(`${user.nickname || user.species} unleashed an Overcharge Wave!`);
+    }
+  },
+
+  supercell: {
+    Basic: ({ move, weather, addBattleLog }) => {
+      if (move?.type !== "Electric" || weather !== "rain") return;
+      if (move?.power) move.power *= 1.15;
+      addBattleLog?.('Supercell intensified the storm!');
+    },
+    Rare: ({ move, weather, addBattleLog }) => {
+      if (move?.type !== "Electric" || weather !== "rain") return;
+      if (move?.power) move.power *= 1.25;
+      addBattleLog?.('Supercell intensified the storm!');
+    },
+    Epic: ({ move, weather, addBattleLog }) => {
+      if (move?.type !== "Electric" || weather !== "rain") return;
+      if (move?.power) move.power *= 1.25;
+      if (move?.accuracy) move.accuracy = 999;
+      addBattleLog?.('Supercell intensified the storm!');
+    }
+  },
+
+  surgeRedirect: {
+    Basic: ({ user, target, move, modifyStat, addBattleLog }) => {
+      if (move?.type !== "Electric" || target === user) return;
+      modifyStat(user, "speed", 1);
+      addBattleLog(`${user.nickname || user.species} drew in the electric surge!`);
+    },
+    Rare: ({ user, target, move, modifyStat, addBattleLog }) => {
+      if (move?.type !== "Electric" || target === user) return;
+      modifyStat(user, "speed", 2);
+      addBattleLog(`${user.nickname || user.species} drew in the electric surge!`);
+    },
+    Epic: ({ user, target, move, modifyStat, addBattleLog }) => {
+      if (move?.type !== "Electric" || target === user) return;
+      modifyStat(user, "speed", 2);
+      addBattleLog(`${user.nickname || user.species} drew in the electric surge!`);
+    }
+  },
+
+  ionAmplifier: {
+    Basic: ({ move, addBattleLog }) => {
+      if (move?.type !== "Electric") return;
+      addBattleLog?.('Ion Amplifier pierced through defenses!');
+    },
+    Rare: ({ move, addBattleLog }) => {
+      if (move?.type !== "Electric") return;
+      addBattleLog?.('Ion Amplifier pierced through defenses!');
+    },
+    Epic: ({ move, addBattleLog }) => {
+      if (move?.type !== "Electric") return;
+      addBattleLog?.('Ion Amplifier pierced through defenses!');
+    }
+  },
+
   silkenGrip: {
     Basic: ({ user, target, addBattleLog }) => {
       if (Math.random() < 0.05) {
@@ -705,4 +1007,22 @@ function applyEtherealPresence(target, addBattleLog) {
     }
   });
   addBattleLog?.('Ethereal Presence warded off status effects.');
+}
+
+function restoreElectricPP(user, amount) {
+  const moves = user?.moveset || user?.moves || [];
+  moves.forEach((move) => {
+    if (move?.type !== 'Electric') return;
+    const maxPP = move.pp ?? move.maxPP;
+    const currentPP = move.currentPP ?? move.ppRemaining ?? move.remainingPP;
+    if (maxPP == null || currentPP == null) return;
+    const nextPP = Math.min(maxPP, currentPP + amount);
+    if (move.currentPP != null) {
+      move.currentPP = nextPP;
+    } else if (move.ppRemaining != null) {
+      move.ppRemaining = nextPP;
+    } else if (move.remainingPP != null) {
+      move.remainingPP = nextPP;
+    }
+  });
 }

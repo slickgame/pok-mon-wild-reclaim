@@ -1407,5 +1407,187 @@ export const TalentRegistry = {
       Rare: { description: "30% chance to gain 2 turns of status immunity." },
       Epic: { description: "30% chance to gain 2 turns of status immunity." }
     }
+  },
+  staticField: {
+    id: "staticField",
+    name: "Static Field",
+    description: "Contact hits may paralyze the attacker.",
+    tags: ["Electric", "Paralyze"],
+    tagsAffected: ["Paralyze", "Electric"],
+    trigger: "onContactReceived",
+    grades: {
+      Basic: { description: "30% chance to paralyze contact attackers." },
+      Rare: { description: "50% chance to paralyze contact attackers." },
+      Epic: { description: "Contact attackers are always paralyzed." }
+    }
+  },
+  shockAffinity: {
+    id: "shockAffinity",
+    name: "Shock Affinity",
+    description: "Boosts Electric-type move damage.",
+    tags: ["Electric", "DamageBoost"],
+    tagsAffected: ["Electric", "DamageBoost"],
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "Electric moves deal 10% more damage." },
+      Rare: { description: "Electric moves deal 20% more damage." },
+      Epic: { description: "Electric moves deal 30% more damage." }
+    }
+  },
+  quickstep: {
+    id: "quickstep",
+    name: "Quickstep",
+    description: "Gains Speed on the first turn in battle.",
+    tags: ["Speed", "Buff"],
+    tagsAffected: ["Speed", "Buff"],
+    trigger: "onTurnStart",
+    grades: {
+      Basic: { description: "First turn: +1 Speed." },
+      Rare: { description: "First turn: +2 Speed." },
+      Epic: { description: "First turn: +3 Speed." }
+    }
+  },
+  voltageStorage: {
+    id: "voltageStorage",
+    name: "Voltage Storage",
+    description: "Stores charge when targeted to boost the next Electric move.",
+    tags: ["Electric", "Burst"],
+    tagsAffected: ["Electric", "Burst"],
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "Next Electric move deals 20% more damage." },
+      Rare: { description: "Next Electric move deals 50% more damage." },
+      Epic: { description: "Next Electric move deals double damage." }
+    }
+  },
+  burstFocus: {
+    id: "burstFocus",
+    name: "Burst Focus",
+    description: "Priority moves boost Attack.",
+    tags: ["Priority", "Attack", "Buff"],
+    tagsAffected: ["Priority", "Attack", "Buff"],
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "Priority moves grant +1 Attack." },
+      Rare: { description: "Priority moves grant +2 Attack." },
+      Epic: { description: "Priority moves grant +2 Attack." }
+    }
+  },
+  stormAttractor: {
+    id: "stormAttractor",
+    name: "Storm Attractor",
+    description: "Draws in Electric moves, nullifying them and boosting Speed.",
+    tags: ["Electric", "Redirect", "Speed"],
+    tagsAffected: ["Electric", "Redirect", "Speed"],
+    trigger: "onMoveInit",
+    grades: {
+      Basic: { description: "Electric moves grant +1 Speed and are nullified." },
+      Rare: { description: "Electric moves grant +2 Speed and are nullified." },
+      Epic: { description: "Electric moves grant +2 Speed and are nullified." }
+    }
+  },
+  circuitSync: {
+    id: "circuitSync",
+    name: "Circuit Sync",
+    description: "Gains Speed each turn if another Pokémon is paralyzed.",
+    tags: ["Paralyze", "Speed", "Synergy"],
+    tagsAffected: ["Paralyze", "Speed", "Synergy"],
+    trigger: "onTurnStart",
+    grades: {
+      Basic: { description: "If any Pokémon is paralyzed, gain +1 Speed." },
+      Rare: { description: "If any Pokémon is paralyzed, gain +2 Speed." },
+      Epic: { description: "If any Pokémon is paralyzed, gain +2 Speed." }
+    }
+  },
+  voltaicCoat: {
+    id: "voltaicCoat",
+    name: "Voltaic Coat",
+    description: "Reduces damage from physical hits and may paralyze the attacker.",
+    tags: ["Electric", "Paralyze", "Defense"],
+    tagsAffected: ["Defense", "Paralyze", "Electric"],
+    trigger: "onHit",
+    grades: {
+      Basic: { description: "Reduce physical damage by 20% and 10% paralyze chance." },
+      Rare: { description: "Reduce physical damage by 30% and 20% paralyze chance." },
+      Epic: { description: "Reduce physical damage by 40% and 30% paralyze chance." }
+    }
+  },
+  hyperReflex: {
+    id: "hyperReflex",
+    name: "Hyper Reflex",
+    description: "Immune to priority moves.",
+    tags: ["Priority", "Immunity"],
+    tagsAffected: ["Priority", "Immunity"],
+    trigger: "onMoveInit",
+    grades: {
+      Basic: { description: "Blocks incoming priority moves." },
+      Rare: { description: "Blocks incoming priority moves." },
+      Epic: { description: "Blocks incoming priority moves." }
+    }
+  },
+  batteryPack: {
+    id: "batteryPack",
+    name: "Battery Pack",
+    description: "Restores PP for Electric moves each turn.",
+    tags: ["Electric", "Recovery", "Utility"],
+    tagsAffected: ["Electric", "Recovery", "Utility"],
+    trigger: "onTurnStart",
+    grades: {
+      Basic: { description: "Restore 1 PP to Electric moves each turn." },
+      Rare: { description: "Restore 2 PP to Electric moves each turn." },
+      Epic: { description: "Restore 2 PP to Electric moves each turn." }
+    }
+  },
+  overchargeWave: {
+    id: "overchargeWave",
+    name: "Overcharge Wave",
+    description: "Every few Electric-type moves cause splash damage to adjacent enemies.",
+    tags: ["Electric", "AOE"],
+    tagsAffected: ["Electric", "AOE"],
+    trigger: "onMoveHit",
+    grades: {
+      Basic: { description: "Every 4th Electric move splashes 20% damage." },
+      Rare: { description: "Every 3rd Electric move splashes 25% damage." },
+      Epic: { description: "Every 3rd Electric move splashes 40% damage." }
+    }
+  },
+  supercell: {
+    id: "supercell",
+    name: "Supercell",
+    description: "In rain, Electric moves deal more damage and may never miss.",
+    tags: ["Weather", "Electric"],
+    tagsAffected: ["Weather", "Electric"],
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "In rain, Electric moves deal 15% more damage." },
+      Rare: { description: "In rain, Electric moves deal 25% more damage." },
+      Epic: { description: "In rain, Electric moves deal 25% more damage and cannot miss." }
+    }
+  },
+  surgeRedirect: {
+    id: "surgeRedirect",
+    name: "Surge Redirect",
+    description: "Redirects Electric moves targeting allies and boosts Speed.",
+    tags: ["Electric", "Support"],
+    tagsAffected: ["Electric", "Support"],
+    trigger: "onMoveInit",
+    grades: {
+      Basic: { description: "Redirect Electric moves and gain +1 Speed." },
+      Rare: { description: "Redirect Electric moves and gain +2 Speed." },
+      Epic: { description: "Redirect Electric moves and gain +2 Speed with resistance." }
+    }
+  },
+  ionAmplifier: {
+    id: "ionAmplifier",
+    name: "Ion Amplifier",
+    description: "Electric moves bypass buffs and barriers.",
+    tags: ["Electric", "Bypass"],
+    tagsAffected: ["Electric", "Bypass"],
+    trigger: "onMoveHit",
+    grades: {
+      Basic: { description: "Electric moves bypass buffs." },
+      Rare: { description: "Electric moves bypass buffs and partially pierce shields." },
+      Epic: { description: "Electric moves fully bypass buffs and barriers." }
+    }
   }
 };

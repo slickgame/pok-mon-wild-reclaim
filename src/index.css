@@ -110,4 +110,16 @@
   .unknown-tag {
     opacity: 0.8;
   }
+
+  .tag-electric {
+    background: #F8D030;
+  }
+
+  .tag-paralyze {
+    background: #A890F0;
+  }
+
+  .tag-priority {
+    background: #D04030;
+  }
 }

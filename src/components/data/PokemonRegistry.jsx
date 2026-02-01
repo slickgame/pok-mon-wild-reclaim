@@ -8,6 +8,8 @@ import { oddishData } from './pokemon/oddish';
 import { gloomData } from './pokemon/gloom';
 import { vileplumeData } from './pokemon/vileplume';
 import { bellossomData } from './pokemon/bellossom';
+import { pikachuData } from './pokemon/pikachu';
+import { raichuData } from './pokemon/raichu';
 
 /**
  * Central Pokemon Registry
@@ -24,6 +26,8 @@ export const PokemonRegistry = {
   gloom: gloomData,
   vileplume: vileplumeData,
   bellossom: bellossomData,
+  pikachu: pikachuData,
+  raichu: raichuData,
   // Add future Pokemon below
 };
 
