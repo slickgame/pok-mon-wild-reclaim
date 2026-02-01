@@ -20,7 +20,7 @@ export const TagRegistry = {
     color: '#FF6F61'
   },
   Buff: {
-    name: 'Buff',
+    name: '🌀 Buff',
     description: "Moves that increase the user's stats.",
     color: '#6AC3FA'
   },
@@ -95,9 +95,9 @@ export const TagRegistry = {
     color: '#87CEEB'
   },
   Paralyze: {
-    name: 'Paralyze',
+    name: '🎯 Paralyze',
     description: 'May cause paralysis status effect.',
-    color: '#FFD700'
+    color: '#A890F0'
   },
   Burn: {
     name: 'Burn',
@@ -120,9 +120,9 @@ export const TagRegistry = {
     color: '#B2A4FF'
   },
   Priority: {
-    name: 'Priority',
+    name: '⚔️ Priority',
     description: 'Moves that strike before standard turn order.',
-    color: '#B0E57C'
+    color: '#D04030'
   },
   FixedDamage: {
     name: 'Fixed Damage',
@@ -168,5 +168,110 @@ export const TagRegistry = {
     name: 'Bonus',
     description: 'Has enhanced effect under special conditions.',
     color: '#FFDD00'
+  },
+  Punch: {
+    name: '🥊 Punch',
+    description: 'Punch-based moves.',
+    color: '#F6AD55'
+  },
+  SpeedBased: {
+    name: '🏎️ Speed-Based',
+    description: 'Power scales with Speed or turn order.',
+    color: '#63B3ED'
+  },
+  Area: {
+    name: '🧨 Area',
+    description: 'Hits multiple targets or an area.',
+    color: '#FEB2B2'
+  },
+  Recoil: {
+    name: '💥 Recoil',
+    description: 'Damages the user after hitting.',
+    color: '#FC8181'
+  },
+  Signature: {
+    name: '⭐ Signature',
+    description: 'Signature or unique moves.',
+    color: '#FBD38D'
+  },
+  Bypass: {
+    name: '🚫 Bypass',
+    description: 'Bypasses shields or protective effects.',
+    color: '#A0AEC0'
+  },
+  Electric: {
+    name: '⚡ Electric',
+    description: 'Electric-aligned effects or bonuses.',
+    color: '#F8D030'
+  },
+  CritBoost: {
+    name: '🎯 Crit Boost',
+    description: 'Improves critical hit chances.',
+    color: '#F6E05E'
+  },
+  Setup: {
+    name: '🧩 Setup',
+    description: 'Provides early battle setup bonuses.',
+    color: '#9F7AEA'
+  },
+  AOE: {
+    name: '🧨 AOE',
+    description: 'Affects multiple targets or an area.',
+    color: '#FEB2B2'
+  },
+  Support: {
+    name: '🤝 Support',
+    description: 'Provides ally-focused utility.',
+    color: '#68D391'
+  },
+  Burst: {
+    name: '💥 Burst',
+    description: 'Effects that trigger a sudden power spike.',
+    color: '#FF8C42'
+  },
+  Speed: {
+    name: '💨 Speed',
+    description: 'Improves Speed or turn order.',
+    color: '#7FDBFF'
+  },
+  Defense: {
+    name: '🛡️ Defense',
+    description: 'Defensive mitigation or protection.',
+    color: '#A3BFFA'
+  },
+  Attack: {
+    name: '⚔️ Attack',
+    description: 'Boosts or impacts Attack stats.',
+    color: '#F56565'
+  },
+  DamageBoost: {
+    name: '📈 Damage Boost',
+    description: 'Increases move damage.',
+    color: '#F6AD55'
+  },
+  Redirect: {
+    name: '🧲 Redirect',
+    description: 'Redirects or draws in attacks.',
+    color: '#68D391'
+  },
+  Synergy: {
+    name: '🔗 Synergy',
+    description: 'Triggers when paired with other effects.',
+    color: '#9F7AEA'
+  },
+  Immunity: {
+    name: '🧿 Immunity',
+    description: 'Negates specific effects or move types.',
+    color: '#A0AEC0'
+  },
+  Recovery: {
+    name: '✨ Recovery',
+    description: 'Restores resources like HP or PP.',
+    color: '#68D391'
+  },
+  Utility: {
+    name: '🧰 Utility',
+    description: 'Provides utility benefits or upkeep.',
+    color: '#4FD1C5'
   }
 };

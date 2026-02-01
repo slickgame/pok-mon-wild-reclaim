@@ -1607,6 +1607,97 @@ const BASE_MOVE_DATA = {
     tags: ['Priority', 'Physical'],
     priority: 1
   },
+  'Thunder Punch': {
+    type: 'Electric',
+    category: 'Physical',
+    power: 75,
+    accuracy: 100,
+    pp: 15,
+    description: 'The target is punched with an electrified fist. May paralyze the target.',
+    effect: 'paralyze',
+    effectChance: 10,
+    tags: ['Electric', 'Paralyze', 'Punch']
+  },
+  Feint: {
+    type: 'Normal',
+    category: 'Physical',
+    power: 30,
+    accuracy: 100,
+    pp: 10,
+    description: 'Strikes through protective moves and cancels their effects.',
+    tags: ['Bypass', 'Priority'],
+    priority: 1
+  },
+  Spark: {
+    type: 'Electric',
+    category: 'Physical',
+    power: 65,
+    accuracy: 100,
+    pp: 20,
+    description: 'A jolting tackle that may paralyze the target.',
+    effect: 'paralyze',
+    effectChance: 10,
+    tags: ['Electric', 'Paralyze']
+  },
+  'Volt Tackle': {
+    type: 'Electric',
+    category: 'Physical',
+    power: 120,
+    accuracy: 100,
+    pp: 15,
+    description: 'A life-risking tackle that also hurts the user. May paralyze the target.',
+    recoil: 0.33,
+    effect: 'paralyze',
+    effectChance: 10,
+    signature: true,
+    tags: ['Electric', 'Paralyze', 'Recoil', 'Signature']
+  },
+  'Thunder Wave': {
+    type: 'Electric',
+    category: 'Status',
+    power: 0,
+    accuracy: 90,
+    pp: 20,
+    description: 'A weak electric charge is launched at the target. It causes paralysis if it hits.',
+    effect: 'paralyze',
+    effectChance: 100,
+    tags: ['Paralyze', 'Status']
+  },
+  'Electro Ball': {
+    type: 'Electric',
+    category: 'Special',
+    power: 0,
+    accuracy: 100,
+    pp: 10,
+    description: 'The faster the user is than the target, the greater the damage.',
+    tags: ['Electric', 'SpeedBased', 'Special']
+  },
+  Discharge: {
+    type: 'Electric',
+    category: 'Special',
+    power: 80,
+    accuracy: 100,
+    pp: 15,
+    description: 'The user strikes everything around it by letting loose a flare of electricity. May paralyze the target.',
+    effect: 'paralyze',
+    effectChance: 30,
+    aoe: true,
+    tags: ['Area', 'Paralyze', 'Electric']
+  },
+  'Volt Pounce': {
+    type: 'Electric',
+    category: 'Physical',
+    power: 60,
+    accuracy: 100,
+    pp: 10,
+    description:
+      'The user leaps with an electrified tackle. Has a high chance to paralyze and strikes before slower foes.',
+    effect: 'paralyze',
+    effectChance: 30,
+    priority: 1,
+    signature: true,
+    tags: ['Signature', 'Paralyze', 'Priority']
+  },
   'Agility': {
     type: 'Psychic',
     category: 'Status',
@@ -1649,6 +1740,7 @@ const MOVE_TAGS = {
   Thunderbolt: ['Special', 'Paralyze'],
   Spark: ['Physical', 'Paralyze'],
   'Charge Beam': ['Special', 'Buff'],
+  'Volt Pounce': ['Signature', 'Paralyze', 'Priority', 'Physical'],
 
   // 🕊️ Flying
   Gust: ['Special'],

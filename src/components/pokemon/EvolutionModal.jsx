@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Zap, ArrowRight, TrendingUp } from 'lucide-react';
-import { getEvolvedStats } from './evolutionData';
+import { getEvolvedStats, getEvolutionMoveOptions } from './evolutionData';
 
 export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStats, onComplete, onCancel }) {
   const [stage, setStage] = useState('confirm'); // 'confirm', 'evolving', 'stats', 'complete', 'cancelled'
   const [showNewForm, setShowNewForm] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
   const [bKeyPressed, setBKeyPressed] = useState(false);
+  const evolutionMoves = getEvolutionMoveOptions(evolvesInto);
+  const [selectedMoves, setSelectedMoves] = useState([]);
 
   useEffect(() => {
     if (stage === 'evolving') {
@@ -69,7 +71,7 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
   };
 
   const handleComplete = () => {
-    onComplete();
+    onComplete({ selectedMoves });
   };
 
   const handleCancel = () => {
@@ -190,6 +192,45 @@ export default function EvolutionModal({ pokemon, evolvesInto, newStats, oldStat
                 Press <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">B</kbd> or <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">ESC</kbd> to cancel
               </p>
             </div>
+            {evolutionMoves.length > 0 && (
+              <div className="mt-6 rounded-lg border border-slate-700/60 bg-slate-900/60 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-400 mb-2">
+                  Evolution Move Options
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {evolutionMoves.map((move) => {
+                    const isSelected = selectedMoves.includes(move);
+                    return (
+                      <button
+                        key={move}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMoves((prev) => {
+                            if (prev.includes(move)) {
+                              return prev.filter((entry) => entry !== move);
+                            }
+                            if (prev.length >= 4) {
+                              return prev;
+                            }
+                            return [...prev, move];
+                          });
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                          isSelected
+                            ? 'border-indigo-400 bg-indigo-500/20 text-indigo-100'
+                            : 'border-slate-700 bg-slate-800/50 text-slate-300 hover:border-slate-500'
+                        }`}
+                      >
+                        {move}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  Select up to four moves to add after evolution.
+                </p>
+              </div>
+            )}
           </motion.div>
         )}
 

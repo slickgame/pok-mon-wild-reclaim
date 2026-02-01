@@ -1,10 +1,29 @@
 import { PokemonRegistry } from '@/components/data/PokemonRegistry';
 import { DropTableRegistry } from '@/components/data/DropTableRegistry';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
+import { assignRandomTalents } from '@/components/utils/talentAssignment';
 
 // Convert new format to old format for compatibility
 function convertPokemonData(jsonData) {
-  const dropTable = DropTableRegistry[jsonData.species] || jsonData.dropItems || [];
+  const dropTable =
+    DropTableRegistry[jsonData.species] ||
+    jsonData.dropItems ||
+    jsonData.drops ||
+    [];
+  const baseStats = jsonData.baseStats || {};
+  const evYield = jsonData.evYield || {};
+
+  const getStat = (primaryKey, fallbackKey) =>
+    baseStats[primaryKey] ??
+    baseStats[primaryKey.toLowerCase()] ??
+    baseStats[fallbackKey] ??
+    baseStats[fallbackKey?.toLowerCase()];
+
+  const getEv = (primaryKey, fallbackKey) =>
+    evYield[primaryKey] ??
+    evYield[primaryKey.toLowerCase()] ??
+    evYield[fallbackKey] ??
+    evYield[fallbackKey?.toLowerCase()];
 
   return {
     species: jsonData.species,
@@ -12,25 +31,25 @@ function convertPokemonData(jsonData) {
     type1: jsonData.types[0],
     type2: jsonData.types[1] || null,
     baseStats: {
-      hp: jsonData.baseStats.HP,
-      atk: jsonData.baseStats.Attack,
-      def: jsonData.baseStats.Defense,
-      spAtk: jsonData.baseStats.SpAttack,
-      spDef: jsonData.baseStats.SpDefense,
-      spd: jsonData.baseStats.Speed
+      hp: getStat("HP", "hp"),
+      atk: getStat("Attack", "atk"),
+      def: getStat("Defense", "def"),
+      spAtk: getStat("SpAttack", "spa"),
+      spDef: getStat("SpDefense", "spd"),
+      spd: getStat("Speed", "spe")
     },
     evYield: {
-      hp: jsonData.evYield.HP || 0,
-      atk: jsonData.evYield.Attack || 0,
-      def: jsonData.evYield.Defense || 0,
-      spAtk: jsonData.evYield.SpAttack || 0,
-      spDef: jsonData.evYield.SpDefense || 0,
-      spd: jsonData.evYield.Speed || 0
+      hp: getEv("HP", "hp") || 0,
+      atk: getEv("Attack", "atk") || 0,
+      def: getEv("Defense", "def") || 0,
+      spAtk: getEv("SpAttack", "spa") || 0,
+      spDef: getEv("SpDefense", "spd") || 0,
+      spd: getEv("Speed", "spe") || 0
     },
-    baseXpYield: jsonData.baseExp,
+    baseXpYield: jsonData.baseExp ?? jsonData.baseExpYield,
     dropItems: dropTable.map(d => ({
-      item: d.itemId,
-      itemId: d.itemId,
+      item: d.itemId ?? d.item,
+      itemId: d.itemId ?? d.item,
       chance: d.chance
     })),
     talentPool: jsonData.talentPool,
@@ -48,6 +67,7 @@ export const wildPokemonData = {
   Metapod: convertPokemonData(PokemonRegistry.metapod),
   Butterfree: convertPokemonData(PokemonRegistry.butterfree),
   Pidgey: convertPokemonData(PokemonRegistry.pidgey),
+  Pikachu: convertPokemonData(PokemonRegistry.pikachu),
 
   Oddish: {
     species: "Oddish",
@@ -334,41 +354,30 @@ export const wildPokemonData = {
     catchRate: 1
   },
 
-  Pikachu: {
-    species: "Pikachu",
-    type1: "Electric",
-    type2: null,
-    baseStats: { hp: 35, atk: 55, def: 40, spAtk: 50, spDef: 50, spd: 90 },
-    evYield: { spd: 2 },
-    baseXpYield: 112,
-    dropItems: [
-      { item: "Electric Shard", chance: 0.30 },
-      { item: "Moonleaf", chance: 0.08 },
-      { item: "Thunder Stone", chance: 0.03 }
-    ],
-    talentPool: ["Static Field", "Lightning Reflexes"],
-    battleRole: "Striker",
-    signatureMove: "Thunder Shock",
-    learnset: {
-      1: ["Thunder Shock", "Tail Whip"],
-      5: ["Thunder Wave"],
-      10: ["Quick Attack"],
-      13: ["Electro Ball"]
-    },
-    catchRate: 0.25
-  }
+  
 };
 
 // Verdant Hollow encounter table
+export const WildEncounterRegistry = {
+  "Verdant Hollow": [
+    { species: "Pidgey", rarity: "Common", levelRange: [4, 8], weight: 35 },
+    { species: "Caterpie", rarity: "Common", levelRange: [3, 7], weight: 30 },
+    { species: "Oddish", rarity: "Uncommon", levelRange: [5, 10], weight: 15 }
+  ]
+};
+
+if (!WildEncounterRegistry["Verdant Hollow"].some((encounter) => encounter.species === "Pikachu")) {
+  WildEncounterRegistry["Verdant Hollow"].push({
+    species: "Pikachu",
+    weight: 5,
+    levelRange: [8, 12]
+  });
+}
+
 export const verdantHollowEncounters = {
   zoneName: "Verdant Hollow",
   encounterRate: 0.20, // 20% chance per exploration action
-  encounters: [
-    { species: "Pidgey", rarity: "Common", levelRange: [4, 8], weight: 35 },
-    { species: "Caterpie", rarity: "Common", levelRange: [3, 7], weight: 30 },
-    { species: "Oddish", rarity: "Uncommon", levelRange: [5, 10], weight: 15 },
-    { species: "Pikachu", rarity: "Rare", levelRange: [8, 12], weight: 5 }
-  ]
+  encounters: WildEncounterRegistry["Verdant Hollow"]
 };
 
 // Weighted random selection
@@ -416,58 +425,10 @@ export function randomNature() {
   return natures[Math.floor(Math.random() * natures.length)];
 }
 
-// Random talent from pool with grade
-export function randomTalent(talentPool) {
-  if (!talentPool || talentPool.length === 0) return null;
-  return talentPool[Math.floor(Math.random() * talentPool.length)];
-}
-
-// Roll talent grade
-export function rollTalentGrade() {
-  const roll = Math.random();
-  if (roll < 0.75) return "Basic";
-  if (roll < 0.95) return "Rare";
-  return "Epic";
-}
-
-export function rollTalentCount() {
-  const roll = Math.random();
-  if (roll < 0.4) return 0;
-  if (roll < 0.75) return 1;
-  if (roll < 0.95) return 2;
-  return 3;
-}
-
 export function assignWildTalents(species) {
-  const talentSource = PokemonRegistry[species?.toLowerCase()]?.talentPool || [];
-  const pool = Array.isArray(talentSource) ? talentSource : (talentSource.options || []);
-  if (pool.length === 0) return [];
-
-  const rolledCount = rollTalentCount();
-  const maxTalents = !Array.isArray(talentSource) && talentSource.max
-    ? talentSource.max
-    : rolledCount;
-  const count = Math.min(rolledCount, maxTalents);
-  const assigned = [];
-
-  for (let i = 0; i < count; i += 1) {
-    const remaining = pool.filter((talent) => !assigned.some((entry) => entry.id === talent));
-    if (remaining.length === 0) break;
-    const talentId = remaining[Math.floor(Math.random() * remaining.length)];
-    
-    // Get talent name from registry
-    const talentData = TalentRegistry[talentId];
-    const grade = rollTalentGrade();
-    
-    assigned.push({
-      id: talentId,
-      name: talentData?.name || talentId,
-      grade: grade,
-      description: talentData?.grades?.[grade]?.description || null
-    });
-  }
-
-  return assigned;
+  const speciesData = PokemonRegistry[species?.toLowerCase()];
+  if (!speciesData) return [];
+  return assignRandomTalents(speciesData);
 }
 
 export function applyFieldTalents(party, context) {
