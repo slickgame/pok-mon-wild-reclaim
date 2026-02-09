@@ -9,11 +9,16 @@ import ResearchQuestCard from './ResearchQuestCard';
 import ResearchSubmitModal from './ResearchSubmitModal';
 
 const VERDANT_SPECIES = [
-  { name: 'Caterpie', weight: 3 },
-  { name: 'Pidgey', weight: 3 },
-  { name: 'Oddish', weight: 2 },
-  { name: 'Pikachu', weight: 1 }
+  { name: 'Caterpie', weight: 3, rarity: 'common' },
+  { name: 'Pidgey', weight: 3, rarity: 'common' },
+  { name: 'Oddish', weight: 2, rarity: 'uncommon' },
+  { name: 'Pikachu', weight: 1, rarity: 'rare' }
 ];
+
+const REGION_SPECIES_POOLS = {
+  'Verdant Hollow': VERDANT_SPECIES,
+  default: VERDANT_SPECIES
+};
 
 const NATURES = [
   "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
@@ -31,13 +36,79 @@ const QUEST_CONFIG = {
   cooldownReset: 'daily'
 };
 
+const REWARD_BASE = {
+  common: 100,
+  uncommon: 250,
+  rare: 500
+};
+
 const DIFFICULTY_TIERS = [
-  { name: 'Easy', min: 1, max: 2, expiryHours: 24, difficultyMod: 1.0, items: ['1–2 basic mats'] },
-  { name: 'Normal', min: 3, max: 4, expiryHours: 48, difficultyMod: 1.2, items: ['Chance for Pokéball or Potion (10–20%)'] },
-  { name: 'Hard', min: 5, max: 6, expiryHours: 72, difficultyMod: 1.5, items: ['Uncommon mats', 'Higher drop rates'] },
-  { name: 'Very Hard', min: 7, max: 8, expiryHours: 96, difficultyMod: 2.0, items: ['Rare mat', '2–4 quality items'] },
-  { name: 'Elite', min: 9, max: 10, expiryHours: 120, difficultyMod: 3.0, items: ['Evolution stones', 'Rare ingredients'] },
-  { name: 'Legendary', min: 11, max: Infinity, expiryHours: 168, difficultyMod: 6.0, items: ['1-of-a-kind items', 'Exclusive crafting'] }
+  {
+    name: 'Easy',
+    min: 1,
+    max: 2,
+    expiryHours: 24,
+    difficultyMod: 1.0,
+    items: ['1–2 basic mats'],
+    itemRewards: [{ id: 'featherSoft', quantity: 2 }],
+    trustGain: 2,
+    notesGain: 1
+  },
+  {
+    name: 'Normal',
+    min: 3,
+    max: 4,
+    expiryHours: 48,
+    difficultyMod: 1.2,
+    items: ['Chance for Pokéball or Potion (10–20%)'],
+    itemRewards: [{ id: 'windDust', quantity: 2 }],
+    trustGain: 4,
+    notesGain: 1
+  },
+  {
+    name: 'Hard',
+    min: 5,
+    max: 6,
+    expiryHours: 72,
+    difficultyMod: 1.5,
+    items: ['Uncommon mats', 'Higher drop rates'],
+    itemRewards: [{ id: 'powderSpore', quantity: 2 }],
+    trustGain: 6,
+    notesGain: 2
+  },
+  {
+    name: 'Very Hard',
+    min: 7,
+    max: 8,
+    expiryHours: 96,
+    difficultyMod: 2.0,
+    items: ['Rare mat', '2–4 quality items'],
+    itemRewards: [{ id: 'ancientShard', quantity: 1 }],
+    trustGain: 8,
+    notesGain: 3
+  },
+  {
+    name: 'Elite',
+    min: 9,
+    max: 10,
+    expiryHours: 120,
+    difficultyMod: 3.0,
+    items: ['Evolution stones', 'Rare ingredients'],
+    itemRewards: [{ id: 'trainingScroll', quantity: 1 }],
+    trustGain: 10,
+    notesGain: 4
+  },
+  {
+    name: 'Legendary',
+    min: 11,
+    max: Infinity,
+    expiryHours: 168,
+    difficultyMod: 6.0,
+    items: ['1-of-a-kind items', 'Exclusive crafting'],
+    itemRewards: [{ id: 'leafStone', quantity: 1 }],
+    trustGain: 14,
+    notesGain: 6
+  }
 ];
 
 const GRADE_WEIGHTS = {
@@ -51,7 +122,8 @@ const CONDITION_POOL = [
   { type: 'nature', weight: 3 },
   { type: 'iv', weight: 3 },
   { type: 'talent', weight: 2 },
-  { type: 'level', weight: 2 }
+  { type: 'level', weight: 2 },
+  { type: 'special', weight: 1 }
 ];
 
 const IV_THRESHOLD_BUCKETS = [
@@ -88,6 +160,11 @@ function getTalentPool(speciesName) {
   return [];
 }
 
+function getSpeciesPool(player) {
+  const regionKey = player?.currentRegion || player?.region || player?.currentZone || 'default';
+  return REGION_SPECIES_POOLS[regionKey] || REGION_SPECIES_POOLS.default;
+}
+
 function getDifficultyTier(weight) {
   return DIFFICULTY_TIERS.find((tier) => weight >= tier.min && weight <= tier.max) || DIFFICULTY_TIERS[0];
 }
@@ -101,7 +178,10 @@ function getRewardForQuest({ avgTargetLevel, difficultyTier }) {
     levelFactor,
     difficultyMod: difficultyTier.difficultyMod,
     gold: totalReward,
-    items: difficultyTier.items
+    items: difficultyTier.items,
+    itemRewards: difficultyTier.itemRewards || [],
+    trustGain: difficultyTier.trustGain || 0,
+    notesGain: difficultyTier.notesGain || 0
   };
 }
 
@@ -125,16 +205,28 @@ function calculateDifficultyScore({ nature, level, ivConditions, talentCondition
       }
     });
   }
+  if (arguments[0]?.specialFlags) {
+    const specialCount = Object.values(arguments[0].specialFlags).filter(Boolean).length;
+    score += specialCount * 2;
+  }
   return score;
 }
 
-function generateQuest() {
-  const species = weightedRoll(VERDANT_SPECIES).name;
+function generateQuest(player) {
+  const speciesEntry = weightedRoll(getSpeciesPool(player));
+  const species = speciesEntry.name;
+  const rarity = speciesEntry.rarity;
   const requirements = [];
   let nature = null;
   let level = null;
   const ivConditions = [];
   const talentConditions = [];
+  const specialFlags = {
+    shinyRequired: false,
+    alphaRequired: false,
+    bondedRequired: false,
+    hiddenAbilityRequired: false
+  };
 
   const desiredConditionCount = weightedRoll([
     { count: 1, weight: 4 },
@@ -184,11 +276,18 @@ function generateQuest() {
     }
   }
 
+  if (pickedConditions.has('special')) {
+    const specialKeys = Object.keys(specialFlags);
+    const chosen = pickRandom(specialKeys);
+    specialFlags[chosen] = true;
+  }
+
   const difficultyScore = calculateDifficultyScore({
     nature,
     level,
     ivConditions,
-    talentConditions
+    talentConditions,
+    specialFlags
   });
   const difficultyTier = getDifficultyTier(difficultyScore);
   const avgTargetLevel = level || 10;
@@ -196,13 +295,20 @@ function generateQuest() {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + difficultyTier.expiryHours * 60 * 60 * 1000);
 
+  const requirementType = ivConditions.length ? 'iv' : 'nature';
+  const rewardBase = REWARD_BASE[rarity] || 100;
+
   return {
     requirements,
     species,
+    rarity,
+    rewardBase,
+    requirementType,
     nature,
     level,
     ivConditions,
     talentConditions,
+    ...specialFlags,
     difficultyScore,
     difficulty: difficultyTier.name,
     reward,
@@ -237,6 +343,17 @@ function isSameDay(dateA, dateB) {
     && dateA.getDate() === dateB.getDate();
 }
 
+function getNextResetLabel() {
+  const now = new Date();
+  const nextReset = new Date(now);
+  nextReset.setDate(now.getDate() + 1);
+  nextReset.setHours(0, 0, 0, 0);
+  const diff = nextReset - now;
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  return `${hours}h ${minutes}m`;
+}
+
 export default function ResearchQuestManager() {
   const [selectedQuest, setSelectedQuest] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -246,6 +363,11 @@ export default function ResearchQuestManager() {
   const { data: quests = [], isLoading } = useQuery({
     queryKey: ['researchQuests'],
     queryFn: () => base44.entities.ResearchQuest.filter({ active: true })
+  });
+
+  const { data: questHistory = [] } = useQuery({
+    queryKey: ['researchQuestHistory'],
+    queryFn: () => base44.entities.ResearchQuest.filter({ active: false })
   });
 
   const { data: player } = useQuery({
@@ -260,7 +382,7 @@ export default function ResearchQuestManager() {
     mutationFn: async (count) => {
       const questsToCreate = [];
       for (let i = 0; i < count; i++) {
-        questsToCreate.push(generateQuest());
+        questsToCreate.push(generateQuest(player));
       }
       await Promise.all(questsToCreate.map(q => base44.entities.ResearchQuest.create(q)));
     },
@@ -295,7 +417,7 @@ export default function ResearchQuestManager() {
         status: 'rerolled'
       });
 
-      const replacement = generateQuest();
+      const replacement = generateQuest(player);
       await base44.entities.ResearchQuest.create(replacement);
       return { cost, replacementTier: replacement.difficulty };
     },
@@ -310,6 +432,52 @@ export default function ResearchQuestManager() {
     },
     onError: (error) => {
       setRerollMessage(error.message || 'Unable to reroll quest.');
+      setTimeout(() => setRerollMessage(null), 3000);
+    }
+  });
+
+  const rerollAllMutation = useMutation({
+    mutationFn: async () => {
+      if (!player) return null;
+      const now = new Date();
+      const lastReset = player.researchQuestRerollReset ? new Date(player.researchQuestRerollReset) : null;
+      const shouldReset = !lastReset || !isSameDay(lastReset, now);
+      const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
+      const isFree = rerollCount < QUEST_CONFIG.maxFreeRerolls;
+      const cost = isFree ? 0 : QUEST_CONFIG.rerollCost;
+
+      if ((player.gold || 0) < cost) {
+        throw new Error('Not enough gold to reroll.');
+      }
+
+      await base44.entities.Player.update(player.id, {
+        gold: (player.gold || 0) - cost,
+        researchQuestRerolls: rerollCount + 1,
+        researchQuestRerollReset: now.toISOString()
+      });
+
+      await Promise.all(quests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
+        active: false,
+        rerolledAt: now.toISOString(),
+        status: 'rerolled'
+      })));
+
+      const replacements = Array.from({ length: quests.length }, () => generateQuest(player));
+      await Promise.all(replacements.map((quest) => base44.entities.ResearchQuest.create(quest)));
+
+      return { cost };
+    },
+    onSuccess: (result) => {
+      if (!result) return;
+      queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+      setRerollMessage(
+        `All quests rerolled${result.cost ? ` for ${result.cost} gold` : ''}.`
+      );
+      setTimeout(() => setRerollMessage(null), 3000);
+    },
+    onError: (error) => {
+      setRerollMessage(error.message || 'Unable to reroll quests.');
       setTimeout(() => setRerollMessage(null), 3000);
     }
   });
@@ -341,7 +509,15 @@ export default function ResearchQuestManager() {
 
   const handleSuccess = (reward) => {
     setSelectedQuest(null);
-    setSuccessMessage(`Thank you! Your Pokémon has greatly advanced our research. You received ${reward} gold!`);
+    if (typeof reward === 'object') {
+      const itemText = reward.items?.length ? ` Items: ${reward.items.join(', ')}.` : '';
+      const trustText = reward.trustGain ? ` Trust +${reward.trustGain}.` : '';
+      const notesText = reward.notesGain ? ` Notes +${reward.notesGain}.` : '';
+      const bonusText = reward.bonusGold ? ` Bonus +${reward.bonusGold} gold.` : '';
+      setSuccessMessage(`Thank you! You received ${reward.gold} gold.${bonusText}${trustText}${notesText}${itemText}`);
+    } else {
+      setSuccessMessage(`Thank you! Your Pokémon has greatly advanced our research. You received ${reward} gold!`);
+    }
     
     setTimeout(() => {
       setSuccessMessage(null);
@@ -357,12 +533,20 @@ export default function ResearchQuestManager() {
     const shouldReset = !lastReset || !isSameDay(lastReset, now);
     const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
     const freeLeft = Math.max(QUEST_CONFIG.maxFreeRerolls - rerollCount, 0);
-    return { rerollCount, freeLeft };
+    return { rerollCount, freeLeft, resetsIn: getNextResetLabel() };
   }, [player]);
 
   const activeQuests = useMemo(
     () => quests.filter((quest) => !quest.expiresAt || new Date(quest.expiresAt) > new Date()),
     [quests]
+  );
+
+  const recentHistory = useMemo(
+    () => questHistory
+      .filter((quest) => quest.status === 'completed' || quest.legendaryLog)
+      .sort((a, b) => new Date(b.completedAt || b.expiredAt || b.rerolledAt || 0) - new Date(a.completedAt || a.expiredAt || a.rerolledAt || 0))
+      .slice(0, 5),
+    [questHistory]
   );
 
   if (isLoading) {
@@ -413,8 +597,22 @@ export default function ResearchQuestManager() {
         {rerollState && (
           <div className="mt-3 text-xs text-slate-400">
             <span className="font-semibold text-slate-200">Rerolls:</span> {rerollState.freeLeft} free today, then {QUEST_CONFIG.rerollCost} gold each.
+            <span className="ml-2 text-slate-500">Resets in {rerollState.resetsIn}.</span>
           </div>
         )}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => {
+              if (!window.confirm('Reroll all active research quests? This will replace every quest.')) return;
+              rerollAllMutation.mutate();
+            }}
+            className="text-xs font-semibold text-indigo-200 hover:text-indigo-100"
+            disabled={rerollAllMutation.isPending || !activeQuests.length}
+          >
+            Reroll All Research Quests
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -432,6 +630,22 @@ export default function ResearchQuestManager() {
           />
         ))}
       </div>
+
+      {recentHistory.length > 0 && (
+        <div className="mt-8">
+          <h4 className="text-sm font-semibold text-slate-200 mb-2">Legendary Log & Recent Completions</h4>
+          <div className="space-y-2">
+            {recentHistory.map((quest) => (
+              <div key={quest.id} className="flex items-center justify-between rounded-md bg-slate-800/40 px-3 py-2 text-xs text-slate-300">
+                <div>
+                  <span className="font-semibold text-slate-100">{quest.species}</span> — {quest.difficulty} tier
+                </div>
+                <span className="text-slate-500">{quest.status || 'logged'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {selectedQuest && (

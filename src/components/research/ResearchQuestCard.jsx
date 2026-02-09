@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, RefreshCcw, ChevronDown, Info } from 'lucide-react';
+import { Sparkles, Zap, RefreshCcw, ChevronDown, Info, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { formatTalentName } from '@/components/utils/talentUtils';
 import { formatQuestCard } from '@/components/research/questUtils';
+import talentTagIcons from '@/components/research/talentTagIcons.json';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
+import '@/components/research/questCard.css';
 
 const tierColors = {
   Common: 'bg-slate-500/20 text-slate-300 border-slate-500/50',
@@ -35,17 +38,27 @@ const statNames = {
   spd: 'Speed'
 };
 
+function renderTagIcon(tag) {
+  const normalized = tag?.toString?.().toLowerCase?.();
+  const icon = talentTagIcons[normalized];
+  return icon ? `${icon} ${tag}` : tag;
+}
+
 function renderTalentRequirement(condition) {
   if (!condition) return 'Talent requirement';
   if (condition.talentId) {
     const talentData = TalentRegistry[condition.talentId];
     const displayName = talentData?.name || formatTalentName(condition.talentId);
     const gradeLabel = condition.grade ? ` ${condition.grade}+` : '';
-    const tagText = condition.requiredTags?.length ? ` (${condition.requiredTags.join(', ')} tag)` : '';
+    const tagText = condition.requiredTags?.length
+      ? ` (${condition.requiredTags.map(renderTagIcon).join(', ')})`
+      : '';
     return `${displayName}${gradeLabel}${tagText}`;
   }
   const gradeList = condition.grades?.length ? condition.grades.join(', ') : 'Basic+';
-  const tagText = condition.requiredTags?.length ? ` (${condition.requiredTags.join(', ')} tag)` : '';
+  const tagText = condition.requiredTags?.length
+    ? ` (${condition.requiredTags.map(renderTagIcon).join(', ')})`
+    : '';
   return `Any ${condition.count} talents (${gradeList})${tagText}`;
 }
 
@@ -68,6 +81,8 @@ export default function ResearchQuestCard({
   const rewardGold = quest.reward?.gold ?? quest.rewardBase;
   const rewardItems = quest.reward?.items || [];
   const legacyDetails = quest.requirementType === 'nature' || quest.requirementType === 'iv';
+  const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
+  const submissionCount = getSubmissionCount(quest.id);
   const hasDetails = legacyDetails
     || quest.nature
     || quest.level
@@ -78,11 +93,20 @@ export default function ResearchQuestCard({
     || (requirements.ivConditions?.length || 0) > 0
     || (requirements.talentConditions?.length || 0) > 0;
 
+  const tierGlow = {
+    Easy: 'border border-slate-500/40',
+    Normal: 'border border-green-500/40',
+    Hard: 'border border-purple-500/40 shadow-[0_0_18px_rgba(139,92,246,0.25)]',
+    'Very Hard': 'border border-orange-500/40 shadow-[0_0_18px_rgba(249,115,22,0.25)]',
+    Elite: 'border border-red-500/40 shadow-[0_0_18px_rgba(239,68,68,0.25)]',
+    Legendary: 'border border-yellow-400/50 shadow-[0_0_24px_rgba(250,204,21,0.35)]'
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-xl p-6 hover:border-indigo-500/50 transition-all"
+      className={`glass rounded-xl p-6 hover:border-indigo-500/50 transition-all quest-card ${tierGlow[difficultyTier] || ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -111,6 +135,13 @@ export default function ResearchQuestCard({
           <Badge className={`mt-2 ${tierColors[difficultyTier] || tierColors.Normal}`}>
             {difficultyTier}
           </Badge>
+          <div className="mt-2 flex items-center gap-1 text-xs text-slate-400">
+            <Star className="w-3 h-3 text-yellow-300" />
+            Score {quest.difficultyScore || '—'}
+          </div>
+          <div className="mt-1 text-xs text-slate-400">
+            Progress: {submissionCount}/{requiredCount} submitted
+          </div>
         </div>
         {timeLeft && (
           <div className="text-xs text-slate-400 text-right">
@@ -127,10 +158,7 @@ export default function ResearchQuestCard({
 
           {hasDetails && isExpanded && (
             <div className="mt-3 space-y-2 text-sm text-slate-300">
-              {legacyDetails && quest.requirementType === 'nature' && (
-                <p><span className="text-slate-400">Nature:</span> {quest.nature}</p>
-              )}
-              {legacyDetails && quest.requirementType === 'iv' && (
+              {legacyDetails && quest.requirementType === 'iv' && !quest.ivConditions?.length && (
                 <p><span className="text-slate-400">IV:</span> {statNames[quest.ivStat]} ≥ {quest.ivThreshold}</p>
               )}
               {quest.nature && (
@@ -149,6 +177,18 @@ export default function ResearchQuestCard({
                   <span className="text-slate-400">Talent:</span> {renderTalentRequirement(condition)}
                 </p>
               ))}
+              {quest.shinyRequired && (
+                <p><span className="text-slate-400">Shiny:</span> Required</p>
+              )}
+              {quest.alphaRequired && (
+                <p><span className="text-slate-400">Alpha:</span> Required</p>
+              )}
+              {quest.hiddenAbilityRequired && (
+                <p><span className="text-slate-400">Hidden Ability:</span> Required</p>
+              )}
+              {quest.bondedRequired && (
+                <p><span className="text-slate-400">Bonded:</span> Required</p>
+              )}
               {requirements.nature && (
                 <p><span className="text-slate-400">Nature:</span> {requirements.nature}</p>
               )}
@@ -176,6 +216,13 @@ export default function ResearchQuestCard({
             {rewardGold} gold
           </span>
         </div>
+        {(quest.reward?.trustGain || quest.reward?.notesGain) && (
+          <div className="text-xs text-slate-400">
+            {quest.reward?.trustGain ? `Trust +${quest.reward.trustGain}` : ''}
+            {quest.reward?.trustGain && quest.reward?.notesGain ? ' • ' : ''}
+            {quest.reward?.notesGain ? `Notes +${quest.reward.notesGain}` : ''}
+          </div>
+        )}
 
         {rewardItems.length > 0 && (
           <div className="text-xs text-slate-400">

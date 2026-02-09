@@ -9,14 +9,18 @@ import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { formatTalentName } from '@/components/utils/talentUtils';
 import { formatPokemonCard, getEligiblePokemon } from '@/components/research/questUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ItemRegistry } from '@/data/ItemRegistry';
 import {
   getSubmissionCount,
   isPokemonAlreadySubmitted,
   isQuestCompleted,
+  hasQuestBonusClaimed,
   markQuestComplete,
+  markQuestBonusClaimed,
   submitPokemonToQuest
 } from '@/systems/quests/questProgressTracker';
 import { handleSubmitAllEligible } from '@/systems/quests/submitAllEligible';
+import { getStatStageChangeText } from '@/components/utils/statusHelpers';
 
 const statNames = {
   HP: 'HP',
@@ -43,6 +47,10 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
   const questLevel = quest.level || requirements.level;
   const questIvConditions = quest.ivConditions?.length ? quest.ivConditions : (requirements.ivConditions || []);
   const questTalentConditions = quest.talentConditions?.length ? quest.talentConditions : (requirements.talentConditions || []);
+  const shinyRequired = quest.shinyRequired;
+  const alphaRequired = quest.alphaRequired;
+  const bondedRequired = quest.bondedRequired;
+  const hiddenAbilityRequired = quest.hiddenAbilityRequired;
   const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
   const remainingCount = Math.max(requiredCount - submissionCount, 0);
   const questAlreadyCompleted = questCompleted;
@@ -60,8 +68,78 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
     queryFn: () => base44.entities.Pokemon.list()
   });
 
+  const { data: inventory = [] } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => base44.entities.Item.list()
+  });
+
+  const trustPreview = quest.reward?.trustGain
+    ? getStatStageChangeText('Trust', quest.reward.trustGain)
+    : '';
+  const notesPreview = quest.reward?.notesGain
+    ? getStatStageChangeText('Notes', quest.reward.notesGain)
+    : '';
+
   // Filter eligible Pokémon
   const eligiblePokemon = getEligiblePokemon(allPokemon, quest);
+
+  const awardItems = async (itemRewards = []) => {
+    if (!itemRewards.length) return [];
+    const awarded = [];
+    for (const reward of itemRewards) {
+      const itemDef = ItemRegistry[reward.id];
+      if (!itemDef) continue;
+      const existing = inventory.find((item) => item.name === itemDef.name && item.type === itemDef.type);
+      if (existing) {
+        await base44.entities.Item.update(existing.id, {
+          quantity: (existing.quantity || 1) + (reward.quantity || 1)
+        });
+      } else {
+        await base44.entities.Item.create({
+          name: itemDef.name,
+          type: itemDef.type || 'Item',
+          quantity: reward.quantity || 1
+        });
+      }
+      awarded.push(itemDef.name);
+    }
+    return awarded;
+  };
+
+  const applyQuestRewards = async () => {
+    const baseGold = quest.reward?.gold ?? quest.rewardBase ?? 0;
+    const trustGain = quest.reward?.trustGain || 0;
+    const notesGain = quest.reward?.notesGain || 0;
+    const itemRewards = quest.reward?.itemRewards || [];
+    const bonusEligible = !hasQuestBonusClaimed(quest.id);
+    const bonusGold = bonusEligible ? Math.floor(baseGold * 0.2) : 0;
+    const totalGold = baseGold + bonusGold;
+
+    const updatedTrust = {
+      ...(player?.trustLevels || {}),
+      maple: Math.min((player?.trustLevels?.maple || 0) + trustGain, 100)
+    };
+
+    await base44.entities.Player.update(player.id, {
+      gold: (player.gold || 0) + totalGold,
+      trustLevels: updatedTrust,
+      researchNotes: (player.researchNotes || 0) + notesGain
+    });
+
+    const awardedItems = await awardItems(itemRewards);
+    if (bonusEligible) {
+      markQuestBonusClaimed(quest.id);
+    }
+
+    return {
+      gold: totalGold,
+      baseGold,
+      bonusGold,
+      trustGain,
+      notesGain,
+      items: awardedItems
+    };
+  };
 
   const submitMutation = useMutation({
     mutationFn: async ({ pokemon, shouldComplete }) => {
@@ -80,13 +158,7 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
       if (!shouldComplete) {
         return { reward: 0, completed: false };
       }
-
-      const reward = quest.reward?.gold ?? quest.rewardBase ?? 0;
-      
-      // Award gold
-      await base44.entities.Player.update(player.id, {
-        gold: (player.gold || 0) + reward
-      });
+      const rewardSummary = await applyQuestRewards();
 
       // Mark quest as complete
       await base44.entities.ResearchQuest.update(quest.id, {
@@ -98,7 +170,7 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
 
       markQuestComplete(quest.id);
       setQuestCompleted(true);
-      return { reward, completed: true };
+      return { reward: rewardSummary, completed: true };
     },
     onSuccess: ({ reward, completed }) => {
       queryClient.invalidateQueries({ queryKey: ['player'] });
@@ -128,10 +200,7 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
     }
 
     if (result.status === 'completed') {
-      const reward = quest.reward?.gold ?? quest.rewardBase ?? 0;
-      await base44.entities.Player.update(player.id, {
-        gold: (player.gold || 0) + reward
-      });
+      const reward = await applyQuestRewards();
       await base44.entities.ResearchQuest.update(quest.id, {
         active: false,
         completedAt: new Date().toISOString(),
@@ -172,13 +241,25 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
             <p className="text-xs text-slate-400">
               Progress: {submissionCount}/{requiredCount} submitted {questAlreadyCompleted ? '(Completed)' : ''}
             </p>
-            {quest.requirementType === 'nature' && (
+            {quest.requirementType === 'nature' && !questNature && (
               <p className="text-indigo-300">Nature: {quest.nature}</p>
             )}
-            {quest.requirementType === 'iv' && (
+            {quest.requirementType === 'iv' && !questIvConditions.length && (
               <p className="text-purple-300">
                 {statNames[quest.ivStat]} ≥ {quest.ivThreshold}
               </p>
+            )}
+            {shinyRequired && (
+              <p className="text-purple-300">Shiny: Required</p>
+            )}
+            {alphaRequired && (
+              <p className="text-purple-300">Alpha: Required</p>
+            )}
+            {hiddenAbilityRequired && (
+              <p className="text-purple-300">Hidden Ability: Required</p>
+            )}
+            {bondedRequired && (
+              <p className="text-purple-300">Bonded: Required</p>
             )}
             {questNature && (
               <p className="text-indigo-300">Nature: {questNature}</p>
@@ -220,6 +301,16 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
                 </ul>
               </div>
             ) : null}
+            {(trustPreview || notesPreview) && (
+              <div className="mt-3 text-xs text-slate-400 space-y-1">
+                {trustPreview && (
+                  <div dangerouslySetInnerHTML={{ __html: trustPreview }} />
+                )}
+                {notesPreview && (
+                  <div dangerouslySetInnerHTML={{ __html: notesPreview }} />
+                )}
+              </div>
+            )}
           </div>
 
           {eligiblePokemon.length === 0 ? (

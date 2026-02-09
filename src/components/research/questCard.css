@@ -12,6 +12,16 @@
   max-width: 600px;
 }
 
+.stat-stage-up {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.stat-stage-down {
+  color: #f87171;
+  font-weight: 600;
+}
+
 /* Quest title */
 .quest-card h3 {
   margin-top: 0;

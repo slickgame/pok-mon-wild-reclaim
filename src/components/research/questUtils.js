@@ -58,6 +58,10 @@ export function pokemonFulfillsQuest(pokemon, quest) {
   const questLevel = getQuestField(quest, 'level');
   const ivConditions = getQuestField(quest, 'ivConditions') || [];
   const talentConditions = getQuestField(quest, 'talentConditions') || [];
+  const shinyRequired = quest.shinyRequired || quest.requirements?.shinyRequired;
+  const alphaRequired = quest.alphaRequired || quest.requirements?.alphaRequired;
+  const bondedRequired = quest.bondedRequired || quest.requirements?.bondedRequired;
+  const hiddenAbilityRequired = quest.hiddenAbilityRequired || quest.requirements?.hiddenAbilityRequired;
 
   if (questNature && pokemon.nature !== questNature) return false;
   if (questLevel && (pokemon.level || 0) < questLevel) return false;
@@ -115,6 +119,11 @@ export function pokemonFulfillsQuest(pokemon, quest) {
     if (!talentMatch) return false;
   }
 
+  if (shinyRequired && !pokemon.isShiny) return false;
+  if (alphaRequired && !pokemon.isAlpha) return false;
+  if (bondedRequired && !pokemon.isBonded) return false;
+  if (hiddenAbilityRequired && !pokemon.hasHiddenAbility) return false;
+
   return true;
 }
 
@@ -141,6 +150,10 @@ export function formatPokemonCard(pokemon) {
   return [
     `${pokemon.nickname || pokemon.species} (Lv. ${pokemon.level})`,
     pokemon.nature ? `Nature: ${pokemon.nature}` : null,
+    pokemon.isShiny ? 'Shiny: Yes' : null,
+    pokemon.isAlpha ? 'Alpha: Yes' : null,
+    pokemon.hasHiddenAbility ? 'Hidden Ability: Yes' : null,
+    pokemon.isBonded ? 'Bonded: Yes' : null,
     ivs ? `IVs: ${ivs}` : null,
     `Talents: ${talents}`
   ].filter(Boolean).join('\n');
@@ -152,6 +165,10 @@ export function formatQuestCard(quest) {
   const questLevel = getQuestField(quest, 'level');
   const ivConditions = getQuestField(quest, 'ivConditions') || [];
   const talentConditions = getQuestField(quest, 'talentConditions') || [];
+  const shinyRequired = quest.shinyRequired || quest.requirements?.shinyRequired;
+  const alphaRequired = quest.alphaRequired || quest.requirements?.alphaRequired;
+  const bondedRequired = quest.bondedRequired || quest.requirements?.bondedRequired;
+  const hiddenAbilityRequired = quest.hiddenAbilityRequired || quest.requirements?.hiddenAbilityRequired;
 
   const ivText = ivConditions.map((iv) => {
     const statLabel = statNameMap[normalizeStatKey(iv.stat)] || iv.stat;
@@ -180,7 +197,13 @@ export function formatQuestCard(quest) {
     questLevel ? `Level ≥ ${questLevel}` : null,
     ivText ? `IVs: ${ivText}` : null,
     talentText ? `Talents: ${talentText}` : null,
+    shinyRequired ? 'Shiny: Required' : null,
+    alphaRequired ? 'Alpha: Required' : null,
+    hiddenAbilityRequired ? 'Hidden Ability: Required' : null,
+    bondedRequired ? 'Bonded: Required' : null,
     quest.reward?.gold ? `Reward: ${quest.reward.gold} gold` : null,
+    quest.reward?.trustGain ? `Trust +${quest.reward.trustGain}` : null,
+    quest.reward?.notesGain ? `Research Notes +${quest.reward.notesGain}` : null,
     quest.difficulty ? `Difficulty: ${quest.difficulty}` : null
   ].filter(Boolean).join('\n');
 }

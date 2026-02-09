@@ -23,6 +23,18 @@ export function isQuestCompleted(questId) {
   return !!progress[questId]?.completed;
 }
 
+export function hasQuestBonusClaimed(questId) {
+  const progress = loadQuestProgress();
+  return !!progress[questId]?.bonusClaimed;
+}
+
+export function markQuestBonusClaimed(questId) {
+  const progress = loadQuestProgress();
+  ensureQuestInitialized(progress, questId);
+  progress[questId].bonusClaimed = true;
+  saveQuestProgress(progress);
+}
+
 export function isPokemonAlreadySubmitted(questId, pokemonId) {
   const progress = loadQuestProgress();
   return progress[questId]?.submittedPokemon?.includes(pokemonId);
