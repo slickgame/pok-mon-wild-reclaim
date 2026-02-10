@@ -391,6 +391,8 @@ function normalizeQuestRequirements(quest) {
   if (hasRequirement) {
     return quest;
   }
+  return null;
+}
 
   const fallbackNature = pickRandom(NATURES);
   return {
@@ -483,12 +485,12 @@ export default function ResearchQuestManager() {
       await base44.entities.ResearchQuest.create(replacement);
       return { cost, replacementTier: replacement.difficulty };
     },
-    onSuccess: (data) => {
-      if (!data) return;
+    onSuccess: (result) => {
+      if (!result) return;
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
       queryClient.invalidateQueries({ queryKey: ['player'] });
       setRerollMessage(
-        `Quest rerolled${data.cost ? ` for ${data.cost} gold` : ''}. New request: ${data.replacementTier} tier.`
+        `Quest rerolled${result.cost ? ` for ${result.cost} gold` : ''}. New request: ${result.replacementTier} tier.`
       );
       setTimeout(() => setRerollMessage(null), 3000);
     },
@@ -529,12 +531,12 @@ export default function ResearchQuestManager() {
 
       return { cost };
     },
-    onSuccess: (data) => {
-      if (!data) return;
+    onSuccess: (result) => {
+      if (!result) return;
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
       queryClient.invalidateQueries({ queryKey: ['player'] });
       setRerollMessage(
-        `All quests rerolled${data.cost ? ` for ${data.cost} gold` : ''}.`
+        `All quests rerolled${result.cost ? ` for ${result.cost} gold` : ''}.`
       );
       setTimeout(() => setRerollMessage(null), 3000);
     },

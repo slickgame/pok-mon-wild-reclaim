@@ -19,7 +19,7 @@ import {
   markQuestBonusClaimed,
   submitPokemonToQuest
 } from '@/systems/quests/questProgressTracker';
-import { handleSubmitAllEligible } from '@/components/research/submitAllEligible';
+import { handleSubmitAllEligible } from '@/systems/quests/submitAllEligible';
 import { getStatStageChangeText } from '@/components/utils/statusHelpers';
 
 const statNames = {
@@ -172,13 +172,13 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
       setQuestCompleted(true);
       return { reward: rewardSummary, completed: true };
     },
-    onSuccess: (submissionResult) => {
+    onSuccess: ({ reward, completed }) => {
       queryClient.invalidateQueries({ queryKey: ['player'] });
       queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
-      if (submissionResult.completed) {
-        onSuccess(submissionResult.reward);
+      if (completed) {
+        onSuccess(reward);
       }
     }
   });
@@ -187,19 +187,19 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
     const message = `Submit ${eligiblePokemon.length} eligible Pokémon? This will permanently release them.`;
     if (!window.confirm(message)) return;
 
-    const submitResult = handleSubmitAllEligible({
+    const result = handleSubmitAllEligible({
       quest,
       eligiblePokemon,
       requiredCount,
       onComplete: () => {}
     });
 
-    if (submitResult.submitted?.length) {
-      await Promise.all(submitResult.submitted.map((pokemon) => base44.entities.Pokemon.delete(pokemon.id)));
+    if (result.submitted?.length) {
+      await Promise.all(result.submitted.map((pokemon) => base44.entities.Pokemon.delete(pokemon.id)));
       setSubmissionCount(getSubmissionCount(quest.id));
     }
 
-    if (submitResult.status === 'completed') {
+    if (result.status === 'completed') {
       const reward = await applyQuestRewards();
       await base44.entities.ResearchQuest.update(quest.id, {
         active: false,

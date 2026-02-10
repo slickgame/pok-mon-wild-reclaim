@@ -1059,13 +1059,4 @@ function ZoneDetailView({ zone, onBack }) {
     </div>
   );
 }
-    if (!result) {
-      result = {
-        type: 'special',
-        title: '🌿 Quiet Moment',
-        description: 'You scout the area but find no immediate encounter.',
-        progressGained: 0,
-        firstDiscovery: false,
-        rarity: 'common'
-      };
-    }
+
