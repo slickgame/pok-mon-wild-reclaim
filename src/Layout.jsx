@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown, Box, BookOpen } from 'lucide-react';
+import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown, Box, BookOpen, UserCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -17,7 +17,7 @@ const navItems = [
   { name: 'Town', icon: Home, page: 'Town' },
   { name: 'Zones', icon: Map, page: 'Zones' },
   { name: 'Inventory', icon: Backpack, page: 'Inventory' },
-  { name: 'Sets', icon: Sparkles, page: 'SetBuilder' },
+  { name: 'Player', icon: UserCircle, page: 'Player' },
   { name: 'Tutorials', icon: Sparkles, page: 'TutorialLog' },
 ];
 
@@ -29,6 +29,8 @@ export default function Layout({ children, currentPageName }) {
     return children;
   }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const inZoneDetail = currentPageName === 'Zones' && location.search.includes('zoneId=');
 
   const { data: gameTime } = useQuery({
     queryKey: ['gameTime'],
@@ -76,7 +78,7 @@ export default function Layout({ children, currentPageName }) {
       `}</style>
 
       {/* Desktop Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-20 lg:w-64 glass z-50 hidden md:flex flex-col">
+      <aside className="fixed left-0 top-0 h-full w-20 lg:w-64 glass z-50 hidden md:flex flex-col overflow-y-auto">
         <div className="p-4 lg:p-6 border-b border-indigo-500/20">
           <Link to={createPageUrl('Home')} className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center glow">
@@ -92,7 +94,8 @@ export default function Layout({ children, currentPageName }) {
           {navItems.map((item) => {
               const isActive = currentPageName === item.page;
               const isBattlePage = currentPageName === 'Battle';
-              const isDisabled = isBattlePage && item.page !== 'Battle';
+              const isZoneLocked = inZoneDetail && item.page !== 'StartScreen';
+              const isDisabled = (isBattlePage && item.page !== 'Battle') || isZoneLocked;
 
               return (
                 <Link
@@ -101,7 +104,10 @@ export default function Layout({ children, currentPageName }) {
                   onClick={(e) => {
                     if (isDisabled) {
                       e.preventDefault();
-                      alert('⚔️ You cannot leave during an active battle!');
+                      alert(isBattlePage
+                        ? '⚔️ You cannot leave during an active battle!'
+                        : '🌲 You cannot leave the zone while exploring. Return to town or the main menu first.'
+                      );
                     }
                   }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${
@@ -126,12 +132,16 @@ export default function Layout({ children, currentPageName }) {
               );
             })}
         </nav>
-
         <div className="p-4 border-t border-indigo-500/20 space-y-3">
           {gameTime && (
-            <div className="hidden lg:block">
-              <TimeWidget gameTime={gameTime} />
-            </div>
+            <>
+              <div className="hidden lg:block">
+                <TimeWidget gameTime={gameTime} />
+              </div>
+              <div className="lg:hidden">
+                <TimeWidget gameTime={gameTime} compact />
+              </div>
+            </>
           )}
         </div>
         </aside>
@@ -168,7 +178,8 @@ export default function Layout({ children, currentPageName }) {
               {navItems.map((item) => {
                 const isActive = currentPageName === item.page;
                 const isBattlePage = currentPageName === 'Battle';
-                const isDisabled = isBattlePage && item.page !== 'Battle';
+                const isZoneLocked = inZoneDetail && item.page !== 'StartScreen';
+                const isDisabled = (isBattlePage && item.page !== 'Battle') || isZoneLocked;
 
                 return (
                   <Link
@@ -177,7 +188,10 @@ export default function Layout({ children, currentPageName }) {
                     onClick={(e) => {
                       if (isDisabled) {
                         e.preventDefault();
-                        alert('⚔️ You cannot leave during an active battle!');
+                        alert(isBattlePage
+                          ? '⚔️ You cannot leave during an active battle!'
+                          : '🌲 You cannot leave the zone while exploring. Return to town or the main menu first.'
+                        );
                       } else {
                         setMobileMenuOpen(false);
                       }
