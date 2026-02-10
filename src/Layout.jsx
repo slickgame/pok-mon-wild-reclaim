@@ -56,7 +56,8 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <style>{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         :root {
           --primary: #6366f1;
           --primary-light: #818cf8;
@@ -88,7 +89,7 @@ export default function Layout({ children, currentPageName }) {
         .glow {
           box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
         }
-      `}</style>
+      `}} />
 
       {/* Desktop Sidebar */}
       <aside className="fixed left-0 top-0 h-full w-20 lg:w-64 glass z-50 hidden md:flex flex-col overflow-y-auto">

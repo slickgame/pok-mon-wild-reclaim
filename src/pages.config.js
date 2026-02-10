@@ -55,18 +55,18 @@ import Fishing from './pages/Fishing';
 import Home from './pages/Home';
 import Inventory from './pages/Inventory';
 import MaplesLab from './pages/MaplesLab';
+import NPCs from './pages/NPCs';
+import Onboarding from './pages/Onboarding';
 import PartyManager from './pages/PartyManager';
 import Player from './pages/Player';
 import Pokedex from './pages/Pokedex';
 import Pokemon from './pages/Pokemon';
 import SetBuilder from './pages/SetBuilder';
+import StartScreen from './pages/StartScreen';
 import Storage from './pages/Storage';
 import StoryCutscene from './pages/StoryCutscene';
 import Town from './pages/Town';
 import TutorialLog from './pages/TutorialLog';
-import Onboarding from './pages/Onboarding';
-import StartScreen from './pages/StartScreen';
-import NPCs from './pages/NPCs';
 import Zones from './pages/Zones';
 import __Layout from './Layout.jsx';
 
@@ -80,18 +80,18 @@ export const PAGES = {
     "Home": Home,
     "Inventory": Inventory,
     "MaplesLab": MaplesLab,
+    "NPCs": NPCs,
+    "Onboarding": Onboarding,
     "PartyManager": PartyManager,
     "Player": Player,
     "Pokedex": Pokedex,
     "Pokemon": Pokemon,
     "SetBuilder": SetBuilder,
+    "StartScreen": StartScreen,
     "Storage": Storage,
     "StoryCutscene": StoryCutscene,
     "Town": Town,
     "TutorialLog": TutorialLog,
-    "Onboarding": Onboarding,
-    "StartScreen": StartScreen,
-    "NPCs": NPCs,
     "Zones": Zones,
 }
 
