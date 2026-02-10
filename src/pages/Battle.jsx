@@ -1224,39 +1224,8 @@ export default function BattlePage() {
     );
   }
 
-
-  const latestTalentTriggers = useMemo(() => {
-    if (!battleState?.battleLog?.length) {
-      return { player: null, enemy: null };
-    }
-
-    const findLatestFor = (pokemon) => {
-      if (!pokemon) return null;
-      const displayNames = [pokemon.nickname, pokemon.species].filter(Boolean);
-
-      for (let idx = battleState.battleLog.length - 1; idx >= 0; idx -= 1) {
-        const entry = battleState.battleLog[idx];
-        if (!entry?.talentTriggered) continue;
-        if (!displayNames.includes(entry.actor)) continue;
-
-        return {
-          turn: entry.turn,
-          action: entry.action,
-          result: entry.result
-        };
-      }
-
-      return null;
-    };
-
-    return {
-      player: findLatestFor(battleState.playerPokemon),
-      enemy: findLatestFor(battleState.enemyPokemon)
-    };
-  }, [battleState]);
-
-  const isPlayerTurn = battleState.currentTurn === 'player';
-  const isBattleEnded = battleState.status === 'won' || battleState.status === 'lost';
+  const isPlayerTurn = battleState?.currentTurn === 'player';
+  const isBattleEnded = battleState?.status === 'won' || battleState?.status === 'lost';
 
   return (
     <div>
