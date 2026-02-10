@@ -149,41 +149,6 @@ export default function Layout({ children, currentPageName }) {
               );
             })}
         </nav>
-
-        <div className="px-4 pb-4">
-          <div className="glass rounded-xl p-3 lg:p-4 border border-indigo-500/20">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
-              Status Snapshot
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Player</span>
-                <span className="text-white font-medium truncate max-w-[120px] lg:max-w-[140px]" title={playerName}>
-                  {playerName}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Time</span>
-                <span className="text-white font-medium">{timeLabel}</span>
-              </div>
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-slate-400">Date</span>
-                <span className="text-white font-medium text-right text-xs lg:text-sm">{dateLabel}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Gold</span>
-                <span className="text-amber-300 font-semibold">{playerGold}g</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Location</span>
-                <span className="text-white font-medium truncate max-w-[120px] lg:max-w-[140px]" title={playerLocation}>
-                  {playerLocation}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="p-4 border-t border-indigo-500/20 space-y-3">
           {gameTime && (
             <>
