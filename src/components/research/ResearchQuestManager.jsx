@@ -440,27 +440,6 @@ export default function ResearchQuestManager() {
     }
   });
 
-  const { data: questHistory = [] } = useQuery({
-    queryKey: ['researchQuestHistory'],
-    queryFn: () => base44.entities.ResearchQuest.filter({ active: false })
-  });
-
-  const { data: player } = useQuery({
-    queryKey: ['player'],
-    queryFn: async () => {
-      const players = await base44.entities.Player.list();
-      return players[0] || null;
-    }
-  });
-
-  const { data: gameTime } = useQuery({
-    queryKey: ['gameTime'],
-    queryFn: async () => {
-      const times = await base44.entities.GameTime.list();
-      return times[0] || null;
-    }
-  });
-
   const generateQuestsMutation = useMutation({
     mutationFn: async (count) => {
       const questsToCreate = [];
