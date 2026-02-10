@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown, Box, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,6 +29,8 @@ export default function Layout({ children, currentPageName }) {
     return children;
   }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const inZoneDetail = currentPageName === 'Zones' && location.search.includes('zoneId=');
 
   const { data: gameTime } = useQuery({
     queryKey: ['gameTime'],
@@ -108,7 +110,8 @@ export default function Layout({ children, currentPageName }) {
           {navItems.map((item) => {
               const isActive = currentPageName === item.page;
               const isBattlePage = currentPageName === 'Battle';
-              const isDisabled = isBattlePage && item.page !== 'Battle';
+              const isZoneLocked = inZoneDetail && item.page !== 'StartScreen';
+              const isDisabled = (isBattlePage && item.page !== 'Battle') || isZoneLocked;
 
               return (
                 <Link
@@ -117,7 +120,10 @@ export default function Layout({ children, currentPageName }) {
                   onClick={(e) => {
                     if (isDisabled) {
                       e.preventDefault();
-                      alert('⚔️ You cannot leave during an active battle!');
+                      alert(isBattlePage
+                        ? '⚔️ You cannot leave during an active battle!'
+                        : '🌲 You cannot leave the zone while exploring. Return to town or the main menu first.'
+                      );
                     }
                   }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${
@@ -214,7 +220,8 @@ export default function Layout({ children, currentPageName }) {
               {navItems.map((item) => {
                 const isActive = currentPageName === item.page;
                 const isBattlePage = currentPageName === 'Battle';
-                const isDisabled = isBattlePage && item.page !== 'Battle';
+                const isZoneLocked = inZoneDetail && item.page !== 'StartScreen';
+                const isDisabled = (isBattlePage && item.page !== 'Battle') || isZoneLocked;
 
                 return (
                   <Link
@@ -223,7 +230,10 @@ export default function Layout({ children, currentPageName }) {
                     onClick={(e) => {
                       if (isDisabled) {
                         e.preventDefault();
-                        alert('⚔️ You cannot leave during an active battle!');
+                        alert(isBattlePage
+                          ? '⚔️ You cannot leave during an active battle!'
+                          : '🌲 You cannot leave the zone while exploring. Return to town or the main menu first.'
+                        );
                       } else {
                         setMobileMenuOpen(false);
                       }

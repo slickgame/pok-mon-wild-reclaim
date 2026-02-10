@@ -7,6 +7,7 @@ import { PokemonRegistry } from '@/components/data/PokemonRegistry';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 import ResearchQuestCard from './ResearchQuestCard';
 import ResearchSubmitModal from './ResearchSubmitModal';
+import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 
 const VERDANT_SPECIES = [
   { name: 'Caterpie', weight: 3, rarity: 'common' },
@@ -373,6 +374,7 @@ export default function ResearchQuestManager() {
   const [selectedQuest, setSelectedQuest] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [rerollMessage, setRerollMessage] = useState(null);
+  const [acceptingQuestId, setAcceptingQuestId] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: quests = [], isLoading } = useQuery({
@@ -524,6 +526,15 @@ export default function ResearchQuestManager() {
 
   const handleSuccess = (reward) => {
     setSelectedQuest(null);
+    if (player?.activeQuests?.length && selectedQuest) {
+      const updatedQuests = player.activeQuests.filter(
+        (quest) => (quest.questId || quest.id) !== selectedQuest.id
+      );
+      if (updatedQuests.length !== player.activeQuests.length) {
+        base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
+        queryClient.invalidateQueries({ queryKey: ['player'] });
+      }
+    }
     if (typeof reward === 'object') {
       const itemText = reward.items?.length ? ` Items: ${reward.items.join(', ')}.` : '';
       const trustText = reward.trustGain ? ` Trust +${reward.trustGain}.` : '';
@@ -555,6 +566,39 @@ export default function ResearchQuestManager() {
     () => quests.filter((quest) => !quest.expiresAt || new Date(quest.expiresAt) > new Date()),
     [quests]
   );
+
+  const acceptedQuestIds = useMemo(() => {
+    const active = player?.activeQuests || [];
+    return new Set(active.map((quest) => quest.questId || quest.id));
+  }, [player]);
+
+  const handleAcceptQuest = async (quest) => {
+    if (!player || acceptingQuestId) return;
+    setAcceptingQuestId(quest.id);
+    try {
+      const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
+      const rewardGold = quest.reward?.gold ?? quest.rewardBase ?? 0;
+      const description = `Submit ${requiredCount} ${quest.species} for research.`;
+      const newQuest = {
+        id: quest.id,
+        questId: quest.id,
+        type: 'research',
+        name: `Research: ${quest.species}`,
+        description,
+        progress: getSubmissionCount(quest.id),
+        goal: requiredCount,
+        reward: rewardGold ? `${rewardGold} gold` : 'Research rewards'
+      };
+      const updatedQuests = [...(player.activeQuests || [])];
+      if (!updatedQuests.some((entry) => (entry.questId || entry.id) === quest.id)) {
+        updatedQuests.push(newQuest);
+        await base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
+        queryClient.invalidateQueries({ queryKey: ['player'] });
+      }
+    } finally {
+      setAcceptingQuestId(null);
+    }
+  };
 
   const recentHistory = useMemo(
     () => questHistory
@@ -636,6 +680,9 @@ export default function ResearchQuestManager() {
             key={quest.id}
             quest={quest}
             onSubmit={setSelectedQuest}
+            onAccept={handleAcceptQuest}
+            isAccepted={acceptedQuestIds.has(quest.id)}
+            isAccepting={acceptingQuestId === quest.id}
             onReroll={() => rerollQuestMutation.mutate(quest)}
             timeLeft={getTimeLeft(quest.expiresAt)}
             rerollState={rerollState}

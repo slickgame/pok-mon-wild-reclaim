@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Search, Compass, Eye, Sparkles, ChevronRight, X } from 'lucide-react';
+import { Map, Search, Compass, Eye, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
 import PageHeader from '@/components/common/PageHeader';
-import TimePhaseIndicator from '@/components/time/TimePhaseIndicator';
 import ZoneCard from '@/components/zones/ZoneCard';
 import StatBar from '@/components/ui/StatBar';
 import NodeletCard from '@/components/zones/NodeletCard';
@@ -18,6 +16,7 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
+import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { 
   verdantHollowEncounters, 
   generateWildPokemon,
@@ -26,8 +25,8 @@ import {
 } from '@/components/zones/wildPokemonData';
 
 export default function ZonesPage() {
-  const [selectedZone, setSelectedZone] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
   const { data: player } = useQuery({
@@ -52,6 +51,8 @@ export default function ZonesPage() {
   });
 
   const discoveredZones = player?.discoveredZones || ['Verdant Hollow'];
+  const selectedZoneId = searchParams.get('zoneId');
+  const selectedZone = zones.find((zone) => zone.id === selectedZoneId);
   
   const filteredZones = zones.filter(zone => 
     zone.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -102,6 +103,11 @@ export default function ZonesPage() {
             <Skeleton key={i} className="h-64 bg-slate-800" />
           ))}
         </div>
+      ) : selectedZone ? (
+        <ZoneDetailView
+          zone={selectedZone}
+          onBack={() => setSearchParams({})}
+        />
       ) : filteredZones.length > 0 ? (
         <motion.div 
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
@@ -118,7 +124,7 @@ export default function ZonesPage() {
               <ZoneCard 
                 zone={zone}
                 isDiscovered={discoveredZones.includes(zone.name)}
-                onClick={() => setSelectedZone(zone)}
+                onClick={() => setSearchParams({ zoneId: zone.id })}
               />
             </motion.div>
           ))}
@@ -131,19 +137,12 @@ export default function ZonesPage() {
         </div>
       )}
 
-      {/* Zone Detail Sheet */}
-      <Sheet open={!!selectedZone} onOpenChange={() => setSelectedZone(null)}>
-        <SheetContent className="bg-slate-900 border-slate-800 w-full sm:max-w-lg overflow-y-auto">
-          {selectedZone && (
-            <ZoneDetailView zone={selectedZone} onClose={() => setSelectedZone(null)} />
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
 
-function ZoneDetailView({ zone, onClose }) {
+function ZoneDetailView({ zone, onBack }) {
+  const [activeSection, setActiveSection] = useState('explore');
   const [isExploring, setIsExploring] = useState(false);
   const [explorationEvents, setExplorationEvents] = useState([]);
   const [currentEncounter, setCurrentEncounter] = useState(null);
@@ -165,6 +164,24 @@ function ZoneDetailView({ zone, onClose }) {
       const progs = await base44.entities.ZoneProgress.filter({ zoneId: zone.id });
       return progs[0] || null;
     }
+  });
+
+  const { data: gameTime } = useQuery({
+    queryKey: ['gameTime'],
+    queryFn: async () => {
+      const times = await base44.entities.GameTime.list();
+      return times[0] || null;
+    }
+  });
+
+  const { data: items = [] } = useQuery({
+    queryKey: ['items'],
+    queryFn: () => base44.entities.Item.list()
+  });
+
+  const { data: allPokemon = [] } = useQuery({
+    queryKey: ['allPokemon'],
+    queryFn: () => base44.entities.Pokemon.list()
   });
 
   React.useEffect(() => {
@@ -199,6 +216,96 @@ function ZoneDetailView({ zone, onClose }) {
   const handleStartExploring = () => {
     setIsExploring(true);
     setExplorationEvents([]);
+  };
+
+  const handleBackToDetails = () => {
+    setIsExploring(false);
+    setCurrentEncounter(null);
+  };
+
+  const handleReturnToTown = () => {
+    navigate('/Town');
+  };
+
+  const advanceTime = async (hoursToAdd) => {
+    const currentHour = gameTime?.currentHour ?? 8;
+    const currentDay = gameTime?.currentDay ?? 1;
+    const currentWeek = gameTime?.currentWeek ?? 1;
+    let nextHour = currentHour + hoursToAdd;
+    let nextDay = currentDay + Math.floor(nextHour / 24);
+    nextHour = nextHour % 24;
+    let nextWeek = currentWeek;
+    if (nextDay > 7) {
+      nextWeek += Math.floor((nextDay - 1) / 7);
+      nextDay = ((nextDay - 1) % 7) + 1;
+    }
+
+    if (gameTime?.id) {
+      await base44.entities.GameTime.update(gameTime.id, {
+        currentHour: nextHour,
+        currentDay: nextDay,
+        currentWeek: nextWeek
+      });
+    } else {
+      await base44.entities.GameTime.create({
+        currentHour: nextHour,
+        currentDay: nextDay,
+        currentWeek: nextWeek,
+        currentSeason: gameTime?.currentSeason || 'Spring'
+      });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['gameTime'] });
+  };
+
+  const healParty = async (healPercent) => {
+    const teamPokemon = allPokemon.filter((pokemon) => pokemon.isInTeam);
+    await Promise.all(teamPokemon.map((pokemon) => {
+      const maxHp = pokemon.stats?.hp ?? pokemon.maxHp ?? pokemon.currentHp ?? 0;
+      const currentHp = pokemon.currentHp ?? maxHp;
+      if (currentHp <= 0) {
+        return Promise.resolve();
+      }
+      const healAmount = Math.floor(maxHp * healPercent);
+      const nextHp = Math.min(maxHp, currentHp + healAmount);
+      return base44.entities.Pokemon.update(pokemon.id, {
+        currentHp: nextHp
+      });
+    }));
+    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+  };
+
+  const handleCampRest = async () => {
+    await healParty(0.1);
+    await advanceTime(1);
+  };
+
+  const handleCampSleep = async () => {
+    const teamPokemon = allPokemon.filter((pokemon) => pokemon.isInTeam);
+    await Promise.all(teamPokemon.map((pokemon) => {
+      const maxHp = pokemon.stats?.hp ?? pokemon.maxHp ?? pokemon.currentHp ?? 0;
+      const currentHp = pokemon.currentHp ?? maxHp;
+      if (currentHp <= 0) {
+        return Promise.resolve();
+      }
+      return base44.entities.Pokemon.update(pokemon.id, {
+        currentHp: maxHp
+      });
+    }));
+    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+    await advanceTime(8);
+  };
+
+  const movePartyMember = async (index, direction) => {
+    if (!player || !orderedParty[index]) return;
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= orderedParty.length) return;
+    const reordered = [...orderedParty];
+    [reordered[index], reordered[nextIndex]] = [reordered[nextIndex], reordered[index]];
+    const partyOrder = reordered.map((pokemon) => pokemon.id);
+    await base44.entities.Player.update(player.id, { partyOrder });
+    queryClient.invalidateQueries({ queryKey: ['player'] });
+    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
   };
 
   const handleExplore = async () => {
@@ -564,16 +671,26 @@ function ZoneDetailView({ zone, onClose }) {
   const totalPokemon = zone.availableWildPokemon?.length || 0;
   const discoveredPOIs = zoneProgress?.discoveredPOIs?.length || 0;
   const totalPOIs = zone.nodelets?.length || 0;
+  const partyPokemon = allPokemon.filter((pokemon) => pokemon.isInTeam);
+  const orderedParty = useMemo(() => {
+    if (!player?.partyOrder?.length) {
+      return partyPokemon;
+    }
+    return player.partyOrder
+      .map((id) => partyPokemon.find((pokemon) => pokemon.id === id))
+      .filter(Boolean);
+  }, [partyPokemon, player]);
+  const activeQuests = player?.activeQuests || [];
 
   if (isExploring) {
     return (
       <div className="pb-8">
         <Button
           variant="outline"
-          onClick={() => setIsExploring(false)}
+          onClick={handleBackToDetails}
           className="mb-4"
         >
-          ← Back to Zone Details
+          ← Back to Zone
         </Button>
 
         <h2 className="text-2xl font-bold text-white mb-6">{zone.name} - Exploration</h2>
@@ -613,175 +730,322 @@ function ZoneDetailView({ zone, onClose }) {
     );
   }
 
+  const sectionOptions = [
+    { id: 'explore', label: 'Explore' },
+    { id: 'places', label: 'Places' },
+    { id: 'camp', label: 'Camp' },
+    { id: 'items', label: 'Items' },
+    { id: 'pokemon', label: 'Pokémon' },
+    { id: 'quests', label: 'Quests' },
+    { id: 'return', label: 'Return' }
+  ];
+
   return (
     <div className="pb-8">
-      {/* Header */}
-      <div className={`-mx-6 -mt-6 mb-6 h-48 bg-gradient-to-br ${gradient} relative`}>
-        {zone.imageUrl && (
-          <img src={zone.imageUrl} alt={zone.name} className="absolute inset-0 w-full h-full object-cover" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white/70 hover:text-white hover:bg-white/20"
-        >
-          <X className="w-5 h-5" />
+      <div className="mb-6">
+        <Button variant="outline" onClick={onBack} className="mb-4">
+          ← Back to Zone List
         </Button>
-
-        <div className="absolute bottom-4 left-4 right-4">
-          <Badge className="bg-black/40 text-white border-white/20 mb-2">{zone.biomeType}</Badge>
-          <h2 className="text-2xl font-bold text-white">{zone.name}</h2>
+        <div className={`relative h-56 rounded-2xl overflow-hidden bg-gradient-to-br ${gradient}`}>
+          {zone.imageUrl && (
+            <img src={zone.imageUrl} alt={zone.name} className="absolute inset-0 w-full h-full object-cover" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4">
+            <Badge className="bg-black/40 text-white border-white/20 mb-2">{zone.biomeType}</Badge>
+            <h2 className="text-3xl font-bold text-white">{zone.name}</h2>
+            <p className="text-slate-200 mt-2 max-w-2xl">{zone.description}</p>
+          </div>
         </div>
       </div>
 
-      {/* Description */}
-      <p className="text-slate-300 mb-6">{zone.description}</p>
+      <div className="flex flex-wrap gap-2 mb-6">
+        {sectionOptions.map((section) => (
+          <Button
+            key={section.id}
+            variant={activeSection === section.id ? 'default' : 'outline'}
+            onClick={() => {
+              if (section.id === 'return') {
+                handleReturnToTown();
+              } else {
+                setActiveSection(section.id);
+                if (section.id !== 'explore') {
+                  setIsExploring(false);
+                }
+              }
+            }}
+            className={activeSection === section.id ? 'bg-indigo-500 text-white' : 'border-slate-700 text-slate-200'}
+          >
+            {section.label}
+          </Button>
+        ))}
+      </div>
 
-      {/* Liberation Tracker */}
-      {eclipseNodelets.length > 0 && (
-        <div className="mb-4">
-          <ZoneLiberationTracker zone={zone} liberatedNodelets={liberatedNodelets} />
+      {activeSection === 'explore' && (
+        <div>
+          {eclipseNodelets.length > 0 && (
+            <div className="mb-4">
+              <ZoneLiberationTracker zone={zone} liberatedNodelets={liberatedNodelets} />
+            </div>
+          )}
+
+          <div className="glass rounded-xl p-4 mb-4">
+            <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <Compass className="w-4 h-4 text-indigo-400" />
+              Discovery Progress: {Math.round(zoneProgress?.discoveryProgress || 0)}/100
+            </h3>
+            <StatBar
+              value={zoneProgress?.discoveryProgress || 0}
+              maxValue={100}
+              color="bg-gradient-to-r from-indigo-500 to-cyan-500"
+            />
+            <div className="flex justify-between text-xs text-slate-400 mt-1">
+              <span>{Math.round(zoneProgress?.discoveryProgress || 0)}%</span>
+              <span>Explorations: {zoneProgress?.explorationCount || 0}</span>
+            </div>
+          </div>
+
+          {zone.availableWildPokemon && zone.availableWildPokemon.length > 0 && (
+            <div className="glass rounded-xl p-4 mb-4">
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-emerald-400" /> Wild Pokémon
+              </h3>
+              <div className="space-y-2">
+                {zone.availableWildPokemon.map((pokemon, idx) => {
+                  const isDiscovered = (zoneProgress?.discoveredPokemon || []).includes(pokemon.species);
+                  return (
+                    <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+                          {isDiscovered ? (
+                            <Sparkles className="w-4 h-4 text-emerald-400" />
+                          ) : (
+                            <span className="text-slate-600 text-xs">???</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-white font-medium text-sm">
+                            {isDiscovered ? pokemon.species : '??? Pokémon'}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {isDiscovered ? `Lv. ${pokemon.minLevel}-${pokemon.maxLevel}` : 'Not yet discovered'}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className={`text-xs ${
+                        pokemon.rarity === 'Legendary' ? 'bg-yellow-500/20 text-yellow-300' :
+                        pokemon.rarity === 'Rare' ? 'bg-purple-500/20 text-purple-300' :
+                        pokemon.rarity === 'Uncommon' ? 'bg-blue-500/20 text-blue-300' :
+                        'bg-slate-700/50 text-slate-300'
+                      }`}>
+                        {pokemon.rarity}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={handleStartExploring}
+            className="w-full mt-6 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600"
+          >
+            <Compass className="w-4 h-4 mr-2" /> Explore
+          </Button>
         </div>
       )}
 
-      {/* Progress */}
-      <div className="glass rounded-xl p-4 mb-4">
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-          <Compass className="w-4 h-4 text-indigo-400" /> 
-          Discovery Progress: {Math.round(zoneProgress?.discoveryProgress || 0)}/100
-        </h3>
-        <StatBar
-          value={zoneProgress?.discoveryProgress || 0}
-          maxValue={100}
-          color="bg-gradient-to-r from-indigo-500 to-cyan-500"
-        />
-        <div className="flex justify-between text-xs text-slate-400 mt-1">
-          <span>{Math.round(zoneProgress?.discoveryProgress || 0)}%</span>
-          <span>Explorations: {zoneProgress?.explorationCount || 0}</span>
-        </div>
-      </div>
+      {activeSection === 'places' && (
+        <div className="space-y-4">
+          {eclipseNodelets.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Map className="w-4 h-4 text-red-400" /> Eclipse Control Points
+              </h3>
+              <div className="space-y-3">
+                {eclipseNodelets.map((nodelet) => (
+                  <NodeletCard
+                    key={nodelet.id}
+                    nodelet={nodelet}
+                    isLiberated={liberatedNodelets.some(ln => ln.nodeletId === nodelet.id && ln.zoneId === zone.id)}
+                    onChallenge={() => handleNodeletChallenge(nodelet)}
+                    onInspect={() => handleNodeletInspect(nodelet)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Wild Pokémon */}
-      {zone.availableWildPokemon && zone.availableWildPokemon.length > 0 && (
-        <div className="glass rounded-xl p-4 mb-4">
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Eye className="w-4 h-4 text-emerald-400" /> Wild Pokémon
-          </h3>
-          <div className="space-y-2">
-            {zone.availableWildPokemon.map((pokemon, idx) => {
-              const isDiscovered = (zoneProgress?.discoveredPokemon || []).includes(pokemon.species);
-              return (
-                <div key={idx} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-                      {isDiscovered ? (
-                        <Sparkles className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <span className="text-slate-600 text-xs">???</span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-white font-medium text-sm">
-                        {isDiscovered ? pokemon.species : '??? Pokémon'}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {isDiscovered ? `Lv. ${pokemon.minLevel}-${pokemon.maxLevel}` : 'Not yet discovered'}
-                      </p>
-                    </div>
+          {zone.nodelets && zone.nodelets.filter(n => !n.eclipseControlled).length > 0 ? (
+            <div className="glass rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Map className="w-4 h-4 text-amber-400" /> Points of Interest
+              </h3>
+              <div className="space-y-2">
+                {zone.nodelets.filter(n => !n.eclipseControlled).map((nodelet, idx) => {
+                  const isDiscovered = (zoneProgress?.discoveredPOIs || []).includes(nodelet.id);
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        if (isDiscovered) {
+                          handleNodeletInspect(nodelet);
+                        }
+                      }}
+                      disabled={!isDiscovered}
+                      className={`w-full flex items-center justify-between bg-slate-800/50 rounded-lg p-3 transition-colors ${
+                        isDiscovered ? 'hover:bg-slate-700/50 cursor-pointer' : 'cursor-default'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${isDiscovered ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                        <div className="text-left">
+                          <p className="text-white text-sm">
+                            {isDiscovered ? nodelet.name : '??? Location'}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {isDiscovered ? nodelet.type : 'Not yet discovered'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {nodelet.isCompleted ? (
+                          <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">Complete</Badge>
+                        ) : isDiscovered ? (
+                          <>
+                            <Badge className="bg-amber-500/20 text-amber-300 text-xs">Available</Badge>
+                            <ChevronRight className="w-4 h-4 text-slate-400" />
+                          </>
+                        ) : (
+                          <Badge className="bg-slate-700/50 text-slate-400 text-xs">Hidden</Badge>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="glass rounded-xl p-6 text-center text-slate-400">
+              No places discovered yet.
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeSection === 'camp' && (
+        <div className="glass rounded-xl p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-white">Camp</h3>
+          <p className="text-sm text-slate-400">
+            Rest to recover a little HP and pass one hour, or sleep to heal fully and pass eight hours. Fainted Pokémon are not revived.
+          </p>
+          <div className="flex flex-col md:flex-row gap-3">
+            <Button onClick={handleCampRest} className="bg-indigo-500 hover:bg-indigo-600">
+              Rest (10% heal, +1 hour)
+            </Button>
+            <Button onClick={handleCampSleep} className="bg-emerald-500 hover:bg-emerald-600">
+              Sleep (Full heal, +8 hours)
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {activeSection === 'items' && (
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-white mb-3">Inventory</h3>
+          {items.length > 0 ? (
+            <div className="space-y-2">
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+                  <div>
+                    <p className="text-white font-medium text-sm">{item.name}</p>
+                    <p className="text-xs text-slate-400">{item.type}</p>
                   </div>
-                  <Badge className={`text-xs ${
-                    pokemon.rarity === 'Legendary' ? 'bg-yellow-500/20 text-yellow-300' :
-                    pokemon.rarity === 'Rare' ? 'bg-purple-500/20 text-purple-300' :
-                    pokemon.rarity === 'Uncommon' ? 'bg-blue-500/20 text-blue-300' :
-                    'bg-slate-700/50 text-slate-300'
-                  }`}>
-                    {pokemon.rarity}
+                  <Badge className="bg-slate-700/50 text-slate-300 text-xs">
+                    x{item.quantity ?? 1}
                   </Badge>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-400">No items in your bag yet.</p>
+          )}
         </div>
       )}
 
-      {/* Eclipse Nodelets */}
-      {eclipseNodelets.length > 0 && (
-        <div className="mb-4">
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Map className="w-4 h-4 text-red-400" /> Eclipse Control Points
-          </h3>
-          <div className="space-y-3">
-            {eclipseNodelets.map((nodelet) => (
-              <NodeletCard
-                key={nodelet.id}
-                nodelet={nodelet}
-                isLiberated={liberatedNodelets.some(ln => ln.nodeletId === nodelet.id && ln.zoneId === zone.id)}
-                onChallenge={() => handleNodeletChallenge(nodelet)}
-                onInspect={() => handleNodeletInspect(nodelet)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Other Nodelets */}
-      {zone.nodelets && zone.nodelets.filter(n => !n.eclipseControlled).length > 0 && (
-        <div className="glass rounded-xl p-4 mb-4">
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Map className="w-4 h-4 text-amber-400" /> Points of Interest
-          </h3>
-          <div className="space-y-2">
-            {zone.nodelets.filter(n => !n.eclipseControlled).map((nodelet, idx) => {
-              const isDiscovered = (zoneProgress?.discoveredPOIs || []).includes(nodelet.id);
-              return (
-                <button
-                  key={idx}
-                  onClick={() => isDiscovered && handleNodeletInspect(nodelet)}
-                  disabled={!isDiscovered}
-                  className={`w-full flex items-center justify-between bg-slate-800/50 rounded-lg p-3 transition-colors ${
-                    isDiscovered ? 'hover:bg-slate-700/50 cursor-pointer' : 'cursor-default'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${isDiscovered ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                    <div className="text-left">
-                      <p className="text-white text-sm">
-                        {isDiscovered ? nodelet.name : '??? Location'}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {isDiscovered ? nodelet.type : 'Not yet discovered'}
-                      </p>
-                    </div>
+      {activeSection === 'pokemon' && (
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-white mb-3">Active Party</h3>
+          {orderedParty.length > 0 ? (
+            <div className="space-y-2">
+              {orderedParty.map((pokemon, index) => (
+                <div key={pokemon.id} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
+                  <div>
+                    <p className="text-white font-medium text-sm">{pokemon.species}</p>
+                    <p className="text-xs text-slate-400">Lv. {pokemon.level ?? 1}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-300">
+                    <span>HP {pokemon.currentHp ?? pokemon.stats?.hp ?? 0}/{pokemon.stats?.hp ?? pokemon.maxHp ?? 0}</span>
+                    <span className="text-slate-500">#{index + 1}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {nodelet.isCompleted ? (
-                      <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">Complete</Badge>
-                    ) : isDiscovered ? (
-                      <>
-                        <Badge className="bg-amber-500/20 text-amber-300 text-xs">Available</Badge>
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
-                      </>
-                    ) : (
-                      <Badge className="bg-slate-700/50 text-slate-400 text-xs">Hidden</Badge>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => movePartyMember(index, -1)}
+                      disabled={index === 0}
+                      className="border-slate-700 text-slate-200"
+                    >
+                      ↑
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => movePartyMember(index, 1)}
+                      disabled={index === orderedParty.length - 1}
+                      className="border-slate-700 text-slate-200"
+                    >
+                      ↓
+                    </Button>
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-400">No Pokémon in your party yet.</p>
+          )}
         </div>
       )}
 
-      {/* Explore Button */}
-      <Button
-        onClick={handleStartExploring}
-        className="w-full mt-6 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600"
-      >
-        <Compass className="w-4 h-4 mr-2" /> Start Exploring
-      </Button>
+      {activeSection === 'quests' && (
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-white mb-3">Active Quests</h3>
+          {activeQuests.length > 0 ? (
+            <div className="space-y-3">
+              {activeQuests.map((quest) => {
+                const questProgress = quest.type === 'research' && quest.questId
+                  ? getSubmissionCount(quest.questId)
+                  : quest.progress ?? 0;
+                return (
+                <div key={quest.id} className="bg-slate-800/50 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-medium text-sm">{quest.name}</p>
+                    <Badge className="bg-indigo-500/20 text-indigo-200 text-xs">{quest.type || 'Quest'}</Badge>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">{quest.description}</p>
+                  <div className="mt-2 text-xs text-slate-300">
+                    Progress: {questProgress}/{quest.goal ?? 1}
+                  </div>
+                </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-slate-400">No active quests. Accept quests from NPCs to track them here.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

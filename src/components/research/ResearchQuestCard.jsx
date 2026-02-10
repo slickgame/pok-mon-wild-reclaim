@@ -65,6 +65,9 @@ function renderTalentRequirement(condition) {
 export default function ResearchQuestCard({
   quest,
   onSubmit,
+  onAccept,
+  isAccepted = false,
+  isAccepting = false,
   onReroll,
   timeLeft,
   rerollState,
@@ -237,6 +240,15 @@ export default function ResearchQuestCard({
       </div>
 
       <div className="space-y-2">
+        {onAccept && (
+          <Button
+            onClick={() => onAccept(quest)}
+            className="w-full bg-emerald-500/80 hover:bg-emerald-500"
+            disabled={isAccepted || isAccepting}
+          >
+            {isAccepted ? 'Accepted' : 'Accept Quest'}
+          </Button>
+        )}
         <Button
           onClick={() => onSubmit(quest)}
           className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"
