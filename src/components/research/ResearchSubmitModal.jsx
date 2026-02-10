@@ -19,7 +19,7 @@ import {
   markQuestBonusClaimed,
   submitPokemonToQuest
 } from '@/systems/quests/questProgressTracker';
-import { handleSubmitAllEligible } from '@/systems/quests/submitAllEligible';
+import { handleSubmitAllEligible } from '@/components/research/submitAllEligible';
 import { getStatStageChangeText } from '@/components/utils/statusHelpers';
 
 const statNames = {
