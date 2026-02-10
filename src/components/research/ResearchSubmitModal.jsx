@@ -187,19 +187,19 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
     const message = `Submit ${eligiblePokemon.length} eligible Pokémon? This will permanently release them.`;
     if (!window.confirm(message)) return;
 
-    const result = handleSubmitAllEligible({
+    const submitResult = handleSubmitAllEligible({
       quest,
       eligiblePokemon,
       requiredCount,
       onComplete: () => {}
     });
 
-    if (result.submitted?.length) {
-      await Promise.all(result.submitted.map((pokemon) => base44.entities.Pokemon.delete(pokemon.id)));
+    if (submitResult.submitted?.length) {
+      await Promise.all(submitResult.submitted.map((pokemon) => base44.entities.Pokemon.delete(pokemon.id)));
       setSubmissionCount(getSubmissionCount(quest.id));
     }
 
-    if (result.status === 'completed') {
+    if (submitResult.status === 'completed') {
       const reward = await applyQuestRewards();
       await base44.entities.ResearchQuest.update(quest.id, {
         active: false,
