@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import TimeWidget from '@/components/time/TimeWidget';
+import { formatCalendarDate, formatDigitalTime, normalizeGameTime } from '@/systems/time/gameTimeSystem';
 
 const navItems = [
   { name: 'Home', icon: Home, page: 'Home' },
@@ -50,9 +51,9 @@ export default function Layout({ children, currentPageName }) {
     refetchInterval: 30000,
   });
 
-  const timeLabel = gameTime
-    ? `${String(gameTime.currentHour ?? 8).padStart(2, '0')}:00 • Day ${gameTime.currentDay ?? 1}`
-    : 'Loading time…';
+  const normalizedTime = normalizeGameTime(gameTime);
+  const timeLabel = gameTime ? formatDigitalTime(normalizedTime) : 'Loading time…';
+  const dateLabel = gameTime ? formatCalendarDate(normalizedTime) : 'Loading date…';
   const playerName = player?.name || 'Traveler';
   const playerGold = player?.gold ?? 0;
   const playerLocation = player?.currentLocation || 'Unknown';
@@ -164,6 +165,10 @@ export default function Layout({ children, currentPageName }) {
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Time</span>
                 <span className="text-white font-medium">{timeLabel}</span>
+              </div>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-400">Date</span>
+                <span className="text-white font-medium text-right">{dateLabel}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Gold</span>

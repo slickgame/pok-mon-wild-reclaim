@@ -8,6 +8,7 @@ import { TalentRegistry } from '@/components/data/TalentRegistry';
 import ResearchQuestCard from './ResearchQuestCard';
 import ResearchSubmitModal from './ResearchSubmitModal';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
+import { TIME_CONSTANTS, getAbsoluteDayIndex, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 
 const VERDANT_SPECIES = [
   { name: 'Caterpie', weight: 3, rarity: 'common' },
@@ -213,7 +214,7 @@ function calculateDifficultyScore({ nature, level, ivConditions, talentCondition
   return score;
 }
 
-function generateQuest(player) {
+function generateQuest(player, gameTime) {
   const speciesEntry = weightedRoll(getSpeciesPool(player));
   const species = speciesEntry.name;
   const rarity = speciesEntry.rarity;
@@ -305,8 +306,9 @@ function generateQuest(player) {
   const difficultyTier = getDifficultyTier(difficultyScore);
   const avgTargetLevel = level || 10;
   const reward = getRewardForQuest({ avgTargetLevel, difficultyTier });
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + difficultyTier.expiryHours * 60 * 60 * 1000);
+  const normalizedTime = normalizeGameTime(gameTime);
+  const createdAtMinutes = toTotalMinutes(normalizedTime);
+  const expiresAtMinutes = createdAtMinutes + (difficultyTier.expiryHours * TIME_CONSTANTS.MINUTES_PER_HOUR);
 
   if (ivConditions.length === 0 && !nature) {
     nature = pickRandom(NATURES);
@@ -328,46 +330,40 @@ function generateQuest(player) {
     difficultyScore,
     difficulty: difficultyTier.name,
     reward,
-    createdAt: now.toISOString(),
-    expiresAt: expiresAt.toISOString(),
+    createdAt: new Date().toISOString(),
+    createdAtMinutes,
+    expiresAtMinutes,
     active: true,
     isLegendary: difficultyTier.name === 'Legendary'
   };
 }
 
-function getTimeLeft(expiresAt) {
-  if (!expiresAt) return 'No expiry';
-  const now = new Date();
-  const end = new Date(expiresAt);
-  const diff = end - now;
-  if (diff <= 0) return 'Expired';
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours >= 24) {
-    const days = Math.floor(hours / 24);
-    return `${days}d ${hours % 24}h left`;
+
+function getQuestExpiryMinutes(quest, currentTime) {
+  if (Number.isFinite(quest?.expiresAtMinutes)) return quest.expiresAtMinutes;
+  if (quest?.expiresAt) {
+    const parsed = Date.parse(quest.expiresAt);
+    if (Number.isFinite(parsed)) {
+      const deltaMinutes = Math.max(0, Math.floor((parsed - Date.now()) / (1000 * 60)));
+      return toTotalMinutes(normalizeGameTime(currentTime)) + deltaMinutes;
+    }
   }
-  if (hours > 0) {
-    return `${hours}h ${minutes}m left`;
-  }
-  return `${minutes}m left`;
+  return null;
 }
 
-function isSameDay(dateA, dateB) {
-  return dateA.getFullYear() === dateB.getFullYear()
-    && dateA.getMonth() === dateB.getMonth()
-    && dateA.getDate() === dateB.getDate();
+function getTimeLeft(expiresAtMinutes, currentTime) {
+  if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  return getTimeLeftLabel(currentTotal, expiresAtMinutes);
 }
 
-function getNextResetLabel() {
-  const now = new Date();
-  const nextReset = new Date(now);
-  nextReset.setDate(now.getDate() + 1);
-  nextReset.setHours(0, 0, 0, 0);
-  const diff = nextReset - now;
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  return `${hours}h ${minutes}m`;
+function getNextResetLabel(gameTime) {
+  const normalized = normalizeGameTime(gameTime);
+  const currentTotal = toTotalMinutes(normalized);
+  const minuteOfDay = (normalized.currentHour * TIME_CONSTANTS.MINUTES_PER_HOUR) + normalized.currentMinute;
+  const minutesUntilReset = TIME_CONSTANTS.MINUTES_PER_DAY - minuteOfDay;
+  const targetTotal = currentTotal + minutesUntilReset;
+  return getTimeLeftLabel(currentTotal, targetTotal).replace(' left', '');
 }
 
 export default function ResearchQuestManager() {
@@ -395,11 +391,19 @@ export default function ResearchQuestManager() {
     }
   });
 
+  const { data: gameTime } = useQuery({
+    queryKey: ['gameTime'],
+    queryFn: async () => {
+      const times = await base44.entities.GameTime.list();
+      return times[0] || null;
+    }
+  });
+
   const generateQuestsMutation = useMutation({
     mutationFn: async (count) => {
       const questsToCreate = [];
       for (let i = 0; i < count; i++) {
-        questsToCreate.push(generateQuest(player));
+        questsToCreate.push(generateQuest(player, gameTime));
       }
       await Promise.all(questsToCreate.map(q => base44.entities.ResearchQuest.create(q)));
     },
@@ -411,9 +415,8 @@ export default function ResearchQuestManager() {
   const rerollQuestMutation = useMutation({
     mutationFn: async (quest) => {
       if (!player) return null;
-      const now = new Date();
-      const lastReset = player.researchQuestRerollReset ? new Date(player.researchQuestRerollReset) : null;
-      const shouldReset = !lastReset || !isSameDay(lastReset, now);
+      const todayIndex = getAbsoluteDayIndex(gameTime);
+      const shouldReset = (player.researchQuestRerollResetDay ?? -1) !== todayIndex;
       const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
       const isFree = rerollCount < QUEST_CONFIG.maxFreeRerolls;
       const cost = isFree ? 0 : QUEST_CONFIG.rerollCost;
@@ -425,16 +428,17 @@ export default function ResearchQuestManager() {
       await base44.entities.Player.update(player.id, {
         gold: (player.gold || 0) - cost,
         researchQuestRerolls: rerollCount + 1,
-        researchQuestRerollReset: now.toISOString()
+        researchQuestRerollResetDay: todayIndex
       });
 
+      const rerolledAt = new Date().toISOString();
       await base44.entities.ResearchQuest.update(quest.id, {
         active: false,
-        rerolledAt: now.toISOString(),
+        rerolledAt,
         status: 'rerolled'
       });
 
-      const replacement = generateQuest(player);
+      const replacement = generateQuest(player, gameTime);
       await base44.entities.ResearchQuest.create(replacement);
       return { cost, replacementTier: replacement.difficulty };
     },
@@ -456,9 +460,8 @@ export default function ResearchQuestManager() {
   const rerollAllMutation = useMutation({
     mutationFn: async () => {
       if (!player) return null;
-      const now = new Date();
-      const lastReset = player.researchQuestRerollReset ? new Date(player.researchQuestRerollReset) : null;
-      const shouldReset = !lastReset || !isSameDay(lastReset, now);
+      const todayIndex = getAbsoluteDayIndex(gameTime);
+      const shouldReset = (player.researchQuestRerollResetDay ?? -1) !== todayIndex;
       const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
       const isFree = rerollCount < QUEST_CONFIG.maxFreeRerolls;
       const cost = isFree ? 0 : QUEST_CONFIG.rerollCost;
@@ -470,16 +473,17 @@ export default function ResearchQuestManager() {
       await base44.entities.Player.update(player.id, {
         gold: (player.gold || 0) - cost,
         researchQuestRerolls: rerollCount + 1,
-        researchQuestRerollReset: now.toISOString()
+        researchQuestRerollResetDay: todayIndex
       });
 
+      const rerolledAt = new Date().toISOString();
       await Promise.all(quests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
         active: false,
-        rerolledAt: now.toISOString(),
+        rerolledAt,
         status: 'rerolled'
       })));
 
-      const replacements = Array.from({ length: quests.length }, () => generateQuest(player));
+      const replacements = Array.from({ length: quests.length }, () => generateQuest(player, gameTime));
       await Promise.all(replacements.map((quest) => base44.entities.ResearchQuest.create(quest)));
 
       return { cost };
@@ -509,20 +513,23 @@ export default function ResearchQuestManager() {
 
   useEffect(() => {
     if (isLoading || quests.length === 0) return;
-    const now = new Date();
-    const expired = quests.filter((quest) => quest.expiresAt && new Date(quest.expiresAt) < now);
+    const currentTotal = toTotalMinutes(normalizeGameTime(gameTime));
+    const expired = quests.filter((quest) => {
+      const expiry = getQuestExpiryMinutes(quest, gameTime);
+      return Number.isFinite(expiry) && expiry <= currentTotal;
+    });
     if (expired.length) {
       expired.forEach((quest) => {
         base44.entities.ResearchQuest.update(quest.id, {
           active: false,
-          expiredAt: now.toISOString(),
+          expiredAt: new Date().toISOString(),
           status: 'expired',
           legendaryLog: quest.isLegendary || quest.difficulty === 'Legendary'
         });
       });
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
     }
-  }, [quests, isLoading, queryClient]);
+  }, [quests, isLoading, queryClient, gameTime]);
 
   const handleSuccess = (reward) => {
     setSelectedQuest(null);
@@ -554,17 +561,22 @@ export default function ResearchQuestManager() {
 
   const rerollState = useMemo(() => {
     if (!player) return null;
-    const now = new Date();
-    const lastReset = player.researchQuestRerollReset ? new Date(player.researchQuestRerollReset) : null;
-    const shouldReset = !lastReset || !isSameDay(lastReset, now);
+    const todayIndex = getAbsoluteDayIndex(gameTime);
+    const shouldReset = (player.researchQuestRerollResetDay ?? -1) !== todayIndex;
     const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
     const freeLeft = Math.max(QUEST_CONFIG.maxFreeRerolls - rerollCount, 0);
-    return { rerollCount, freeLeft, resetsIn: getNextResetLabel() };
-  }, [player]);
+    return { rerollCount, freeLeft, resetsIn: getNextResetLabel(gameTime) };
+  }, [player, gameTime]);
 
   const activeQuests = useMemo(
-    () => quests.filter((quest) => !quest.expiresAt || new Date(quest.expiresAt) > new Date()),
-    [quests]
+    () => {
+      const currentTotal = toTotalMinutes(normalizeGameTime(gameTime));
+      return quests.filter((quest) => {
+        const expiry = getQuestExpiryMinutes(quest, gameTime);
+        return !Number.isFinite(expiry) || expiry > currentTotal;
+      });
+    },
+    [quests, gameTime]
   );
 
   const acceptedQuestIds = useMemo(() => {
@@ -684,7 +696,7 @@ export default function ResearchQuestManager() {
             isAccepted={acceptedQuestIds.has(quest.id)}
             isAccepting={acceptingQuestId === quest.id}
             onReroll={() => rerollQuestMutation.mutate(quest)}
-            timeLeft={getTimeLeft(quest.expiresAt)}
+            timeLeft={getTimeLeft(getQuestExpiryMinutes(quest, gameTime), gameTime)}
             rerollState={rerollState}
             rerollCost={QUEST_CONFIG.rerollCost}
             isRerolling={rerollQuestMutation.isPending}

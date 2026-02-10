@@ -17,6 +17,7 @@ import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
+import { advanceGameTime, normalizeGameTime } from '@/systems/time/gameTimeSystem';
 import { 
   verdantHollowEncounters, 
   generateWildPokemon,
@@ -227,35 +228,37 @@ function ZoneDetailView({ zone, onBack }) {
     navigate('/Town');
   };
 
-  const advanceTime = async (hoursToAdd) => {
-    const currentHour = gameTime?.currentHour ?? 8;
-    const currentDay = gameTime?.currentDay ?? 1;
-    const currentWeek = gameTime?.currentWeek ?? 1;
-    let nextHour = currentHour + hoursToAdd;
-    let nextDay = currentDay + Math.floor(nextHour / 24);
-    nextHour = nextHour % 24;
-    let nextWeek = currentWeek;
-    if (nextDay > 7) {
-      nextWeek += Math.floor((nextDay - 1) / 7);
-      nextDay = ((nextDay - 1) % 7) + 1;
-    }
+  const advanceTime = async (minutesToAdd) => {
+    const normalized = normalizeGameTime(gameTime);
+    const next = advanceGameTime(normalized, minutesToAdd);
 
     if (gameTime?.id) {
       await base44.entities.GameTime.update(gameTime.id, {
-        currentHour: nextHour,
-        currentDay: nextDay,
-        currentWeek: nextWeek
+        currentHour: next.currentHour,
+        currentMinute: next.currentMinute,
+        currentDay: next.currentDay,
+        currentWeek: next.currentWeek,
+        day: next.day,
+        month: next.month,
+        year: next.year,
+        currentSeason: next.currentSeason || gameTime?.currentSeason || 'Spring'
       });
     } else {
       await base44.entities.GameTime.create({
-        currentHour: nextHour,
-        currentDay: nextDay,
-        currentWeek: nextWeek,
+        currentHour: next.currentHour,
+        currentMinute: next.currentMinute,
+        currentDay: next.currentDay,
+        currentWeek: next.currentWeek,
+        day: next.day,
+        month: next.month,
+        year: next.year,
         currentSeason: gameTime?.currentSeason || 'Spring'
       });
     }
 
     queryClient.invalidateQueries({ queryKey: ['gameTime'] });
+    queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
+    queryClient.invalidateQueries({ queryKey: ['player'] });
   };
 
   const healParty = async (healPercent) => {
@@ -277,7 +280,7 @@ function ZoneDetailView({ zone, onBack }) {
 
   const handleCampRest = async () => {
     await healParty(0.1);
-    await advanceTime(1);
+    await advanceTime(60);
   };
 
   const handleCampSleep = async () => {
@@ -293,7 +296,7 @@ function ZoneDetailView({ zone, onBack }) {
       });
     }));
     queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-    await advanceTime(8);
+    await advanceTime(480);
   };
 
   const movePartyMember = async (index, direction) => {
@@ -309,6 +312,7 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const handleExplore = async () => {
+    await advanceTime(10);
     const currentProgress = zoneProgress?.discoveryProgress || 0;
     const progressGain = Math.floor(Math.random() * 11) + 5; // 5-15
     
