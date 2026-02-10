@@ -361,8 +361,10 @@ function generateQuest(player, gameTime) {
 }
 
 
-const getQuestExpiryMinutes = (quest, currentTime) => {
-  if (Number.isFinite(quest?.expiresAtMinutes)) return quest.expiresAtMinutes;
+function getQuestExpiryMinutes(quest, currentTime) {
+  if (Number.isFinite(quest?.expiresAtMinutes)) {
+    return quest.expiresAtMinutes;
+  }
 
   if (quest?.expiresAt) {
     const parsed = Date.parse(quest.expiresAt);
@@ -395,8 +397,17 @@ function getTimeLeft(expiresAtMinutes, currentTime) {
     difficultyTier: quest?.difficulty || 'Normal',
   });
 
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes)
+    ? quest.createdAtMinutes
+    : currentTotal;
+  const durationMinutes = getQuestDurationMinutes({
+    rarity: quest?.rarity,
+    difficultyTier: quest?.difficulty || 'Normal'
+  });
+
   return createdAtMinutes + durationMinutes;
-};
+}
 
 function getTimeLeft(expiresAtMinutes, currentTime) {
   if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
