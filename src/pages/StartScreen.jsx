@@ -39,12 +39,13 @@ export default function StartScreen() {
       const user = await base44.auth.me();
 
       // Delete all existing data
-      const [players, pokemon, items, zoneProgress, tutorials] = await Promise.all([
+      const [players, pokemon, items, zoneProgress, tutorials, gameTimes] = await Promise.all([
         base44.entities.Player.list(),
         base44.entities.Pokemon.list(),
         base44.entities.Item.list(),
         base44.entities.ZoneProgress.list(),
-        base44.entities.Tutorial.list()
+        base44.entities.Tutorial.list(),
+        base44.entities.GameTime.list()
       ]);
 
       // Delete all records
@@ -53,7 +54,8 @@ export default function StartScreen() {
         ...pokemon.map(p => base44.entities.Pokemon.delete(p.id)),
         ...items.map(i => base44.entities.Item.delete(i.id)),
         ...zoneProgress.map(z => base44.entities.ZoneProgress.delete(z.id)),
-        ...tutorials.map(t => base44.entities.Tutorial.delete(t.id))
+        ...tutorials.map(t => base44.entities.Tutorial.delete(t.id)),
+        ...gameTimes.map(g => base44.entities.GameTime.delete(g.id))
       ]);
 
       // Redirect to story cutscene
