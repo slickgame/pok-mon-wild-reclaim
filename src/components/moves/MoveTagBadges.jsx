@@ -49,7 +49,7 @@ export default function MoveTagBadges({ tags = [], className = '' }) {
           <Tooltip key={tag}>
             <TooltipTrigger asChild>
               <span
-                className={`move-tag tag-tooltip ${normalizeTagClass(tag)} text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide border ${
+                className={`move-tag tag-tooltip ${normalizeTagClass(tag)} ${getTagClassName(tag)} text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide border ${
                   resolveRegistryEntry(tag) ? '' : 'unknown-tag'
                 }`}
                 style={getTagStyle(tag)}
