@@ -17,7 +17,7 @@ import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
-import { advanceGameTime, normalizeGameTime } from '@/systems/time/gameTimeSystem';
+import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 import { 
   verdantHollowEncounters, 
   generateWildPokemon,
@@ -692,6 +692,33 @@ function ZoneDetailView({ zone, onBack }) {
   }, [partyPokemon, player]);
   const activeQuests = player?.activeQuests || [];
 
+  const currentTimeTotal = toTotalMinutes(normalizeGameTime(gameTime));
+
+  const getQuestTimeLeft = (quest) => {
+    if (!Number.isFinite(quest?.expiresAtMinutes)) return 'No expiry';
+    return getTimeLeftLabel(currentTimeTotal, quest.expiresAtMinutes);
+  };
+
+  const getMatchingPokemonForQuest = (quest) => {
+    if (quest?.type !== 'research') return [];
+    return allPokemon.filter((pokemon) => {
+      if (quest.species && pokemon.species !== quest.species) return false;
+      if (quest.nature && pokemon.nature !== quest.nature) return false;
+      if (quest.level && (pokemon.level || 0) < quest.level) return false;
+      if (Array.isArray(quest.ivConditions) && quest.ivConditions.length > 0) {
+        const ivs = pokemon.ivs || {};
+        const meetsIv = quest.ivConditions.every((rule) => {
+          const key = rule.stat?.charAt(0).toLowerCase() + rule.stat?.slice(1);
+          const altKey = rule.stat === 'Speed' ? 'spd' : key;
+          const value = ivs[rule.stat] ?? ivs[key] ?? ivs[altKey] ?? 0;
+          return value >= (rule.min ?? 0);
+        });
+        if (!meetsIv) return false;
+      }
+      return true;
+    });
+  };
+
   if (isExploring) {
     return (
       <div className="pb-8">
@@ -1037,6 +1064,7 @@ function ZoneDetailView({ zone, onBack }) {
                 const questProgress = quest.type === 'research' && quest.questId
                   ? getSubmissionCount(quest.questId)
                   : quest.progress ?? 0;
+                const matchingPokemon = getMatchingPokemonForQuest(quest);
                 return (
                 <div key={quest.id} className="bg-slate-800/50 rounded-lg p-3">
                   <div className="flex items-center justify-between">
@@ -1047,6 +1075,19 @@ function ZoneDetailView({ zone, onBack }) {
                   <div className="mt-2 text-xs text-slate-300">
                     Progress: {questProgress}/{quest.goal ?? 1}
                   </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Time Left: <span className="text-slate-200">{getQuestTimeLeft(quest)}</span>
+                  </div>
+                  {quest.type === 'research' && (
+                    <div className="mt-2 text-xs text-slate-400">
+                      Fulfilling Pokémon: {matchingPokemon.length
+                        ? matchingPokemon.map((pokemon) => pokemon.species).join(', ')
+                        : 'None in your roster'}
+                    </div>
+                  )}
+                  {quest.type === 'research' && (
+                    <p className="mt-1 text-[11px] text-slate-500">Submit research quests only at Professor Maple.</p>
+                  )}
                 </div>
                 );
               })}

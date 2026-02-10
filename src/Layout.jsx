@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown, Box, BookOpen } from 'lucide-react';
+import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown, Box, BookOpen, UserCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -18,7 +18,7 @@ const navItems = [
   { name: 'Town', icon: Home, page: 'Town' },
   { name: 'Zones', icon: Map, page: 'Zones' },
   { name: 'Inventory', icon: Backpack, page: 'Inventory' },
-  { name: 'Sets', icon: Sparkles, page: 'SetBuilder' },
+  { name: 'Player', icon: UserCircle, page: 'Player' },
   { name: 'Tutorials', icon: Sparkles, page: 'TutorialLog' },
 ];
 
@@ -95,7 +95,7 @@ export default function Layout({ children, currentPageName }) {
       `}</style>
 
       {/* Desktop Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-20 lg:w-64 glass z-50 hidden md:flex flex-col">
+      <aside className="fixed left-0 top-0 h-full w-20 lg:w-64 glass z-50 hidden md:flex flex-col overflow-y-auto">
         <div className="p-4 lg:p-6 border-b border-indigo-500/20">
           <Link to={createPageUrl('Home')} className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center glow">
@@ -151,14 +151,14 @@ export default function Layout({ children, currentPageName }) {
         </nav>
 
         <div className="px-4 pb-4">
-          <div className="hidden lg:block glass rounded-xl p-4 border border-indigo-500/20">
+          <div className="glass rounded-xl p-3 lg:p-4 border border-indigo-500/20">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
               Status Snapshot
             </h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Player</span>
-                <span className="text-white font-medium truncate max-w-[140px]" title={playerName}>
+                <span className="text-white font-medium truncate max-w-[120px] lg:max-w-[140px]" title={playerName}>
                   {playerName}
                 </span>
               </div>
@@ -168,7 +168,7 @@ export default function Layout({ children, currentPageName }) {
               </div>
               <div className="flex items-start justify-between gap-2">
                 <span className="text-slate-400">Date</span>
-                <span className="text-white font-medium text-right">{dateLabel}</span>
+                <span className="text-white font-medium text-right text-xs lg:text-sm">{dateLabel}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Gold</span>
@@ -176,7 +176,7 @@ export default function Layout({ children, currentPageName }) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Location</span>
-                <span className="text-white font-medium truncate max-w-[140px]" title={playerLocation}>
+                <span className="text-white font-medium truncate max-w-[120px] lg:max-w-[140px]" title={playerLocation}>
                   {playerLocation}
                 </span>
               </div>
@@ -186,9 +186,14 @@ export default function Layout({ children, currentPageName }) {
 
         <div className="p-4 border-t border-indigo-500/20 space-y-3">
           {gameTime && (
-            <div className="hidden lg:block">
-              <TimeWidget gameTime={gameTime} />
-            </div>
+            <>
+              <div className="hidden lg:block">
+                <TimeWidget gameTime={gameTime} />
+              </div>
+              <div className="lg:hidden">
+                <TimeWidget gameTime={gameTime} compact />
+              </div>
+            </>
           )}
         </div>
         </aside>

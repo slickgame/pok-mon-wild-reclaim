@@ -96,6 +96,11 @@ export default function ResearchQuestCard({
     || (requirements.ivConditions?.length || 0) > 0
     || (requirements.talentConditions?.length || 0) > 0;
 
+  const primaryNature = quest.nature || requirements.nature;
+  const primaryLevel = quest.level || requirements.level;
+  const ivRules = (quest.ivConditions?.length ? quest.ivConditions : requirements.ivConditions) || [];
+  const talentRules = (quest.talentConditions?.length ? quest.talentConditions : requirements.talentConditions) || [];
+
   const tierGlow = {
     Easy: 'border border-slate-500/40',
     Normal: 'border border-green-500/40',
@@ -164,18 +169,18 @@ export default function ResearchQuestCard({
               {legacyDetails && quest.requirementType === 'iv' && quest.ivStat && quest.ivThreshold != null && !quest.ivConditions?.length && (
                 <p><span className="text-slate-400">IV:</span> {statNames[quest.ivStat]} ≥ {quest.ivThreshold}</p>
               )}
-              {quest.nature && (
-                <p><span className="text-slate-400">Nature:</span> {quest.nature}</p>
+              {primaryNature && (
+                <p><span className="text-slate-400">Nature:</span> {primaryNature}</p>
               )}
-              {quest.level && (
-                <p><span className="text-slate-400">Level:</span> ≥ {quest.level}</p>
+              {primaryLevel && (
+                <p><span className="text-slate-400">Level:</span> ≥ {primaryLevel}</p>
               )}
-              {quest.ivConditions?.map((iv) => (
+              {ivRules.map((iv) => (
                 <p key={`${quest.id}-iv-${iv.stat}`}>
                   <span className="text-slate-400">IV:</span> {statNames[iv.stat] || iv.stat} ≥ {iv.min}
                 </p>
               ))}
-              {quest.talentConditions?.map((condition, index) => (
+              {talentRules.map((condition, index) => (
                 <p key={`${quest.id}-talent-${index}`}>
                   <span className="text-slate-400">Talent:</span> {renderTalentRequirement(condition)}
                 </p>
@@ -192,22 +197,6 @@ export default function ResearchQuestCard({
               {quest.bondedRequired && (
                 <p><span className="text-slate-400">Bonded:</span> Required</p>
               )}
-              {requirements.nature && (
-                <p><span className="text-slate-400">Nature:</span> {requirements.nature}</p>
-              )}
-              {requirements.level && (
-                <p><span className="text-slate-400">Level:</span> ≥ {requirements.level}</p>
-              )}
-              {requirements.ivConditions?.map((iv) => (
-                <p key={`${quest.id}-iv-${iv.stat}`}>
-                  <span className="text-slate-400">IV:</span> {statNames[iv.stat] || iv.stat} ≥ {iv.min}
-                </p>
-              ))}
-              {requirements.talentConditions?.map((condition, index) => (
-                <p key={`${quest.id}-talent-${index}`}>
-                  <span className="text-slate-400">Talent:</span> {renderTalentRequirement(condition)}
-                </p>
-              ))}
             </div>
           )}
         </div>

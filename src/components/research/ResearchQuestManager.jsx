@@ -187,6 +187,23 @@ function getRewardForQuest({ avgTargetLevel, difficultyTier }) {
   };
 }
 
+
+function getQuestDurationMinutes({ rarity, difficultyTier }) {
+  const tierName = difficultyTier?.name || difficultyTier || 'Normal';
+  const isEasyLike = rarity === 'common' || tierName === 'Easy' || tierName === 'Normal';
+  const isHardLike = rarity === 'rare' || ['Hard', 'Very Hard', 'Elite', 'Legendary'].includes(tierName);
+
+  if (isEasyLike) {
+    return TIME_CONSTANTS.DAYS_PER_MONTH * TIME_CONSTANTS.MINUTES_PER_DAY; // 1 month
+  }
+
+  if (isHardLike) {
+    return 7 * TIME_CONSTANTS.MINUTES_PER_DAY; // 1 week
+  }
+
+  return 14 * TIME_CONSTANTS.MINUTES_PER_DAY; // midpoint for uncommon/medium
+}
+
 function calculateDifficultyScore({ nature, level, ivConditions, talentConditions }) {
   let score = 1;
   if (nature) score += 1;
@@ -313,7 +330,7 @@ function generateQuest(player, gameTime) {
   const reward = getRewardForQuest({ avgTargetLevel, difficultyTier });
   const normalizedTime = normalizeGameTime(gameTime);
   const createdAtMinutes = toTotalMinutes(normalizedTime);
-  const expiresAtMinutes = createdAtMinutes + (difficultyTier.expiryHours * TIME_CONSTANTS.MINUTES_PER_HOUR);
+  const expiresAtMinutes = createdAtMinutes + getQuestDurationMinutes({ rarity, difficultyTier });
 
   if (ivConditions.length === 0 && !nature) {
     nature = pickRandom(NATURES);
@@ -356,6 +373,12 @@ function getQuestExpiryMinutes(quest, currentTime) {
   return null;
 }
 
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes) ? quest.createdAtMinutes : currentTotal;
+  const durationMinutes = getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: quest?.difficulty || 'Normal' });
+  return createdAtMinutes + durationMinutes;
+}
+
 function getTimeLeft(expiresAtMinutes, currentTime) {
   if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
   const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
@@ -393,6 +416,13 @@ const normalizeQuestRequirements = (quest) => {
   }
 
   const fallbackNature = pickRandom(NATURES);
+  const normalizedNow = normalizeGameTime(null);
+  const nowMinutes = toTotalMinutes(normalizedNow);
+  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes) ? quest.createdAtMinutes : nowMinutes;
+  const inferredTier = quest?.difficulty || 'Normal';
+  const durationMinutes = getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: inferredTier });
+  const expiresAtMinutes = Number.isFinite(quest?.expiresAtMinutes) ? quest.expiresAtMinutes : (createdAtMinutes + durationMinutes);
+
   return {
     ...quest,
     nature: fallbackNature,
@@ -400,6 +430,8 @@ const normalizeQuestRequirements = (quest) => {
       ...(quest.requirements || {}),
       nature: fallbackNature,
     },
+    createdAtMinutes,
+    expiresAtMinutes,
     difficultyScore: quest.difficultyScore || 1,
   };
 };
@@ -575,6 +607,8 @@ export default function ResearchQuestManager() {
       return base44.entities.ResearchQuest.update(quest.id, {
         nature: fixed.nature,
         requirements: fixed.requirements,
+        createdAtMinutes: fixed.createdAtMinutes,
+        expiresAtMinutes: fixed.expiresAtMinutes,
         difficultyScore: fixed.difficultyScore || quest.difficultyScore || 1
       });
     })).then(() => {
@@ -655,10 +689,22 @@ export default function ResearchQuestManager() {
     return new Set(active.map((quest) => quest.questId || quest.id));
   }, [player]);
 
+  const acceptedQuestMap = useMemo(() => {
+    const active = player?.activeQuests || [];
+    return new Map(active.map((quest) => [quest.questId || quest.id, quest]));
+  }, [player]);
+
   const handleAcceptQuest = async (quest) => {
     if (!player || acceptingQuestId) return;
     setAcceptingQuestId(quest.id);
     try {
+      const updatedQuests = [...(player.activeQuests || [])];
+      if (updatedQuests.length >= 10 && !updatedQuests.some((entry) => (entry.questId || entry.id) === quest.id)) {
+        setRerollMessage('Quest log is full (10/10). Complete or remove quests before accepting more.');
+        setTimeout(() => setRerollMessage(null), 3000);
+        return;
+      }
+
       const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
       const rewardGold = quest.reward?.gold ?? quest.rewardBase ?? 0;
       const description = `Submit ${requiredCount} ${quest.species} for research.`;
@@ -670,9 +716,16 @@ export default function ResearchQuestManager() {
         description,
         progress: getSubmissionCount(quest.id),
         goal: requiredCount,
-        reward: rewardGold ? `${rewardGold} gold` : 'Research rewards'
+        reward: rewardGold ? `${rewardGold} gold` : 'Research rewards',
+        species: quest.species,
+        requirements: quest.requirements || {},
+        nature: quest.nature,
+        level: quest.level,
+        ivConditions: quest.ivConditions || [],
+        acceptedAtMinutes: toTotalMinutes(normalizeGameTime(gameTime)),
+        expiresAtMinutes: toTotalMinutes(normalizeGameTime(gameTime)) + getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: quest?.difficulty || 'Normal' }),
       };
-      const updatedQuests = [...(player.activeQuests || [])];
+
       if (!updatedQuests.some((entry) => (entry.questId || entry.id) === quest.id)) {
         updatedQuests.push(newQuest);
         await base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
@@ -767,7 +820,9 @@ export default function ResearchQuestManager() {
             isAccepted={acceptedQuestIds.has(quest.id)}
             isAccepting={acceptingQuestId === quest.id}
             onReroll={() => rerollQuestMutation.mutate(quest)}
-            timeLeft={getTimeLeft(getQuestExpiryMinutes(quest, gameTime), gameTime)}
+            timeLeft={acceptedQuestIds.has(quest.id)
+              ? getTimeLeft(getQuestExpiryMinutes(acceptedQuestMap.get(quest.id) || quest, gameTime), gameTime)
+              : 'Starts when accepted'}
             rerollState={rerollState}
             rerollCost={QUEST_CONFIG.rerollCost}
             isRerolling={rerollQuestMutation.isPending}

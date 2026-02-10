@@ -56,6 +56,7 @@ import Home from './pages/Home';
 import Inventory from './pages/Inventory';
 import MaplesLab from './pages/MaplesLab';
 import PartyManager from './pages/PartyManager';
+import Player from './pages/Player';
 import Pokedex from './pages/Pokedex';
 import Pokemon from './pages/Pokemon';
 import SetBuilder from './pages/SetBuilder';
@@ -80,6 +81,7 @@ export const PAGES = {
     "Inventory": Inventory,
     "MaplesLab": MaplesLab,
     "PartyManager": PartyManager,
+    "Player": Player,
     "Pokedex": Pokedex,
     "Pokemon": Pokemon,
     "SetBuilder": SetBuilder,
