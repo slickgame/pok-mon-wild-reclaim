@@ -43,7 +43,7 @@ export default function PokemonSummary({ pokemon, onClose }) {
 
   const updateMutation = useMutation({
     mutationFn: (updateData) => base44.entities.Pokemon.update(pokemon.id, updateData),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pokemon'] });
     }
   });
