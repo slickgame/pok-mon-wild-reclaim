@@ -1,4 +1,4 @@
-import { submitPokemonToQuest, getSubmissionCount } from '@/systems/quests/questProgressTracker';
+import { submitPokemonToQuest, getSubmissionCount } from './questProgressTracker';
 
 export function handleSubmitAllEligible({ quest, eligiblePokemon, requiredCount, onComplete }) {
   const initialCount = getSubmissionCount(quest.id);
