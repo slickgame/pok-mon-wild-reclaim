@@ -172,13 +172,13 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
       setQuestCompleted(true);
       return { reward: rewardSummary, completed: true };
     },
-    onSuccess: ({ reward, completed }) => {
+    onSuccess: (submissionResult) => {
       queryClient.invalidateQueries({ queryKey: ['player'] });
       queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
-      if (completed) {
-        onSuccess(reward);
+      if (submissionResult.completed) {
+        onSuccess(submissionResult.reward);
       }
     }
   });
