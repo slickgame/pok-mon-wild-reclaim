@@ -372,7 +372,7 @@ function getNextResetLabel(gameTime) {
 }
 
 
-function normalizeQuestRequirements(quest) {
+const normalizeQuestRequirements = (quest) => {
   const hasRequirement = Boolean(
     quest?.nature
     || quest?.level
@@ -391,8 +391,6 @@ function normalizeQuestRequirements(quest) {
   if (hasRequirement) {
     return quest;
   }
-  return null;
-}
 
   const fallbackNature = pickRandom(NATURES);
   return {
@@ -400,11 +398,11 @@ function normalizeQuestRequirements(quest) {
     nature: fallbackNature,
     requirements: {
       ...(quest.requirements || {}),
-      nature: fallbackNature
+      nature: fallbackNature,
     },
-    difficultyScore: quest.difficultyScore || 1
+    difficultyScore: quest.difficultyScore || 1,
   };
-}
+};
 
 export default function ResearchQuestManager() {
   const [selectedQuest, setSelectedQuest] = useState(null);
