@@ -293,7 +293,12 @@ function generateQuest(player, gameTime) {
   );
 
   if (!hasRequirement) {
-    nature = pickRandom(NATURES);
+    if (Math.random() < 0.5) {
+      nature = pickRandom(NATURES);
+    } else {
+      const stat = pickRandom(IV_STATS);
+      ivConditions.push({ stat, min: 12 + Math.floor(Math.random() * 7) });
+    }
   }
 
   const difficultyScore = calculateDifficultyScore({
@@ -366,6 +371,47 @@ function getNextResetLabel(gameTime) {
   return getTimeLeftLabel(currentTotal, targetTotal).replace(' left', '');
 }
 
+
+function normalizeQuestRequirements(quest) {
+  const hasRequirement = Boolean(
+    quest?.nature
+    || quest?.level
+    || (quest?.ivConditions?.length || 0) > 0
+    || (quest?.talentConditions?.length || 0) > 0
+    || quest?.shinyRequired
+    || quest?.alphaRequired
+    || quest?.bondedRequired
+    || quest?.hiddenAbilityRequired
+    || quest?.requirements?.nature
+    || quest?.requirements?.level
+    || (quest?.requirements?.ivConditions?.length || 0) > 0
+    || (quest?.requirements?.talentConditions?.length || 0) > 0
+  );
+
+  if (hasRequirement) {
+    return quest;
+  }
+  return null;
+}
+
+function getTimeLeft(expiresAtMinutes, currentTime) {
+  if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  return getTimeLeftLabel(currentTotal, expiresAtMinutes);
+}
+
+  const fallbackNature = pickRandom(NATURES);
+  return {
+    ...quest,
+    nature: fallbackNature,
+    requirements: {
+      ...(quest.requirements || {}),
+      nature: fallbackNature
+    },
+    difficultyScore: quest.difficultyScore || 1
+  };
+}
+
 export default function ResearchQuestManager() {
   const [selectedQuest, setSelectedQuest] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -375,7 +421,31 @@ export default function ResearchQuestManager() {
 
   const { data: quests = [], isLoading } = useQuery({
     queryKey: ['researchQuests'],
-    queryFn: () => base44.entities.ResearchQuest.filter({ active: true })
+    queryFn: async () => {
+      const list = await base44.entities.ResearchQuest.filter({ active: true });
+      return list.map(normalizeQuestRequirements);
+    }
+  });
+
+  const { data: questHistory = [] } = useQuery({
+    queryKey: ['researchQuestHistory'],
+    queryFn: () => base44.entities.ResearchQuest.filter({ active: false })
+  });
+
+  const { data: player } = useQuery({
+    queryKey: ['player'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    }
+  });
+
+  const { data: gameTime } = useQuery({
+    queryKey: ['gameTime'],
+    queryFn: async () => {
+      const times = await base44.entities.GameTime.list();
+      return times[0] || null;
+    }
   });
 
   const { data: questHistory = [] } = useQuery({
@@ -510,6 +580,36 @@ export default function ResearchQuestManager() {
       generateQuestsMutation.mutate(neededQuests);
     }
   }, [quests.length, isLoading]);
+
+  useEffect(() => {
+    if (isLoading || quests.length === 0) return;
+    const missing = quests.filter((quest) => !(
+      quest?.nature
+      || quest?.level
+      || (quest?.ivConditions?.length || 0) > 0
+      || (quest?.talentConditions?.length || 0) > 0
+      || quest?.shinyRequired
+      || quest?.alphaRequired
+      || quest?.bondedRequired
+      || quest?.hiddenAbilityRequired
+      || quest?.requirements?.nature
+      || quest?.requirements?.level
+      || (quest?.requirements?.ivConditions?.length || 0) > 0
+      || (quest?.requirements?.talentConditions?.length || 0) > 0
+    ));
+    if (!missing.length) return;
+
+    Promise.all(missing.map((quest) => {
+      const fixed = normalizeQuestRequirements(quest);
+      return base44.entities.ResearchQuest.update(quest.id, {
+        nature: fixed.nature,
+        requirements: fixed.requirements,
+        difficultyScore: fixed.difficultyScore || quest.difficultyScore || 1
+      });
+    })).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
+    });
+  }, [quests, isLoading, queryClient]);
 
   useEffect(() => {
     if (isLoading || quests.length === 0) return;

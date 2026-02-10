@@ -6,7 +6,6 @@ import { Users, MessageCircle, Gift, ShoppingBag, Wrench, BookOpen, Heart, Chevr
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PageHeader from '@/components/common/PageHeader';
 import NPCCard from '@/components/npc/NPCCard';
@@ -97,24 +96,21 @@ export default function NPCsPage() {
         </div>
       )}
 
-      {/* NPC Detail Sheet */}
-      <Sheet open={!!selectedNPC} onOpenChange={() => setSelectedNPC(null)}>
-        <SheetContent className="bg-slate-900 border-slate-800 w-full max-w-none h-full p-0 overflow-y-auto">
-          {selectedNPC && (
-            <NPCDetailView 
-              npc={selectedNPC} 
-              trustLevel={getTrustLevel(selectedNPC.name)}
-              schedule={schedules.find(s => s.npcName === selectedNPC.name)}
-              gameTime={gameTime}
-              onClose={() => setSelectedNPC(null)}
-              onLearnMove={(tutor, move) => {
-                setTutorModalState({ tutor, move });
-                setSelectedNPC(null);
-              }}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+      {selectedNPC && (
+        <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto">
+          <NPCDetailView 
+            npc={selectedNPC} 
+            trustLevel={getTrustLevel(selectedNPC.name)}
+            schedule={schedules.find(s => s.npcName === selectedNPC.name)}
+            gameTime={gameTime}
+            onClose={() => setSelectedNPC(null)}
+            onLearnMove={(tutor, move) => {
+              setTutorModalState({ tutor, move });
+              setSelectedNPC(null);
+            }}
+          />
+        </div>
+      )}
 
       {/* Move Tutor Modal */}
       {tutorModalState && (

@@ -318,7 +318,7 @@ function ZoneDetailView({ zone, onBack }) {
     
     // Determine encounter type - 30% chance for wild Pokémon
     const roll = Math.random() * 100;
-    let encounterType, result;
+    let result;
     let actualProgressGain = 0;
 
     if (roll < 30 && zone.name === "Verdant Hollow") {
@@ -329,7 +329,6 @@ function ZoneDetailView({ zone, onBack }) {
         const firstDiscovery = !(zoneProgress?.discoveredPokemon || []).includes(wildPokemon.species);
         actualProgressGain = firstDiscovery ? progressGain + 5 : 0;
         
-        encounterType = 'pokemon';
         result = {
           type: 'pokemon',
           title: firstDiscovery ? '🆕 New Pokémon Discovered!' : 'Wild Pokémon Encountered',
@@ -352,7 +351,6 @@ function ZoneDetailView({ zone, onBack }) {
       const firstDiscovery = !(zoneProgress?.discoveredMaterials || []).includes(material);
       actualProgressGain = firstDiscovery ? progressGain : 0;
       
-      encounterType = 'material';
       result = {
         type: 'material',
         title: firstDiscovery ? '🆕 New Material Found!' : 'Materials Found',
@@ -373,7 +371,6 @@ function ZoneDetailView({ zone, onBack }) {
         const poi = undiscoveredPOIs[Math.floor(Math.random() * undiscoveredPOIs.length)];
         actualProgressGain = progressGain + 10;
         
-        encounterType = 'poi';
         result = {
           type: 'poi',
           title: '🆕 Point of Interest Unlocked!',
@@ -391,7 +388,6 @@ function ZoneDetailView({ zone, onBack }) {
         const firstDiscovery = !(zoneProgress?.discoveredMaterials || []).includes(material);
         actualProgressGain = firstDiscovery ? progressGain : 0;
         
-        encounterType = 'material';
         result = {
           type: 'material',
           title: firstDiscovery ? '🆕 New Material Found!' : 'Materials Found',
@@ -406,7 +402,6 @@ function ZoneDetailView({ zone, onBack }) {
     } else {
       // Special Event
       actualProgressGain = progressGain + 15;
-      encounterType = 'special';
       result = {
         type: 'special',
         title: '⚡ Special Event!',
@@ -414,6 +409,17 @@ function ZoneDetailView({ zone, onBack }) {
         progressGained: actualProgressGain,
         firstDiscovery: true,
         rarity: 'rare'
+      };
+    }
+
+    if (!result) {
+      result = {
+        type: 'special',
+        title: '🌿 Quiet Moment',
+        description: 'You scout the area but find no immediate encounter.',
+        progressGained: 0,
+        firstDiscovery: false,
+        rarity: 'common'
       };
     }
 
@@ -425,15 +431,15 @@ function ZoneDetailView({ zone, onBack }) {
     
     // Update zone progress in state and database
     const newProgress = Math.min(currentProgress + actualProgressGain, 100);
-    const updatedDiscoveredPokemon = result.firstDiscovery && result.type === 'pokemon'
+    const updatedDiscoveredPokemon = result?.firstDiscovery && result.type === 'pokemon'
       ? [...(zoneProgress?.discoveredPokemon || []), result.pokemon]
       : (zoneProgress?.discoveredPokemon || []);
     
-    const updatedDiscoveredMaterials = result.firstDiscovery && result.type === 'material'
+    const updatedDiscoveredMaterials = result?.firstDiscovery && result.type === 'material'
       ? [...(zoneProgress?.discoveredMaterials || []), result.materialName]
       : (zoneProgress?.discoveredMaterials || []);
     
-    const updatedDiscoveredPOIs = result.firstDiscovery && result.type === 'poi'
+    const updatedDiscoveredPOIs = result?.firstDiscovery && result.type === 'poi'
       ? [...(zoneProgress?.discoveredPOIs || []), result.poiId]
       : (zoneProgress?.discoveredPOIs || []);
 
@@ -510,7 +516,7 @@ function ZoneDetailView({ zone, onBack }) {
         navigate('/Battle', {
           state: {
             wildPokemonId: wildPokemon.id,
-            returnTo: 'Zones'
+            returnTo: `Zones?zoneId=${zone.id}`
           }
         });
         setCurrentEncounter(null);
@@ -1053,3 +1059,13 @@ function ZoneDetailView({ zone, onBack }) {
     </div>
   );
 }
+    if (!result) {
+      result = {
+        type: 'special',
+        title: '🌿 Quiet Moment',
+        description: 'You scout the area but find no immediate encounter.',
+        progressGained: 0,
+        firstDiscovery: false,
+        rarity: 'common'
+      };
+    }
