@@ -164,6 +164,21 @@ export default function OnboardingPage() {
           });
         }
 
+        // Initialize in-game clock/calendar (Day 01, Month 00, Year 0000 at 6:00 AM)
+        const existingTime = await base44.entities.GameTime.list();
+        if (!existingTime.length) {
+          await base44.entities.GameTime.create({
+            currentHour: 6,
+            currentMinute: 0,
+            currentDay: 1,
+            currentWeek: 1,
+            day: 1,
+            month: 0,
+            year: 0,
+            currentSeason: 'Spring'
+          });
+        }
+
         // Initialize tutorial sequence with Professor Maple's guidance
         const tutorials = [
           {
