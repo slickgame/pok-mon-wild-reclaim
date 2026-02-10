@@ -370,6 +370,8 @@ function getQuestExpiryMinutes(quest, currentTime) {
       return toTotalMinutes(normalizeGameTime(currentTime)) + deltaMinutes;
     }
   }
+  return null;
+}
 
   const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
   const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes) ? quest.createdAtMinutes : currentTotal;
