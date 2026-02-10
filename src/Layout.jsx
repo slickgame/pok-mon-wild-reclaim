@@ -43,7 +43,7 @@ export default function Layout({ children, currentPageName }) {
   });
 
   const { data: player } = useQuery({
-    queryKey: ['playerStatus'],
+    queryKey: ['playerSidebarSummary'],
     queryFn: async () => {
       const players = await base44.entities.Player.list();
       return players[0] || null;
@@ -51,12 +51,8 @@ export default function Layout({ children, currentPageName }) {
     refetchInterval: 30000,
   });
 
-  const normalizedTime = normalizeGameTime(gameTime);
-  const timeLabel = gameTime ? formatDigitalTime(normalizedTime) : 'Loading time…';
-  const dateLabel = gameTime ? formatCalendarDate(normalizedTime) : 'Loading date…';
   const playerName = player?.name || 'Traveler';
   const playerGold = player?.gold ?? 0;
-  const playerLocation = player?.currentLocation || 'Unknown';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -150,6 +146,12 @@ export default function Layout({ children, currentPageName }) {
             })}
         </nav>
         <div className="p-4 border-t border-indigo-500/20 space-y-3">
+          <div className="glass rounded-xl border border-indigo-500/20 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-400">Player</div>
+            <div className="text-sm font-semibold text-white truncate" title={playerName}>{playerName}</div>
+            <div className="mt-2 text-xs uppercase tracking-wide text-slate-400">Gold</div>
+            <div className="text-sm font-semibold text-amber-300">{playerGold}g</div>
+          </div>
           {gameTime && (
             <>
               <div className="hidden lg:block">
