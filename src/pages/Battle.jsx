@@ -1226,7 +1226,7 @@ export default function BattlePage() {
   }
 
   const isPlayerTurn = battleState?.currentTurn === 'player';
-  const isBattleEnded = battleState.status === 'won' || battleState.status === 'lost';
+  const isBattleEnded = battleState?.status === 'won' || battleState?.status === 'lost';
 
   return (
     <div>
