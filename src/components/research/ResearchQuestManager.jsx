@@ -391,14 +391,6 @@ function normalizeQuestRequirements(quest) {
   if (hasRequirement) {
     return quest;
   }
-  return null;
-}
-
-function getTimeLeft(expiresAtMinutes, currentTime) {
-  if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
-  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
-  return getTimeLeftLabel(currentTotal, expiresAtMinutes);
-}
 
   const fallbackNature = pickRandom(NATURES);
   return {
