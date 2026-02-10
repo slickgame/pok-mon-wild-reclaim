@@ -65,6 +65,9 @@ function renderTalentRequirement(condition) {
 export default function ResearchQuestCard({
   quest,
   onSubmit,
+  onAccept,
+  isAccepted = false,
+  isAccepting = false,
   onReroll,
   timeLeft,
   rerollState,
@@ -158,7 +161,7 @@ export default function ResearchQuestCard({
 
           {hasDetails && isExpanded && (
             <div className="mt-3 space-y-2 text-sm text-slate-300">
-              {legacyDetails && quest.requirementType === 'iv' && !quest.ivConditions?.length && (
+              {legacyDetails && quest.requirementType === 'iv' && quest.ivStat && quest.ivThreshold != null && !quest.ivConditions?.length && (
                 <p><span className="text-slate-400">IV:</span> {statNames[quest.ivStat]} ≥ {quest.ivThreshold}</p>
               )}
               {quest.nature && (
@@ -237,6 +240,15 @@ export default function ResearchQuestCard({
       </div>
 
       <div className="space-y-2">
+        {onAccept && (
+          <Button
+            onClick={() => onAccept(quest)}
+            className="w-full bg-emerald-500/80 hover:bg-emerald-500"
+            disabled={isAccepted || isAccepting}
+          >
+            {isAccepted ? 'Accepted' : 'Accept Quest'}
+          </Button>
+        )}
         <Button
           onClick={() => onSubmit(quest)}
           className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"

@@ -241,10 +241,10 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
             <p className="text-xs text-slate-400">
               Progress: {submissionCount}/{requiredCount} submitted {questAlreadyCompleted ? '(Completed)' : ''}
             </p>
-            {quest.requirementType === 'nature' && !questNature && (
+            {quest.requirementType === 'nature' && quest.nature && !questNature && (
               <p className="text-indigo-300">Nature: {quest.nature}</p>
             )}
-            {quest.requirementType === 'iv' && !questIvConditions.length && (
+            {quest.requirementType === 'iv' && quest.ivStat && quest.ivThreshold != null && !questIvConditions.length && (
               <p className="text-purple-300">
                 {statNames[quest.ivStat]} ≥ {quest.ivThreshold}
               </p>

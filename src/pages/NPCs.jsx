@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Users, X, MessageCircle, Gift, ShoppingBag, Wrench, BookOpen, Heart, ChevronRight } from 'lucide-react';
+import { Users, MessageCircle, Gift, ShoppingBag, Wrench, BookOpen, Heart, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -99,7 +99,7 @@ export default function NPCsPage() {
 
       {/* NPC Detail Sheet */}
       <Sheet open={!!selectedNPC} onOpenChange={() => setSelectedNPC(null)}>
-        <SheetContent className="bg-slate-900 border-slate-800 w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="bg-slate-900 border-slate-800 w-full max-w-none h-full p-0 overflow-y-auto">
           {selectedNPC && (
             <NPCDetailView 
               npc={selectedNPC} 
@@ -178,18 +178,28 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
   };
 
   return (
-    <div className="pb-8">
+    <div className="min-h-screen pb-10">
+      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">NPC Detail</p>
+            <h2 className="text-lg font-semibold text-white">{npc.name}</h2>
+          </div>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="border-slate-700 text-slate-200 hover:bg-slate-800"
+          >
+            <ChevronRight className="w-4 h-4 rotate-180 mr-2" />
+            Back to NPCs
+          </Button>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6">
       {/* Header */}
-      <div className={`-mx-6 -mt-6 mb-6 h-36 bg-gradient-to-br ${gradient} relative`}>
+      <div className={`-mx-6 mb-6 h-40 bg-gradient-to-br ${gradient} relative`}>
         <div className="absolute inset-0 bg-black/30" />
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white/70 hover:text-white hover:bg-white/20"
-        >
-          <X className="w-5 h-5" />
-        </Button>
         
         {npc.avatarUrl ? (
           <img 
@@ -245,9 +255,9 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
       )}
 
       {/* Tabs for Services, Quests & Schedule */}
-      <Tabs defaultValue={npc.role === 'Merchant' ? 'shop' : 'services'} className="mt-6">
+      <Tabs defaultValue={npc.role === 'Merchant' ? 'shop' : 'services'} className="mt-8">
         <TabsList
-          className={`w-full bg-slate-800/50 grid ${
+          className={`w-full bg-slate-800/50 grid sticky top-[72px] z-10 ${
             npc.name === 'Professor Maple' ? 'grid-cols-5' : 'grid-cols-4'
           }`}
         >
@@ -459,6 +469,7 @@ function NPCDetailView({ npc, trustLevel, schedule, gameTime, onClose, onLearnMo
       <Button className="w-full mt-6 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600">
         <MessageCircle className="w-4 h-4 mr-2" /> Talk to {npc.name.split(' ')[0]}
       </Button>
+      </div>
     </div>
   );
 }
