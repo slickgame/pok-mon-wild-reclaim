@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { Home, PawPrint, Map, Backpack, FlaskConical, Users, Menu, X, Sparkles, Swords, Trophy, Fish, Crown, Box, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import TimeWidget from '@/components/time/TimeWidget';
+import { formatCalendarDate, formatDigitalTime, normalizeGameTime } from '@/systems/time/gameTimeSystem';
 
 const navItems = [
   { name: 'Home', icon: Home, page: 'Home' },
@@ -29,6 +30,8 @@ export default function Layout({ children, currentPageName }) {
     return children;
   }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const inZoneDetail = currentPageName === 'Zones' && location.search.includes('zoneId=');
 
   const { data: gameTime } = useQuery({
     queryKey: ['gameTime'],
@@ -38,6 +41,22 @@ export default function Layout({ children, currentPageName }) {
     },
     refetchInterval: 60000, // Refresh every minute
   });
+
+  const { data: player } = useQuery({
+    queryKey: ['playerStatus'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    },
+    refetchInterval: 30000,
+  });
+
+  const normalizedTime = normalizeGameTime(gameTime);
+  const timeLabel = gameTime ? formatDigitalTime(normalizedTime) : 'Loading time…';
+  const dateLabel = gameTime ? formatCalendarDate(normalizedTime) : 'Loading date…';
+  const playerName = player?.name || 'Traveler';
+  const playerGold = player?.gold ?? 0;
+  const playerLocation = player?.currentLocation || 'Unknown';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -92,7 +111,8 @@ export default function Layout({ children, currentPageName }) {
           {navItems.map((item) => {
               const isActive = currentPageName === item.page;
               const isBattlePage = currentPageName === 'Battle';
-              const isDisabled = isBattlePage && item.page !== 'Battle';
+              const isZoneLocked = inZoneDetail && item.page !== 'StartScreen';
+              const isDisabled = (isBattlePage && item.page !== 'Battle') || isZoneLocked;
 
               return (
                 <Link
@@ -101,7 +121,10 @@ export default function Layout({ children, currentPageName }) {
                   onClick={(e) => {
                     if (isDisabled) {
                       e.preventDefault();
-                      alert('⚔️ You cannot leave during an active battle!');
+                      alert(isBattlePage
+                        ? '⚔️ You cannot leave during an active battle!'
+                        : '🌲 You cannot leave the zone while exploring. Return to town or the main menu first.'
+                      );
                     }
                   }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${
@@ -126,6 +149,40 @@ export default function Layout({ children, currentPageName }) {
               );
             })}
         </nav>
+
+        <div className="px-4 pb-4">
+          <div className="hidden lg:block glass rounded-xl p-4 border border-indigo-500/20">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
+              Status Snapshot
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Player</span>
+                <span className="text-white font-medium truncate max-w-[140px]" title={playerName}>
+                  {playerName}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Time</span>
+                <span className="text-white font-medium">{timeLabel}</span>
+              </div>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-400">Date</span>
+                <span className="text-white font-medium text-right">{dateLabel}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Gold</span>
+                <span className="text-amber-300 font-semibold">{playerGold}g</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Location</span>
+                <span className="text-white font-medium truncate max-w-[140px]" title={playerLocation}>
+                  {playerLocation}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="p-4 border-t border-indigo-500/20 space-y-3">
           {gameTime && (
@@ -168,7 +225,8 @@ export default function Layout({ children, currentPageName }) {
               {navItems.map((item) => {
                 const isActive = currentPageName === item.page;
                 const isBattlePage = currentPageName === 'Battle';
-                const isDisabled = isBattlePage && item.page !== 'Battle';
+                const isZoneLocked = inZoneDetail && item.page !== 'StartScreen';
+                const isDisabled = (isBattlePage && item.page !== 'Battle') || isZoneLocked;
 
                 return (
                   <Link
@@ -177,7 +235,10 @@ export default function Layout({ children, currentPageName }) {
                     onClick={(e) => {
                       if (isDisabled) {
                         e.preventDefault();
-                        alert('⚔️ You cannot leave during an active battle!');
+                        alert(isBattlePage
+                          ? '⚔️ You cannot leave during an active battle!'
+                          : '🌲 You cannot leave the zone while exploring. Return to town or the main menu first.'
+                        );
                       } else {
                         setMobileMenuOpen(false);
                       }
