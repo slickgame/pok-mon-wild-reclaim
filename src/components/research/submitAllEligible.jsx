@@ -1,24 +1,14 @@
-import { submitPokemonToQuest, getSubmissionCount } from './questProgressTracker';
-
+// This function doesn't need external dependencies for the simple case
 export function handleSubmitAllEligible({ quest, eligiblePokemon, requiredCount, onComplete }) {
-  const initialCount = getSubmissionCount(quest.id);
-  const remainingNeeded = Math.max(requiredCount - initialCount, 0);
-  const toSubmit = eligiblePokemon.slice(0, remainingNeeded);
+  const toSubmit = eligiblePokemon.slice(0, requiredCount);
 
-  toSubmit.forEach((pokemon) => {
-    submitPokemonToQuest(quest.id, pokemon.id);
-  });
-
-  const newCount = getSubmissionCount(quest.id);
-  const isCompleted = newCount >= requiredCount;
-
-  if (isCompleted && onComplete) {
-    onComplete();
+  if (onComplete) {
+    onComplete(toSubmit);
   }
 
   return {
-    status: isCompleted ? 'completed' : 'partial',
+    status: toSubmit.length >= requiredCount ? 'completed' : 'partial',
     submitted: toSubmit,
-    newCount
+    newCount: toSubmit.length
   };
 }
