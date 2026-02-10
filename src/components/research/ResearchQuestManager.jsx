@@ -391,6 +391,14 @@ function normalizeQuestRequirements(quest) {
   if (hasRequirement) {
     return quest;
   }
+  return null;
+}
+
+function getTimeLeft(expiresAtMinutes, currentTime) {
+  if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  return getTimeLeftLabel(currentTotal, expiresAtMinutes);
+}
 
   const fallbackNature = pickRandom(NATURES);
   return {
@@ -416,6 +424,27 @@ export default function ResearchQuestManager() {
     queryFn: async () => {
       const list = await base44.entities.ResearchQuest.filter({ active: true });
       return list.map(normalizeQuestRequirements);
+    }
+  });
+
+  const { data: questHistory = [] } = useQuery({
+    queryKey: ['researchQuestHistory'],
+    queryFn: () => base44.entities.ResearchQuest.filter({ active: false })
+  });
+
+  const { data: player } = useQuery({
+    queryKey: ['player'],
+    queryFn: async () => {
+      const players = await base44.entities.Player.list();
+      return players[0] || null;
+    }
+  });
+
+  const { data: gameTime } = useQuery({
+    queryKey: ['gameTime'],
+    queryFn: async () => {
+      const times = await base44.entities.GameTime.list();
+      return times[0] || null;
     }
   });
 

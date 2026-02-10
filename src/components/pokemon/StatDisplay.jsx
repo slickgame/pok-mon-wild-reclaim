@@ -9,6 +9,14 @@ import { calculateAllStats, getNatureDescription, NATURES } from './statCalculat
 export default function StatDisplay({ pokemon }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  if (!pokemon) {
+    return (
+      <div className="glass p-4 rounded-xl text-center text-slate-400">
+        No Pokémon data available
+      </div>
+    );
+  }
+
   const baseStats = getBaseStats(pokemon.species);
   const calculatedStats = calculateAllStats(pokemon, baseStats);
   
