@@ -82,12 +82,7 @@ export default function HomePage() {
       completedAt: new Date().toISOString()
     });
     
-    // Fully clear and invalidate
     setCurrentTutorial(null);
-    
-    // Invalidate to prevent re-trigger
-    const queryClient = await import('@tanstack/react-query').then(m => m.useQueryClient);
-    queryClient().invalidateQueries({ queryKey: ['tutorials'] });
   };
 
   const handleSkipTutorials = async () => {
