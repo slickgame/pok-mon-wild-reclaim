@@ -371,6 +371,20 @@ const getQuestExpiryMinutes = (quest, currentTime) => {
       return toTotalMinutes(normalizeGameTime(currentTime)) + deltaMinutes;
     }
   }
+  return null;
+}
+
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes) ? quest.createdAtMinutes : currentTotal;
+  const durationMinutes = getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: quest?.difficulty || 'Normal' });
+  return createdAtMinutes + durationMinutes;
+}
+
+function getTimeLeft(expiresAtMinutes, currentTime) {
+  if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  return getTimeLeftLabel(currentTotal, expiresAtMinutes);
+}
 
   const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
   const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes)
