@@ -599,17 +599,33 @@ export class BattleEngine {
     
     // Priority 1: If low HP (<30%), consider healing/status moves
     if (enemyHPPercent < 30) {
-      const healingMoves = movesWithData.filter(m => 
-        m.category === 'Status' && m.effect && m.effect.includes('heal')
-      );
+      const healingMoves = movesWithData.filter((m) => {
+        if (m.category !== 'Status' || !m.effect) return false;
+
+        if (typeof m.effect === 'string') {
+          return m.effect.includes('heal');
+        }
+
+        if (typeof m.effect === 'object') {
+          return Boolean(
+            m.effect.heal
+            || m.effect.healSelf
+            || m.effect.healTarget
+            || m.effect.healAllies
+            || m.effect.healOverTime
+          );
+        }
+
+        return false;
+      });
       if (healingMoves.length > 0 && Math.random() < 0.6) {
         return healingMoves[0];
       }
     }
     
     // Priority 2: Check for super-effective moves (type advantage)
-    const superEffectiveMoves = movesWithData.filter(move => {
-      // Simplified type effectiveness check
+    const superEffectiveMoves = movesWithData.filter((move) => {
+      if (!move?.type) return false;
       const playerTypes = [playerPokemon.type1, playerPokemon.type2].filter(Boolean);
       return this.isSuperEffective(move.type, playerTypes);
     });
