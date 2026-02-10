@@ -391,6 +391,8 @@ function normalizeQuestRequirements(quest) {
   if (hasRequirement) {
     return quest;
   }
+  return null;
+}
 
   const fallbackNature = pickRandom(NATURES);
   return {
