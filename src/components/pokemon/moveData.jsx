@@ -1710,6 +1710,140 @@ const BASE_MOVE_DATA = {
     stages: 2
   },
 
+
+  'Thunder Shock': {
+    type: 'Electric',
+    category: 'Special',
+    power: 40,
+    accuracy: 100,
+    pp: 30,
+    description: 'A jolt of electricity crashes into the target. May paralyze.',
+    effect: 'paralyze',
+    effectChance: 10,
+    tags: ['Electric', 'Paralyze', 'Special']
+  },
+  Thunderbolt: {
+    type: 'Electric',
+    category: 'Special',
+    power: 90,
+    accuracy: 100,
+    pp: 15,
+    description: 'A strong electric blast crashes down on the target. May paralyze.',
+    effect: 'paralyze',
+    effectChance: 10,
+    tags: ['Electric', 'Paralyze', 'Special']
+  },
+  Thunder: {
+    type: 'Electric',
+    category: 'Special',
+    power: 110,
+    accuracy: 70,
+    pp: 10,
+    description: 'A wicked thunderbolt crashes down. May paralyze.',
+    effect: 'paralyze',
+    effectChance: 30,
+    tags: ['Electric', 'Paralyze', 'Weather']
+  },
+  Slam: {
+    type: 'Normal',
+    category: 'Physical',
+    power: 80,
+    accuracy: 75,
+    pp: 20,
+    description: 'Slams the target with a heavy strike.',
+    tags: ['Physical']
+  },
+  Nuzzle: {
+    type: 'Electric',
+    category: 'Physical',
+    power: 20,
+    accuracy: 100,
+    pp: 20,
+    description: 'Always paralyzes the target with an electric nuzzle.',
+    effect: 'paralyze',
+    effectChance: 100,
+    tags: ['Electric', 'Paralyze', 'Physical']
+  },
+  'Peck Flurry': {
+    type: 'Flying',
+    category: 'Physical',
+    power: 35,
+    accuracy: 95,
+    pp: 20,
+    description: 'A rapid multi-hit pecking assault.',
+    effect: {
+      multiHit: {
+        min: 2,
+        max: 3
+      }
+    },
+    tags: ['Physical', 'Multi-Hit', 'Flying']
+  },
+  'Wide Gust': {
+    type: 'Flying',
+    category: 'Special',
+    power: 65,
+    accuracy: 100,
+    pp: 15,
+    description: 'A broad gust that can clip both nearby foes.',
+    aoe: true,
+    tags: ['Special', 'AOE', 'Flying']
+  },
+  'Keen Eye': {
+    type: 'Flying',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 15,
+    description: 'Sharpen focus to raise accuracy.',
+    effect: 'raiseAccuracy',
+    stages: 1,
+    tags: ['Status', 'Buff']
+  },
+  'Wind Cage': {
+    type: 'Flying',
+    category: 'Status',
+    power: 0,
+    accuracy: 90,
+    pp: 10,
+    description: 'Traps the target in circulating winds for several turns.',
+    effect: {
+      trap: true,
+      duration: 3
+    },
+    tags: ['Status', 'Trap', 'Flying']
+  },
+  'Aerial Mastery': {
+    type: 'Flying',
+    category: 'Status',
+    power: 0,
+    accuracy: null,
+    pp: 10,
+    description: 'Raises both Attack and Speed with controlled flight.',
+    effect: {
+      selfStatChange: {
+        Attack: 1,
+        Speed: 1
+      }
+    },
+    tags: ['Status', 'Buff', 'Flying']
+  },
+  'Sky Dancer': {
+    type: 'Flying',
+    category: 'Physical',
+    power: 95,
+    accuracy: 100,
+    pp: 10,
+    description: 'Aerial strike that may increase Speed after landing.',
+    effect: {
+      selfStatChange: {
+        Speed: 1
+      }
+    },
+    effectChance: 30,
+    tags: ['Physical', 'Flying']
+  },
+
   // Add more moves as needed
 };
 

@@ -68,6 +68,11 @@ export const triggerTalent = (event, ctx) => {
           addBattleLog: ctx.addBattleLog ? (message) => ctx.addBattleLog(message, mon, talent) : undefined,
           modifyStat: ctx.modifyStat ? (target, stat, stages) => ctx.modifyStat(target, stat, stages) : undefined
         };
+
+        if (ctx.addBattleLog) {
+          ctx.addBattleLog('activated.', mon, talent);
+        }
+
         effectFn(effectContext);
       }
     }
@@ -150,9 +155,10 @@ export class BattleEngine {
         logs.push({
           turn: battleState.turnNumber,
           actor: pokemon.nickname || pokemon.species,
-          action: talentDef?.name || 'Talent',
+          action: `Talent Triggered: ${talentDef?.name || 'Talent'}`,
           result: message,
-          synergyTriggered: true
+          synergyTriggered: true,
+          talentTriggered: true
         });
       };
 
@@ -563,31 +569,63 @@ export class BattleEngine {
   // Smart AI: Choose best move based on strategy
   chooseEnemyMove(availableMoves, playerPokemon) {
     if (!availableMoves || availableMoves.length === 0) {
-      return availableMoves[0];
+      return null;
     }
-    
-    // Get move data for all available moves
-    const movesWithData = availableMoves.map(move => {
-      const moveData = move?.name ? getMoveData(move.name, this.enemyPokemon) : move;
-      return { ...move, ...moveData };
-    });
+
+    // Get move data for all available moves (supports string or object entries)
+    const movesWithData = availableMoves
+      .map((move) => {
+        if (typeof move === 'string') {
+          const moveData = getMoveData(move, this.enemyPokemon);
+          return moveData ? { name: move, ...moveData } : null;
+        }
+
+        if (!move) return null;
+
+        const moveName = move.name || move.move || null;
+        if (!moveName) return null;
+
+        const moveData = getMoveData(moveName, this.enemyPokemon);
+        return { ...move, name: moveName, ...(moveData || {}) };
+      })
+      .filter(Boolean);
+
+    if (movesWithData.length === 0) {
+      return null;
+    }
     
     // Calculate HP percentage
     const enemyHPPercent = (this.enemyPokemon.currentHp / this.enemyPokemon.stats.maxHp) * 100;
     
     // Priority 1: If low HP (<30%), consider healing/status moves
     if (enemyHPPercent < 30) {
-      const healingMoves = movesWithData.filter(m => 
-        m.category === 'Status' && m.effect && m.effect.includes('heal')
-      );
+      const healingMoves = movesWithData.filter((m) => {
+        if (m.category !== 'Status' || !m.effect) return false;
+
+        if (typeof m.effect === 'string') {
+          return m.effect.includes('heal');
+        }
+
+        if (typeof m.effect === 'object') {
+          return Boolean(
+            m.effect.heal
+            || m.effect.healSelf
+            || m.effect.healTarget
+            || m.effect.healAllies
+            || m.effect.healOverTime
+          );
+        }
+
+        return false;
+      });
       if (healingMoves.length > 0 && Math.random() < 0.6) {
         return healingMoves[0];
       }
     }
     
     // Priority 2: Check for super-effective moves (type advantage)
-    const superEffectiveMoves = movesWithData.filter(move => {
-      // Simplified type effectiveness check
+    const superEffectiveMoves = movesWithData.filter((move) => {
+      if (!move?.type) return false;
       const playerTypes = [playerPokemon.type1, playerPokemon.type2].filter(Boolean);
       return this.isSuperEffective(move.type, playerTypes);
     });
@@ -755,9 +793,10 @@ export class BattleEngine {
         logs.push({
           turn: battleState.turnNumber,
           actor: user?.nickname || user?.species,
-          action: talentDef?.name || 'Talent',
+          action: `Talent Triggered: ${talentDef?.name || 'Talent'}`,
           result: message,
-          synergyTriggered: true
+          synergyTriggered: true,
+          talentTriggered: true
         });
       },
       modifyStat: (targetPokemon, stat, stages) => {
@@ -1151,7 +1190,7 @@ export class BattleEngine {
     // Apply move effects from central move data
     if (move.effect && move.effectChance) {
       if (Math.random() * 100 < move.effectChance) {
-        if (move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralysis') {
+        if (move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralysis' || move.effect === 'paralyze' || move.effect === 'sleep') {
           const statusResult = this.applyStatusEffect(defender.pokemon, move.effect, battleState);
           if (statusResult.success) {
             logs.push({
@@ -1301,42 +1340,49 @@ export class BattleEngine {
           const drainFraction = typeof move.drainPercentage === 'number' ? move.drainPercentage : 0.125;
           const sourceName = attacker.pokemon.nickname || attacker.pokemon.species;
 
+          const applyLeechSeedDrain = (targetMon, addBattleLog) => {
+            const seededMaxHp = targetMon.stats?.maxHp || targetMon.stats?.hp || 0;
+            if (seededMaxHp <= 0) return;
+
+            const targetName = targetMon.nickname || targetMon.species;
+            const drainAmount = Math.max(1, Math.floor(seededMaxHp * drainFraction));
+            const currentHp = targetMon.currentHp ?? seededMaxHp;
+            const actualDrain = Math.min(drainAmount, Math.max(0, currentHp));
+            if (actualDrain <= 0) return;
+
+            targetMon.currentHp = Math.max(0, currentHp - actualDrain);
+            if (defender.key === 'player') {
+              battleState.playerHP = targetMon.currentHp;
+            } else {
+              battleState.enemyHP = targetMon.currentHp;
+            }
+
+            if (attacker.key === 'player') {
+              const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
+              const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.playerHP || 0)));
+              if (healed > 0) {
+                battleState.playerHP += healed;
+                attacker.pokemon.currentHp = battleState.playerHP;
+              }
+            } else {
+              const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
+              const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.enemyHP || 0)));
+              if (healed > 0) {
+                battleState.enemyHP += healed;
+                attacker.pokemon.currentHp = battleState.enemyHP;
+              }
+            }
+
+            addBattleLog(`${targetName} had its energy drained by Leech Seed! (-${actualDrain} HP)`);
+          };
+
           defender.pokemon.passiveEffects.push({
             id: 'leechSeed',
             displayName: 'Leech Seed',
             source: sourceName,
             duration: Number.POSITIVE_INFINITY,
             onTurnStart: (effectCtx) => {
-              const targetMon = effectCtx.target;
-              const seededMaxHp = targetMon.stats?.maxHp || targetMon.stats?.hp || 0;
-              if (seededMaxHp <= 0) return;
-
-              const targetName = targetMon.nickname || targetMon.species;
-              const drainAmount = Math.max(1, Math.floor(seededMaxHp * drainFraction));
-              const currentHp = targetMon.currentHp ?? seededMaxHp;
-              const actualDrain = Math.min(drainAmount, Math.max(0, currentHp));
-
-              if (actualDrain <= 0) return;
-
-              effectCtx.applyDamage(actualDrain);
-
-              if (attacker.key === 'player') {
-                const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
-                const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.playerHP || 0)));
-                if (healed > 0) {
-                  battleState.playerHP += healed;
-                  attacker.pokemon.currentHp = battleState.playerHP;
-                }
-              } else {
-                const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
-                const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.enemyHP || 0)));
-                if (healed > 0) {
-                  battleState.enemyHP += healed;
-                  attacker.pokemon.currentHp = battleState.enemyHP;
-                }
-              }
-
-              effectCtx.addBattleLog(`${targetName} had its energy drained by Leech Seed! (-${actualDrain} HP)`);
+              applyLeechSeedDrain(effectCtx.target, effectCtx.addBattleLog);
             },
             onExpire: (effectCtx) => {
               effectCtx.addBattleLog(`${effectCtx.target.nickname || effectCtx.target.species} is freed from Leech Seed.`);
@@ -1349,6 +1395,17 @@ export class BattleEngine {
             action: move.name,
             result: `${defender.pokemon.nickname || defender.pokemon.species} was seeded!`,
             synergyTriggered: false
+          });
+
+          // Apply first Leech Seed tick immediately on the turn it lands.
+          applyLeechSeedDrain(defender.pokemon, (message) => {
+            logs.push({
+              turn: battleState.turnNumber,
+              actor: attacker.pokemon.nickname || attacker.pokemon.species,
+              action: 'Leech Seed',
+              result: message,
+              synergyTriggered: false
+            });
           });
         }
       } else if (move.effect === 'setTerrain' && move.terrain) {
@@ -1544,6 +1601,8 @@ export class BattleEngine {
           'raiseDefense': 'Defense',
           'lowerSpeed': 'Speed',
           'raiseSpeed': 'Speed',
+          'lowerAccuracy': 'Accuracy',
+          'raiseAccuracy': 'Accuracy',
           'lowerSpDef': 'Sp. Def',
           'raiseSpDef': 'Sp. Def'
         };
