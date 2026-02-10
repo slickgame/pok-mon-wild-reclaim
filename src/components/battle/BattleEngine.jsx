@@ -567,12 +567,11 @@ export class BattleEngine {
   }
 
   // Smart AI: Choose best move based on strategy
-  chooseEnemyMove(availableMoves, playerPokemon) {
+  chooseEnemyMove(availableMoves, playerPokemon, battleState = null) {
     if (!availableMoves || availableMoves.length === 0) {
       return null;
     }
 
-    // Get move data for all available moves (supports string or object entries)
     const movesWithData = availableMoves
       .map((move) => {
         if (typeof move === 'string') {
@@ -593,70 +592,89 @@ export class BattleEngine {
     if (movesWithData.length === 0) {
       return null;
     }
-    
-    // Calculate HP percentage
-    const enemyHPPercent = (this.enemyPokemon.currentHp / this.enemyPokemon.stats.maxHp) * 100;
-    
-    // Priority 1: If low HP (<30%), consider healing/status moves
-    if (enemyHPPercent < 30) {
-      const healingMoves = movesWithData.filter((m) => {
-        if (m.category !== 'Status' || !m.effect) return false;
 
+    const enemyMaxHp = this.enemyPokemon.stats?.maxHp || this.enemyPokemon.stats?.hp || 1;
+    const enemyCurrentHp = this.enemyPokemon.currentHp ?? enemyMaxHp;
+    const enemyHPPercent = (enemyCurrentHp / enemyMaxHp) * 100;
+    const playerTypes = [playerPokemon?.type1, playerPokemon?.type2].filter(Boolean);
+    const enemyTypes = [this.enemyPokemon?.type1, this.enemyPokemon?.type2].filter(Boolean);
+    const targetHasStatus = Boolean(playerPokemon?.status?.id || playerPokemon?.activeStatus?.type);
+
+    const lastEnemyMove = battleState?.enemyLastMove || null;
+
+    const scoredMoves = movesWithData.map((move) => {
+      let score = 0;
+      const power = Number(move.power) || 0;
+
+      if (move.category === 'Status') {
+        score += 16;
+      } else {
+        score += Math.min(power, 120) / 2;
+      }
+
+      if (move.type && enemyTypes.includes(move.type)) {
+        score += 12; // STAB
+      }
+
+      if (move.type && this.isSuperEffective(move.type, playerTypes)) {
+        score += 30;
+      }
+
+      if (move.priority && move.priority > 0) {
+        score += 6;
+      }
+
+      if (move.effectChance) {
+        score += Math.min(12, move.effectChance / 10);
+      }
+
+      const isHealingMove = (m) => {
+        if (!m?.effect) return false;
         if (typeof m.effect === 'string') {
-          return m.effect.includes('heal');
+          return m.effect.includes('heal') || m.effect === 'drain';
         }
-
         if (typeof m.effect === 'object') {
-          return Boolean(
-            m.effect.heal
-            || m.effect.healSelf
-            || m.effect.healTarget
-            || m.effect.healAllies
-            || m.effect.healOverTime
-          );
+          return Boolean(m.effect.heal || m.effect.healSelf || m.effect.healTarget || m.effect.healAllies || m.effect.healOverTime);
         }
-
         return false;
-      });
-      if (healingMoves.length > 0 && Math.random() < 0.6) {
-        return healingMoves[0];
+      };
+
+      if (enemyHPPercent < 35 && isHealingMove(move)) {
+        score += 25;
+      } else if (enemyHPPercent > 70 && isHealingMove(move)) {
+        score -= 8;
       }
-    }
-    
-    // Priority 2: Check for super-effective moves (type advantage)
-    const superEffectiveMoves = movesWithData.filter((move) => {
-      if (!move?.type) return false;
-      const playerTypes = [playerPokemon.type1, playerPokemon.type2].filter(Boolean);
-      return this.isSuperEffective(move.type, playerTypes);
+
+      const isStatusMove = move.category === 'Status';
+      const statusLike = move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralyze' || move.effect === 'paralysis' || move.effect === 'sleep';
+      if (isStatusMove && statusLike && targetHasStatus) {
+        score -= 14;
+      }
+
+      if (lastEnemyMove && move.name === lastEnemyMove && movesWithData.length > 1) {
+        score -= 15;
+      }
+
+      // small jitter to avoid deterministic repeats
+      score += Math.random() * 4;
+
+      return { move, score };
     });
-    
-    if (superEffectiveMoves.length > 0) {
-      // Choose highest power super-effective move
-      return superEffectiveMoves.reduce((best, current) => 
-        (current.power || 0) > (best.power || 0) ? current : best
-      );
+
+    scoredMoves.sort((a, b) => b.score - a.score);
+
+    const topBand = scoredMoves.filter((entry) => entry.score >= scoredMoves[0].score - 8);
+    const pool = topBand.length > 0 ? topBand : scoredMoves;
+
+    const choice = pool[Math.floor(Math.random() * pool.length)]?.move || scoredMoves[0]?.move || null;
+
+    if (battleState && choice?.name) {
+      battleState.enemyLastMove = choice.name;
     }
-    
-    // Priority 3: Choose highest damage move
-    const damageMoves = movesWithData.filter(m => m.category !== 'Status' && m.power > 0);
-    if (damageMoves.length > 0) {
-      return damageMoves.reduce((best, current) => 
-        (current.power || 0) > (best.power || 0) ? current : best
-      );
-    }
-    
-    // Priority 4: Random status move for variety (20% chance)
-    if (Math.random() < 0.2) {
-      const statusMoves = movesWithData.filter(m => m.category === 'Status');
-      if (statusMoves.length > 0) {
-        return statusMoves[Math.floor(Math.random() * statusMoves.length)];
-      }
-    }
-    
-    // Fallback: random move
-    return movesWithData[Math.floor(Math.random() * movesWithData.length)];
+
+    return choice;
   }
-  
+
   // Simplified type effectiveness check
   isSuperEffective(moveType, defenderTypes) {
     const typeChart = {
@@ -1324,7 +1342,32 @@ export class BattleEngine {
 
     // Handle special move effects (legacy support)
     if (move.effect) {
-      if (move.effect === 'leechSeed') {
+      if (move.effect === 'drain') {
+        const sourceMaxHp = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
+        const sourceCurrentHp = attacker.pokemon.currentHp ?? (attacker.key === 'player' ? battleState.playerHP : battleState.enemyHP);
+        const drainPercent = typeof move.drainPercentage === 'number' ? move.drainPercentage : 0.5;
+        const healAmount = Math.max(0, Math.floor((damage || 0) * drainPercent));
+
+        if (healAmount > 0 && sourceMaxHp > 0) {
+          const actualHeal = Math.min(healAmount, Math.max(0, sourceMaxHp - sourceCurrentHp));
+          if (actualHeal > 0) {
+            attacker.pokemon.currentHp = sourceCurrentHp + actualHeal;
+            if (attacker.key === 'player') {
+              battleState.playerHP = attacker.pokemon.currentHp;
+            } else {
+              battleState.enemyHP = attacker.pokemon.currentHp;
+            }
+
+            logs.push({
+              turn: battleState.turnNumber,
+              actor: attacker.pokemon.nickname || attacker.pokemon.species,
+              action: move.name,
+              result: `restored ${actualHeal} HP`,
+              synergyTriggered: false
+            });
+          }
+        }
+      } else if (move.effect === 'leechSeed') {
         defender.pokemon.passiveEffects = defender.pokemon.passiveEffects || [];
         const alreadySeeded = defender.pokemon.passiveEffects.some((effect) => effect.id === 'leechSeed');
 

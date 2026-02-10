@@ -315,7 +315,6 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const handleExplore = async () => {
-    await advanceTime(EXPLORE_TIME_MINUTES);
     const currentProgress = zoneProgress?.discoveryProgress || 0;
     const progressGain = Math.floor(Math.random() * 11) + 5; // 5-15
     
@@ -473,6 +472,9 @@ function ZoneDetailView({ zone, onBack }) {
     } catch (error) {
       console.error('Failed to save progress:', error);
     }
+
+    // Advance world time after the exploration event resolves.
+    await advanceTime(EXPLORE_TIME_MINUTES);
   };
 
   const handleContinueExploring = () => {

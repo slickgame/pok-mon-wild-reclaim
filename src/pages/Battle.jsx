@@ -377,11 +377,10 @@ export default function BattlePage() {
       });
     } else {
       // Capture failed, enemy gets free turn
-      const enemyAvailableMoves = getEnemyBattleMoves(battleState.enemyPokemon).filter((moveOption) => moveOption.category !== 'Status');
-      const fallbackEnemyMoves = getEnemyBattleMoves(battleState.enemyPokemon);
-      const enemyMove = enemyAvailableMoves[Math.floor(Math.random() * enemyAvailableMoves.length)] || fallbackEnemyMoves[0] || getMoveData('Tackle', battleState.enemyPokemon);
-      
       const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
+      const fallbackEnemyMoves = getEnemyBattleMoves(battleState.enemyPokemon);
+      const enemyMove = engine.chooseEnemyMove(fallbackEnemyMoves, battleState.playerPokemon, battleState) || fallbackEnemyMoves[0] || getMoveData('Tackle', battleState.enemyPokemon);
+
       const stateCopy = { ...battleState };
       
       // Enemy attacks
@@ -473,7 +472,7 @@ export default function BattlePage() {
 
     // Enemy uses smart AI to choose best move from its own learned moves
     const enemyAvailableMoves = getEnemyBattleMoves(battleState.enemyPokemon);
-    const enemyMove = engine.chooseEnemyMove(enemyAvailableMoves, battleState.playerPokemon) || enemyAvailableMoves[0];
+    const enemyMove = engine.chooseEnemyMove(enemyAvailableMoves, battleState.playerPokemon, battleState) || enemyAvailableMoves[0];
 
     // Create a copy of battle state for engine to modify
     const stateCopy = { ...battleState };
@@ -1225,8 +1224,39 @@ export default function BattlePage() {
     );
   }
 
-  const isPlayerTurn = battleState?.currentTurn === 'player';
-  const isBattleEnded = battleState?.status === 'won' || battleState?.status === 'lost';
+
+  const latestTalentTriggers = useMemo(() => {
+    if (!battleState?.battleLog?.length) {
+      return { player: null, enemy: null };
+    }
+
+    const findLatestFor = (pokemon) => {
+      if (!pokemon) return null;
+      const displayNames = [pokemon.nickname, pokemon.species].filter(Boolean);
+
+      for (let idx = battleState.battleLog.length - 1; idx >= 0; idx -= 1) {
+        const entry = battleState.battleLog[idx];
+        if (!entry?.talentTriggered) continue;
+        if (!displayNames.includes(entry.actor)) continue;
+
+        return {
+          turn: entry.turn,
+          action: entry.action,
+          result: entry.result
+        };
+      }
+
+      return null;
+    };
+
+    return {
+      player: findLatestFor(battleState.playerPokemon),
+      enemy: findLatestFor(battleState.enemyPokemon)
+    };
+  }, [battleState]);
+
+  const isPlayerTurn = battleState.currentTurn === 'player';
+  const isBattleEnded = battleState.status === 'won' || battleState.status === 'lost';
 
   return (
     <div>
