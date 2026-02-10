@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Sparkles, Flame, Droplet, Skull } from 'lucide-react';
+import { Zap, Sparkles, Flame, Skull, WandSparkles } from 'lucide-react';
 
 export default function BattleLog({ logs }) {
   const logEndRef = useRef(null);
@@ -10,6 +10,7 @@ export default function BattleLog({ logs }) {
   }, [logs]);
   
   const getLogIcon = (log) => {
+    if (log.talentTriggered) return <WandSparkles className="w-3 h-3 text-violet-300 flex-shrink-0" />;
     if (log.synergyTriggered) return <Zap className="w-3 h-3 text-cyan-400 flex-shrink-0" />;
     if (log.action.includes('Burn')) return <Flame className="w-3 h-3 text-orange-400 flex-shrink-0" />;
     if (log.action.includes('Poison')) return <Skull className="w-3 h-3 text-purple-400 flex-shrink-0" />;
@@ -18,6 +19,7 @@ export default function BattleLog({ logs }) {
   };
   
   const getLogStyle = (log) => {
+    if (log.talentTriggered) return 'bg-violet-500/15 border border-violet-500/40 text-violet-200';
     if (log.synergyTriggered) return 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-300';
     if (log.result?.includes('super effective')) return 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300';
     if (log.action.includes('fainted')) return 'bg-red-500/10 border border-red-500/30 text-red-300';
@@ -45,6 +47,11 @@ export default function BattleLog({ logs }) {
               <div className="flex items-center gap-2">
                 {getLogIcon(log)}
                 <span>
+                  {log.talentTriggered && (
+                    <span className="mr-1 rounded bg-violet-500/25 px-1 py-0.5 text-[0.6rem] uppercase tracking-wide text-violet-200">
+                      Talent
+                    </span>
+                  )}
                   <span className="font-semibold">{log.actor}</span> {log.action}
                   {log.result && (
                     <motion.span 
