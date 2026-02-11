@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, RefreshCcw, ChevronDown, Info, Star } from 'lucide-react';
+import { Sparkles, Zap, RefreshCcw, ChevronDown, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
@@ -144,10 +144,6 @@ export default function ResearchQuestCard({
           <Badge className={`mt-2 ${tierColors[difficultyTier] || tierColors.Normal}`}>
             {difficultyTier}
           </Badge>
-          <div className="mt-2 flex items-center gap-1 text-xs text-slate-400">
-            <Star className="w-3 h-3 text-yellow-300" />
-            Score {quest.difficultyScore || '—'}
-          </div>
           <div className="mt-1 text-xs text-slate-400">
             Progress: {submissionCount}/{requiredCount} submitted
           </div>

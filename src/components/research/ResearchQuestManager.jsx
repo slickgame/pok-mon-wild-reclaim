@@ -204,10 +204,11 @@ function getQuestDurationMinutes({ rarity, difficultyTier }) {
   return 14 * TIME_CONSTANTS.MINUTES_PER_DAY; // midpoint for uncommon/medium
 }
 
-function calculateDifficultyScore({ nature, level, ivConditions, talentConditions }) {
+function calculateQuestValue({ nature, level, ivConditions, talentConditions, specialFlags }) {
   let score = 1;
   if (nature) score += 1;
   if (level && level >= 20) score += 1;
+  if (level && level >= 35) score += 1;
   if (ivConditions?.length) {
     ivConditions.forEach((iv) => {
       score += iv.min > 20 ? 2 : 1;
@@ -224,8 +225,8 @@ function calculateDifficultyScore({ nature, level, ivConditions, talentCondition
       }
     });
   }
-  if (arguments[0]?.specialFlags) {
-    const specialCount = Object.values(arguments[0].specialFlags).filter(Boolean).length;
+  if (specialFlags) {
+    const specialCount = Object.values(specialFlags).filter(Boolean).length;
     score += specialCount * 2;
   }
   return score;
@@ -333,14 +334,14 @@ function generateQuest(player, gameTime) {
     }
   }
 
-  const difficultyScore = calculateDifficultyScore({
+  const questValue = calculateQuestValue({
     nature,
     level,
     ivConditions,
     talentConditions,
     specialFlags
   });
-  const difficultyTier = getDifficultyTier(difficultyScore);
+  const difficultyTier = getDifficultyTier(questValue);
   const avgTargetLevel = level || 10;
   const reward = getRewardForQuest({ avgTargetLevel, difficultyTier });
   const normalizedTime = normalizeGameTime(gameTime);
@@ -371,7 +372,8 @@ function generateQuest(player, gameTime) {
     ivConditions,
     talentConditions,
     ...specialFlags,
-    difficultyScore,
+    questValue,
+    difficultyScore: questValue,
     difficulty: difficultyTier.name,
     reward,
     createdAt: new Date().toISOString(),
@@ -469,7 +471,8 @@ const normalizeQuestRequirements = (quest) => {
     },
     createdAtMinutes,
     expiresAtMinutes,
-    difficultyScore: quest.difficultyScore || 1,
+    questValue: quest.questValue || quest.difficultyScore || 1,
+    difficultyScore: quest.difficultyScore || quest.questValue || 1,
   };
 };
 
@@ -663,7 +666,8 @@ export default function ResearchQuestManager() {
         requirements: fixed.requirements,
         createdAtMinutes: fixed.createdAtMinutes,
         expiresAtMinutes: fixed.expiresAtMinutes,
-        difficultyScore: fixed.difficultyScore || quest.difficultyScore || 1
+        questValue: fixed.questValue || fixed.difficultyScore || quest.questValue || quest.difficultyScore || 1,
+        difficultyScore: fixed.difficultyScore || fixed.questValue || quest.difficultyScore || quest.questValue || 1
       });
     })).then(() => {
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
