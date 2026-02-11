@@ -9,6 +9,7 @@ import MaplesLab from './pages/MaplesLab';
 import NPCs from './pages/NPCs';
 import Onboarding from './pages/Onboarding';
 import PartyManager from './pages/PartyManager';
+import Player from './pages/Player';
 import Pokedex from './pages/Pokedex';
 import Pokemon from './pages/Pokemon';
 import SetBuilder from './pages/SetBuilder';
@@ -33,6 +34,7 @@ export const PAGES = {
     "NPCs": NPCs,
     "Onboarding": Onboarding,
     "PartyManager": PartyManager,
+    "Player": Player,
     "Pokedex": Pokedex,
     "Pokemon": Pokemon,
     "SetBuilder": SetBuilder,
