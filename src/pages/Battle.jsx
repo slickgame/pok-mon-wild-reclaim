@@ -1475,7 +1475,11 @@ export default function BattlePage() {
 
                // Return to exploration if this was a wild battle
                if (returnTo && battleState.isWildBattle) {
-                 navigate(`/${returnTo}`);
+                 const separator = returnTo.includes('?') ? '&' : '?';
+                 const battleOutcome = battleState.status === 'won' || battleState.status === 'captured'
+                   ? 'victory'
+                   : 'defeat';
+                 navigate(`/${returnTo}${separator}battleOutcome=${battleOutcome}`);
                } else {
                  setBattleState(null);
                  setWildPokemonId(null);
