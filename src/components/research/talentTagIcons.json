@@ -1,0 +1,19 @@
+{
+  "healing": "💚",
+  "spore": "🍄",
+  "terrain": "🌿",
+  "weather": "🌤️",
+  "status": "🔁",
+  "speed": "💨",
+  "shielding": "🛡️",
+  "utility": "🧪",
+  "damage": "⚔️",
+  "passive": "🔂",
+  "tracking": "📍",
+  "hazard": "☣️",
+  "resistance": "🪨",
+  "multiHit": "🔁",
+  "trap": "🕸️",
+  "crit": "🎯",
+  "stat": "📈"
+}

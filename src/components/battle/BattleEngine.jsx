@@ -698,8 +698,11 @@ export class BattleEngine {
         }
       }
 
-      effect.duration--;
-      if (effect.duration > 0) {
+      if (Number.isFinite(effect.duration)) {
+        effect.duration--;
+      }
+
+      if (!Number.isFinite(effect.duration) || effect.duration > 0) {
         remaining.push(effect);
       } else {
         if (effect.onExpire) {
@@ -1282,7 +1285,73 @@ export class BattleEngine {
 
     // Handle special move effects (legacy support)
     if (move.effect) {
-      if (move.effect === 'setTerrain' && move.terrain) {
+      if (move.effect === 'leechSeed') {
+        defender.pokemon.passiveEffects = defender.pokemon.passiveEffects || [];
+        const alreadySeeded = defender.pokemon.passiveEffects.some((effect) => effect.id === 'leechSeed');
+
+        if (alreadySeeded) {
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: attacker.pokemon.nickname || attacker.pokemon.species,
+            action: move.name,
+            result: `${defender.pokemon.nickname || defender.pokemon.species} is already seeded!`,
+            synergyTriggered: false
+          });
+        } else {
+          const drainFraction = typeof move.drainPercentage === 'number' ? move.drainPercentage : 0.125;
+          const sourceName = attacker.pokemon.nickname || attacker.pokemon.species;
+
+          defender.pokemon.passiveEffects.push({
+            id: 'leechSeed',
+            displayName: 'Leech Seed',
+            source: sourceName,
+            duration: Number.POSITIVE_INFINITY,
+            onTurnStart: (effectCtx) => {
+              const targetMon = effectCtx.target;
+              const seededMaxHp = targetMon.stats?.maxHp || targetMon.stats?.hp || 0;
+              if (seededMaxHp <= 0) return;
+
+              const targetName = targetMon.nickname || targetMon.species;
+              const drainAmount = Math.max(1, Math.floor(seededMaxHp * drainFraction));
+              const currentHp = targetMon.currentHp ?? seededMaxHp;
+              const actualDrain = Math.min(drainAmount, Math.max(0, currentHp));
+
+              if (actualDrain <= 0) return;
+
+              effectCtx.applyDamage(actualDrain);
+
+              if (attacker.key === 'player') {
+                const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
+                const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.playerHP || 0)));
+                if (healed > 0) {
+                  battleState.playerHP += healed;
+                  attacker.pokemon.currentHp = battleState.playerHP;
+                }
+              } else {
+                const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
+                const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.enemyHP || 0)));
+                if (healed > 0) {
+                  battleState.enemyHP += healed;
+                  attacker.pokemon.currentHp = battleState.enemyHP;
+                }
+              }
+
+              effectCtx.addBattleLog(`${targetName} had its energy drained by Leech Seed! (-${actualDrain} HP)`);
+            },
+            onExpire: (effectCtx) => {
+              effectCtx.addBattleLog(`${effectCtx.target.nickname || effectCtx.target.species} is freed from Leech Seed.`);
+            }
+          });
+
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: attacker.pokemon.nickname || attacker.pokemon.species,
+            action: move.name,
+            result: `${defender.pokemon.nickname || defender.pokemon.species} was seeded!`,
+            synergyTriggered: false
+          });
+        }
+      } else if (move.effect === 'setTerrain' && move.terrain) {
         const battlefield = ensureBattlefield(battleState);
         const terrainDef = TerrainRegistry[move.terrain];
         battlefield.terrain = move.terrain;
