@@ -104,6 +104,18 @@ export default function ResearchQuestCard({
   const ivRules = (quest.ivConditions?.length ? quest.ivConditions : requirements.ivConditions) || [];
   const talentRules = (quest.talentConditions?.length ? quest.talentConditions : requirements.talentConditions) || [];
 
+
+  const compactRequirementChips = [];
+  if (requiredCount > 1) compactRequirementChips.push(`${requiredCount}x submit`);
+  if (primaryNature) compactRequirementChips.push(`Nature: ${primaryNature}`);
+  if (primaryLevel) compactRequirementChips.push(`Lv≥${primaryLevel}`);
+  if (ivRules.length) compactRequirementChips.push(`IV +${ivRules.length}`);
+  if (talentRules.length) compactRequirementChips.push(`Talents +${talentRules.length}`);
+  if (quest.shinyRequired) compactRequirementChips.push('Shiny');
+  if (quest.alphaRequired) compactRequirementChips.push('Alpha');
+  if (quest.hiddenAbilityRequired) compactRequirementChips.push('Hidden Ability');
+  if (quest.bondedRequired) compactRequirementChips.push('Bonded');
+
   const tierGlow = {
     Easy: 'border border-slate-500/40',
     Normal: 'border border-green-500/40',
@@ -162,6 +174,20 @@ export default function ResearchQuestCard({
         <div className="bg-slate-800/50 rounded-lg p-4">
           <p className="text-sm text-slate-400 mb-2">Required Pokémon:</p>
           <p className="text-xl font-bold text-white">{quest.species}</p>
+          {compactRequirementChips.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {compactRequirementChips.slice(0, 3).map((chip) => (
+                <Badge key={`${quest.id}-${chip}`} className="bg-indigo-900/40 text-indigo-200 border border-indigo-700/50 text-[10px]">
+                  {chip}
+                </Badge>
+              ))}
+              {compactRequirementChips.length > 3 && (
+                <Badge className="bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">
+                  +{compactRequirementChips.length - 3} more
+                </Badge>
+              )}
+            </div>
+          )}
 
           {hasDetails && isExpanded && (
             <div className="mt-3 space-y-2 text-sm text-slate-300">

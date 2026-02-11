@@ -89,6 +89,71 @@ function pickRandom(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+
+function hasMeaningfulRequirement(quest = {}) {
+  const requirements = quest.requirements || {};
+  return Boolean(
+    quest?.level
+    || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
+    || (quest?.ivConditions?.length || 0) > 0
+    || (quest?.talentConditions?.length || 0) > 0
+    || quest?.shinyRequired
+    || quest?.alphaRequired
+    || quest?.bondedRequired
+    || quest?.hiddenAbilityRequired
+    || requirements?.level
+    || (requirements?.quantityRequired || 1) > 1
+    || (requirements?.ivConditions?.length || 0) > 0
+    || (requirements?.talentConditions?.length || 0) > 0
+    || requirements?.shinyRequired
+    || requirements?.alphaRequired
+    || requirements?.bondedRequired
+    || requirements?.hiddenAbilityRequired
+  );
+}
+
+function serializeQuestForStorage(quest) {
+  return {
+    ...quest,
+    requirementsJson: JSON.stringify(quest?.requirements || {})
+  };
+}
+
+async function createQuestWithPersistenceGuard(base44, quest, contextLabel = 'research_create') {
+  const payload = serializeQuestForStorage(quest);
+  const created = await base44.entities.ResearchQuest.create(payload);
+
+  const createdId = created?.id;
+  if (!createdId || !base44.entities.ResearchQuest.get) {
+    return created;
+  }
+
+  const persisted = await base44.entities.ResearchQuest.get(createdId).catch(() => null);
+  if (!persisted) return created;
+
+  const sourceHasMeaningful = hasMeaningfulRequirement(quest);
+  const persistedHasMeaningful = hasMeaningfulRequirement(persisted);
+  if (!sourceHasMeaningful || persistedHasMeaningful) return created;
+
+  console.warn(`[${contextLabel}] Persisted quest lost requirement fields, restoring canonical payload for quest ${createdId}.`);
+  await base44.entities.ResearchQuest.update(createdId, {
+    requirements: quest.requirements || {},
+    requirementsJson: JSON.stringify(quest.requirements || {}),
+    nature: quest.nature || null,
+    level: quest.level || null,
+    quantityRequired: quest.quantityRequired || 1,
+    ivConditions: quest.ivConditions || [],
+    talentConditions: quest.talentConditions || [],
+    shinyRequired: Boolean(quest.shinyRequired),
+    alphaRequired: Boolean(quest.alphaRequired),
+    bondedRequired: Boolean(quest.bondedRequired),
+    hiddenAbilityRequired: Boolean(quest.hiddenAbilityRequired),
+    requirementType: quest.requirementType || 'mixed'
+  }).catch(() => {});
+
+  return created;
+}
+
 function getTalentPool(speciesName) {
   const speciesData = PokemonRegistry[speciesName.toLowerCase()];
   const pool = speciesData?.talentPool;
@@ -192,9 +257,25 @@ export function getNextResetLabel(gameTime) {
 }
 
 export function normalizeQuestRequirements(quest) {
+  let normalizedQuest = quest;
+  if ((!quest?.requirements || Object.keys(quest.requirements || {}).length === 0) && quest?.requirementsJson) {
+    try {
+      const parsed = JSON.parse(quest.requirementsJson);
+      normalizedQuest = {
+        ...normalizedQuest,
+        requirements: {
+          ...(parsed || {}),
+          ...(quest?.requirements || {})
+        }
+      };
+    } catch {
+      normalizedQuest = quest;
+    }
+  }
+
   const hasRequirement = Boolean(
-    quest?.nature
-    || quest?.level
+    normalizedQuest?.nature
+    || normalizedQuest?.level
     || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
     || (quest?.ivConditions?.length || 0) > 0
     || (quest?.talentConditions?.length || 0) > 0
@@ -202,18 +283,18 @@ export function normalizeQuestRequirements(quest) {
     || quest?.alphaRequired
     || quest?.bondedRequired
     || quest?.hiddenAbilityRequired
-    || quest?.requirements?.nature
-    || quest?.requirements?.level
-    || (quest?.requirements?.quantityRequired || 1) > 1
-    || (quest?.requirements?.ivConditions?.length || 0) > 0
-    || (quest?.requirements?.talentConditions?.length || 0) > 0
-    || quest?.requirements?.shinyRequired
-    || quest?.requirements?.alphaRequired
-    || quest?.requirements?.bondedRequired
-    || quest?.requirements?.hiddenAbilityRequired
+    || normalizedQuest?.requirements?.nature
+    || normalizedQuest?.requirements?.level
+    || (normalizedQuest?.requirements?.quantityRequired || 1) > 1
+    || (normalizedQuest?.requirements?.ivConditions?.length || 0) > 0
+    || (normalizedQuest?.requirements?.talentConditions?.length || 0) > 0
+    || normalizedQuest?.requirements?.shinyRequired
+    || normalizedQuest?.requirements?.alphaRequired
+    || normalizedQuest?.requirements?.bondedRequired
+    || normalizedQuest?.requirements?.hiddenAbilityRequired
   );
 
-  if (hasRequirement) return quest;
+  if (hasRequirement) return normalizedQuest;
 
   const fallbackNature = pickRandom(NATURES);
   const nowMinutes = toTotalMinutes(normalizeGameTime(null));
@@ -222,15 +303,15 @@ export function normalizeQuestRequirements(quest) {
   const expiresAtMinutes = Number.isFinite(quest?.expiresAtMinutes) ? quest.expiresAtMinutes : (createdAtMinutes + durationMinutes);
 
   return {
-    ...quest,
+    ...normalizedQuest,
     nature: fallbackNature,
-    requirementType: quest.requirementType || 'nature',
-    requirements: { ...(quest.requirements || {}), nature: fallbackNature },
+    requirementType: normalizedQuest.requirementType || 'nature',
+    requirements: { ...(normalizedQuest.requirements || {}), nature: fallbackNature },
     createdAtMinutes,
     expiresAtMinutes,
-    questValue: quest.questValue || quest.difficultyScore || 1,
-    questValueVersion: quest.questValueVersion || QUEST_VALUE_VERSION,
-    difficultyScore: quest.difficultyScore || quest.questValue || 1
+    questValue: normalizedQuest.questValue || normalizedQuest.difficultyScore || 1,
+    questValueVersion: normalizedQuest.questValueVersion || QUEST_VALUE_VERSION,
+    difficultyScore: normalizedQuest.difficultyScore || normalizedQuest.questValue || 1
   };
 }
 
@@ -375,7 +456,7 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
 
 export async function createGeneratedQuests({ base44, count, player, gameTime, analytics, progression }) {
   const questsToCreate = Array.from({ length: count }, () => generateQuest(player, gameTime, { analytics, progression }));
-  await Promise.all(questsToCreate.map((quest) => base44.entities.ResearchQuest.create(quest)));
+  await Promise.all(questsToCreate.map((quest) => createQuestWithPersistenceGuard(base44, quest, 'initial_generation')));
 
   if (questsToCreate.length) {
     const nextAnalytics = updateAnalyticsForGenerated(analytics, questsToCreate.map((q) => q.difficulty));
@@ -415,7 +496,7 @@ export async function rerollQuestAction({ base44, quest, gameTime, analytics, pr
   });
 
   const replacement = generateQuest(latestPlayer, gameTime, { analytics, progression });
-  await base44.entities.ResearchQuest.create(replacement);
+  await createQuestWithPersistenceGuard(base44, replacement, 'single_reroll');
 
   let nextAnalytics = updateAnalyticsForOutcome(analytics, quest.difficulty, 'rerolled');
   nextAnalytics = updateAnalyticsForGenerated(nextAnalytics, [replacement.difficulty]);
@@ -455,7 +536,7 @@ export async function rerollAllQuestsAction({ base44, quests, gameTime, analytic
   })));
 
   const replacements = Array.from({ length: rerollableQuests.length }, () => generateQuest(latestPlayer, gameTime, { analytics, progression }));
-  await Promise.all(replacements.map((quest) => base44.entities.ResearchQuest.create(quest)));
+  await Promise.all(replacements.map((quest) => createQuestWithPersistenceGuard(base44, quest, 'reroll_all')));
 
   let nextAnalytics = analytics;
   rerollableQuests.forEach((quest) => {

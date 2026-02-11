@@ -190,6 +190,81 @@ export default function ResearchQuestManager() {
     });
   }, [quests, isLoading, queryClient]);
 
+
+  useEffect(() => {
+    if (isLoading || !player?.id || quests.length === 0) return;
+
+    const migrationKey = 'researchQuestLegacyResetV1';
+    if (localStorage.getItem(migrationKey) === 'done') return;
+
+    const looksLegacyOnly = quests.every((quest) => {
+      const hasComplex = Boolean(
+        quest?.level
+        || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
+        || (quest?.ivConditions?.length || 0) > 0
+        || (quest?.talentConditions?.length || 0) > 0
+        || quest?.shinyRequired
+        || quest?.alphaRequired
+        || quest?.bondedRequired
+        || quest?.hiddenAbilityRequired
+        || quest?.requirements?.level
+        || (quest?.requirements?.quantityRequired || 1) > 1
+        || (quest?.requirements?.ivConditions?.length || 0) > 0
+        || (quest?.requirements?.talentConditions?.length || 0) > 0
+        || quest?.requirements?.shinyRequired
+        || quest?.requirements?.alphaRequired
+        || quest?.requirements?.bondedRequired
+        || quest?.requirements?.hiddenAbilityRequired
+      );
+      return !hasComplex;
+    });
+
+    if (!looksLegacyOnly) {
+      localStorage.setItem(migrationKey, 'done');
+      return;
+    }
+
+    localStorage.setItem(migrationKey, 'running');
+
+    Promise.all(quests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
+      active: false,
+      status: 'expired',
+      expiredAt: new Date().toISOString(),
+      transitionLog: Array.isArray(quest.transitionLog)
+        ? [...quest.transitionLog, {
+          from: quest.status || 'generated',
+          to: 'expired',
+          at: new Date().toISOString(),
+          reason: 'legacy_reset',
+          source: 'ResearchQuestManager'
+        }]
+        : [{
+          from: quest.status || 'generated',
+          to: 'expired',
+          at: new Date().toISOString(),
+          reason: 'legacy_reset',
+          source: 'ResearchQuestManager'
+        }]
+    }))).then(async () => {
+      await base44.entities.Player.update(player.id, { activeQuests: [] }).catch(() => {});
+      localStorage.setItem(migrationKey, 'done');
+      await createGeneratedQuests({
+        base44,
+        count: 3,
+        player,
+        gameTime,
+        analytics: researchAnalytics,
+        progression: progressionContext
+      });
+      queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+      setRerollMessage('Legacy research quests were refreshed to enable full requirement variety.');
+      setTimeout(() => setRerollMessage(null), 4000);
+    }).catch(() => {
+      localStorage.removeItem(migrationKey);
+    });
+  }, [isLoading, quests, player, gameTime, researchAnalytics, progressionContext, queryClient]);
+
   useEffect(() => {
     if (isLoading || quests.length === 0) return;
     syncExpiredQuestsChunked({
