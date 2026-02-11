@@ -16,6 +16,13 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 import { 
@@ -24,6 +31,7 @@ import {
   rollItemDrops,
   calculateWildXP 
 } from '@/components/zones/wildPokemonData';
+import { VERDANT_HOLLOW_NODELETS, shouldSeedVerdantNodelets } from '@/components/zones/verdantHollowNodelets';
 
 const EXPLORE_TIME_MINUTES = 10;
 
@@ -45,6 +53,26 @@ export default function ZonesPage() {
     queryKey: ['zones'],
     queryFn: () => base44.entities.Zone.list()
   });
+
+  useEffect(() => {
+    const syncVerdantHollowNodelets = async () => {
+      const verdant = zones.find((zone) => zone.name === 'Verdant Hollow');
+      if (!verdant || !shouldSeedVerdantNodelets(verdant)) {
+        return;
+      }
+
+      try {
+        await base44.entities.Zone.update(verdant.id, { nodelets: VERDANT_HOLLOW_NODELETS });
+        queryClient.invalidateQueries({ queryKey: ['zones'] });
+      } catch (error) {
+        console.error('Failed to seed Verdant Hollow nodelets:', error);
+      }
+    };
+
+    if (zones.length > 0) {
+      syncVerdantHollowNodelets();
+    }
+  }, [zones, queryClient]);
 
   const { data: gameTime } = useQuery({
     queryKey: ['gameTime'],
@@ -151,6 +179,7 @@ function ZoneDetailView({ zone, onBack }) {
   const [explorationEvents, setExplorationEvents] = useState([]);
   const [currentEncounter, setCurrentEncounter] = useState(null);
   const [zoneProgress, setZoneProgress] = useState(null);
+  const [selectedNodelet, setSelectedNodelet] = useState(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -214,7 +243,49 @@ function ZoneDetailView({ zone, onBack }) {
   };
   
   const handleNodeletInspect = (nodelet) => {
-    console.log('Inspect nodelet:', nodelet);
+    setSelectedNodelet(nodelet);
+  };
+
+  const handleNodeletAction = async (nodelet, action) => {
+    if (!zone?.id || !nodelet?.id) return;
+
+    const updatedNodelets = (zone.nodelets || []).map((currentNodelet) => {
+      if (currentNodelet.id !== nodelet.id) return currentNodelet;
+
+      if (action === 'complete') {
+        return {
+          ...currentNodelet,
+          isCompleted: true
+        };
+      }
+
+      if (action === 'liberate') {
+        return {
+          ...currentNodelet,
+          eclipseControlled: false,
+          isCompleted: true
+        };
+      }
+
+      return currentNodelet;
+    });
+
+    try {
+      const updatedZone = await base44.entities.Zone.update(zone.id, {
+        nodelets: updatedNodelets
+      });
+
+      queryClient.setQueryData(['zones'], (existingZones = []) =>
+        existingZones.map((existingZone) =>
+          existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
+        )
+      );
+
+      const refreshedNodelet = updatedNodelets.find((currentNodelet) => currentNodelet.id === nodelet.id);
+      setSelectedNodelet(refreshedNodelet || null);
+    } catch (error) {
+      console.error('Failed to update nodelet:', error);
+    }
   };
 
   const handleStartExploring = () => {
@@ -976,6 +1047,98 @@ function ZoneDetailView({ zone, onBack }) {
         </div>
       )}
 
+      <Dialog
+        open={Boolean(selectedNodelet)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNodelet(null);
+        }}
+      >
+        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl">
+          {selectedNodelet && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-white flex items-center gap-2">
+                  <Map className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
+                </DialogTitle>
+                <DialogDescription className="text-slate-300">
+                  {selectedNodelet.description || 'A location within Verdant Hollow.'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 text-sm">
+                {selectedNodelet.gameplayFeatures?.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Gameplay Features</h4>
+                    <ul className="list-disc pl-5 space-y-1 text-slate-300">
+                      {selectedNodelet.gameplayFeatures.map((feature) => (
+                        <li key={feature}>{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InfoPills title="NPCs" values={selectedNodelet.npcs} />
+                  <InfoPills title="Items" values={selectedNodelet.items} />
+                  <InfoPills title="Wild Pokémon" values={selectedNodelet.wildPokemon} />
+                  <InfoPills title="Enemy NPCs" values={selectedNodelet.enemyNPCs} />
+                </div>
+
+                {selectedNodelet.actions?.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Available Actions</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedNodelet.actions.map((action) => (
+                        <Badge key={action} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
+                          {action}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedNodelet.isComingSoon && (
+                  <p className="text-amber-300 text-xs bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+                    Coming Soon: Honey lure encounter mechanics and delayed ambush resolution.
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {!selectedNodelet.isCompleted && !selectedNodelet.eclipseControlled && (
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => handleNodeletAction(selectedNodelet, 'complete')}
+                    >
+                      Mark Complete
+                    </Button>
+                  )}
+
+                  {selectedNodelet.eclipseControlled && (
+                    <Button
+                      size="sm"
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={() => handleNodeletAction(selectedNodelet, 'liberate')}
+                    >
+                      Liberate Nodelet
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-700 text-slate-200"
+                    onClick={() => setSelectedNodelet(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {activeSection === 'camp' && (
         <div className="glass rounded-xl p-6 space-y-4">
           <h3 className="text-lg font-semibold text-white">Camp</h3>
@@ -1106,3 +1269,19 @@ function ZoneDetailView({ zone, onBack }) {
   );
 }
 
+function InfoPills({ title, values = [] }) {
+  if (!values.length) return null;
+
+  return (
+    <div>
+      <h4 className="text-white font-semibold mb-2">{title}</h4>
+      <div className="flex flex-wrap gap-2">
+        {values.map((value) => (
+          <Badge key={`${title}-${value}`} className="bg-slate-800/80 text-slate-200 border-slate-600">
+            {value}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
