@@ -1,0 +1,74 @@
+/* questCard.css */
+
+/* Main quest card container */
+.quest-card {
+  background: #f7f7fc;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
+  font-family: 'Segoe UI', sans-serif;
+  max-width: 600px;
+}
+
+.stat-stage-up {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.stat-stage-down {
+  color: #f87171;
+  font-weight: 600;
+}
+
+/* Quest title */
+.quest-card h3 {
+  margin-top: 0;
+  font-size: 1.25em;
+  color: #333;
+}
+
+/* Requirements section */
+.quest-reqs p {
+  margin: 6px 0;
+  font-size: 0.95em;
+  color: #444;
+}
+
+/* Talent tags displayed like badges */
+.talent-tag {
+  display: inline-block;
+  background-color: #e0f7ff;
+  border: 1px solid #b3e5fc;
+  color: #0277bd;
+  border-radius: 8px;
+  padding: 4px 8px;
+  margin: 3px;
+  font-size: 0.85em;
+  cursor: help;
+}
+
+/* Reroll button */
+.quest-card button {
+  margin-top: 10px;
+  padding: 6px 12px;
+  background-color: #ffecb3;
+  border: 1px solid #fbc02d;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.3s ease;
+}
+
+.quest-card button:hover {
+  background-color: #fff176;
+}
+
+/* Expiry tag */
+.quest-card small {
+  display: block;
+  font-size: 0.75em;
+  color: #888;
+  margin-top: 8px;
+}
