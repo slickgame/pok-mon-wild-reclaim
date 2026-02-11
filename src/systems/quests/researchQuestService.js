@@ -91,7 +91,21 @@ function pickRandom(items) {
 
 
 function hasMeaningfulRequirement(quest = {}) {
-  const requirements = quest.requirements || {};
+  const requirementsFromJson = (() => {
+    if (!quest?.requirementsJson) return {};
+    try {
+      const parsed = JSON.parse(quest.requirementsJson);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  })();
+
+  const requirements = {
+    ...(requirementsFromJson || {}),
+    ...(quest.requirements || {})
+  };
+
   return Boolean(
     quest?.level
     || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
@@ -257,61 +271,76 @@ export function getNextResetLabel(gameTime) {
 }
 
 export function normalizeQuestRequirements(quest) {
-  let normalizedQuest = quest;
-  if ((!quest?.requirements || Object.keys(quest.requirements || {}).length === 0) && quest?.requirementsJson) {
+  const requirementsFromJson = (() => {
+    if (!quest?.requirementsJson) return {};
     try {
       const parsed = JSON.parse(quest.requirementsJson);
-      normalizedQuest = {
-        ...normalizedQuest,
-        requirements: {
-          ...(parsed || {}),
-          ...(quest?.requirements || {})
-        }
-      };
+      return parsed && typeof parsed === 'object' ? parsed : {};
     } catch {
-      normalizedQuest = quest;
+      return {};
     }
-  }
+  })();
+
+  const normalizedQuest = {
+    ...quest,
+    requirements: {
+      ...(requirementsFromJson || {}),
+      ...(quest?.requirements || {})
+    }
+  };
+
+  const projected = {
+    ...normalizedQuest,
+    nature: normalizedQuest.nature ?? normalizedQuest.requirements?.nature ?? null,
+    level: normalizedQuest.level ?? normalizedQuest.requirements?.level ?? null,
+    quantityRequired: normalizedQuest.quantityRequired ?? normalizedQuest.requiredCount ?? normalizedQuest.requirements?.quantityRequired ?? 1,
+    ivConditions: normalizedQuest.ivConditions?.length ? normalizedQuest.ivConditions : (normalizedQuest.requirements?.ivConditions || []),
+    talentConditions: normalizedQuest.talentConditions?.length ? normalizedQuest.talentConditions : (normalizedQuest.requirements?.talentConditions || []),
+    shinyRequired: Boolean(normalizedQuest.shinyRequired || normalizedQuest.requirements?.shinyRequired),
+    alphaRequired: Boolean(normalizedQuest.alphaRequired || normalizedQuest.requirements?.alphaRequired),
+    bondedRequired: Boolean(normalizedQuest.bondedRequired || normalizedQuest.requirements?.bondedRequired),
+    hiddenAbilityRequired: Boolean(normalizedQuest.hiddenAbilityRequired || normalizedQuest.requirements?.hiddenAbilityRequired)
+  };
 
   const hasRequirement = Boolean(
-    normalizedQuest?.nature
-    || normalizedQuest?.level
-    || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
-    || (quest?.ivConditions?.length || 0) > 0
-    || (quest?.talentConditions?.length || 0) > 0
-    || quest?.shinyRequired
-    || quest?.alphaRequired
-    || quest?.bondedRequired
-    || quest?.hiddenAbilityRequired
-    || normalizedQuest?.requirements?.nature
-    || normalizedQuest?.requirements?.level
-    || (normalizedQuest?.requirements?.quantityRequired || 1) > 1
-    || (normalizedQuest?.requirements?.ivConditions?.length || 0) > 0
-    || (normalizedQuest?.requirements?.talentConditions?.length || 0) > 0
-    || normalizedQuest?.requirements?.shinyRequired
-    || normalizedQuest?.requirements?.alphaRequired
-    || normalizedQuest?.requirements?.bondedRequired
-    || normalizedQuest?.requirements?.hiddenAbilityRequired
+    projected?.nature
+    || projected?.level
+    || (projected?.quantityRequired || 1) > 1
+    || (projected?.ivConditions?.length || 0) > 0
+    || (projected?.talentConditions?.length || 0) > 0
+    || projected?.shinyRequired
+    || projected?.alphaRequired
+    || projected?.bondedRequired
+    || projected?.hiddenAbilityRequired
+    || projected?.requirements?.nature
+    || projected?.requirements?.level
+    || (projected?.requirements?.quantityRequired || 1) > 1
+    || (projected?.requirements?.ivConditions?.length || 0) > 0
+    || (projected?.requirements?.talentConditions?.length || 0) > 0
+    || projected?.requirements?.shinyRequired
+    || projected?.requirements?.alphaRequired
+    || projected?.requirements?.bondedRequired
+    || projected?.requirements?.hiddenAbilityRequired
   );
 
-  if (hasRequirement) return normalizedQuest;
+  if (hasRequirement) return projected;
 
   const fallbackNature = pickRandom(NATURES);
   const nowMinutes = toTotalMinutes(normalizeGameTime(null));
-  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes) ? quest.createdAtMinutes : nowMinutes;
-  const durationMinutes = getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: quest?.difficulty || 'Normal' });
-  const expiresAtMinutes = Number.isFinite(quest?.expiresAtMinutes) ? quest.expiresAtMinutes : (createdAtMinutes + durationMinutes);
+  const createdAtMinutes = Number.isFinite(projected?.createdAtMinutes) ? projected.createdAtMinutes : nowMinutes;
+  const durationMinutes = getQuestDurationMinutes({ rarity: projected?.rarity, difficultyTier: projected?.difficulty || 'Normal' });
+  const expiresAtMinutes = Number.isFinite(projected?.expiresAtMinutes) ? projected.expiresAtMinutes : (createdAtMinutes + durationMinutes);
 
   return {
-    ...normalizedQuest,
+    ...projected,
     nature: fallbackNature,
-    requirementType: normalizedQuest.requirementType || 'nature',
-    requirements: { ...(normalizedQuest.requirements || {}), nature: fallbackNature },
+    requirementType: projected.requirementType || 'nature',
+    requirements: { ...(projected.requirements || {}), nature: fallbackNature },
     createdAtMinutes,
     expiresAtMinutes,
-    questValue: normalizedQuest.questValue || normalizedQuest.difficultyScore || 1,
-    questValueVersion: normalizedQuest.questValueVersion || QUEST_VALUE_VERSION,
-    difficultyScore: normalizedQuest.difficultyScore || normalizedQuest.questValue || 1
+    questValue: projected.questValue || projected.difficultyScore || 1,
+    questValueVersion: projected.questValueVersion || QUEST_VALUE_VERSION,
+    difficultyScore: projected.difficultyScore || projected.questValue || 1
   };
 }
 
