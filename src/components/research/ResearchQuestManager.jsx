@@ -77,7 +77,7 @@ export default function ResearchQuestManager() {
     queryKey: ['researchQuests'],
     queryFn: async () => {
       const list = await base44.entities.ResearchQuest.filter({ active: true });
-      return list.map(normalizeQuestRequirements);
+      return list.map(normalizeQuestRequirementsService);
     }
   });
 
