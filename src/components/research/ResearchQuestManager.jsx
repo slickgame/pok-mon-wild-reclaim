@@ -16,7 +16,7 @@ import {
   rerollAllQuestsAction,
   rerollQuestAction,
   syncExpiredQuestsChunked,
-  normalizeQuestRequirements,
+  normalizeQuestRequirements as normalizeQuestRequirementsService,
   getNextResetLabel,
   getQuestExpiryMinutes,
   getTimeLeft,
@@ -24,16 +24,6 @@ import {
 } from '@/systems/quests/researchQuestService';
 
 const QUEST_CONFIG = QUEST_SERVICE_CONFIG;
-
-function getNextResetLabel(gameTime) {
-  const normalized = normalizeGameTime(gameTime);
-  const currentTotal = toTotalMinutes(normalized);
-  const minuteOfDay = (normalized.currentHour * TIME_CONSTANTS.MINUTES_PER_HOUR) + normalized.currentMinute;
-  const minutesUntilReset = TIME_CONSTANTS.MINUTES_PER_DAY - minuteOfDay;
-  const targetTotal = currentTotal + minutesUntilReset;
-  return getTimeLeftLabel(currentTotal, targetTotal).replace(' left', '');
-}
-
 
 const normalizeQuestRequirements = (quest) => {
   const hasRequirement = Boolean(
