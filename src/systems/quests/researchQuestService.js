@@ -126,10 +126,11 @@ function appendTransitionLog(entity = {}, toStatus, reason, fromStatus = null) {
   ];
 }
 
-function getRewardForQuest({ avgTargetLevel, difficultyTier, requirementType, questValue, progressionFactor }) {
+function getRewardForQuest({ avgTargetLevel, difficultyTier, requirementType, requirementKinds = [], questValue, progressionFactor }) {
   const baseReward = buildRewardPackage({
     difficultyTier,
     requirementType,
+    requirementKinds,
     questValue,
     progressionFactor
   });
@@ -194,6 +195,7 @@ export function normalizeQuestRequirements(quest) {
   const hasRequirement = Boolean(
     quest?.nature
     || quest?.level
+    || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
     || (quest?.ivConditions?.length || 0) > 0
     || (quest?.talentConditions?.length || 0) > 0
     || quest?.shinyRequired
@@ -202,8 +204,13 @@ export function normalizeQuestRequirements(quest) {
     || quest?.hiddenAbilityRequired
     || quest?.requirements?.nature
     || quest?.requirements?.level
+    || (quest?.requirements?.quantityRequired || 1) > 1
     || (quest?.requirements?.ivConditions?.length || 0) > 0
     || (quest?.requirements?.talentConditions?.length || 0) > 0
+    || quest?.requirements?.shinyRequired
+    || quest?.requirements?.alphaRequired
+    || quest?.requirements?.bondedRequired
+    || quest?.requirements?.hiddenAbilityRequired
   );
 
   if (hasRequirement) return quest;
@@ -217,6 +224,7 @@ export function normalizeQuestRequirements(quest) {
   return {
     ...quest,
     nature: fallbackNature,
+    requirementType: quest.requirementType || 'nature',
     requirements: { ...(quest.requirements || {}), nature: fallbackNature },
     createdAtMinutes,
     expiresAtMinutes,
@@ -239,9 +247,9 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
   const speciesEntry = weightedRoll(getSpeciesPool(player));
   const species = speciesEntry.name;
   const rarity = speciesEntry.rarity;
-  const requirements = [];
   let nature = null;
   let level = null;
+  let quantityRequired = 1;
   const ivConditions = [];
   const talentConditions = [];
   const specialFlags = { shinyRequired: false, alphaRequired: false, bondedRequired: false, hiddenAbilityRequired: false };
@@ -257,6 +265,12 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
 
   if (pickedConditions.has('nature')) nature = pickRandom(NATURES);
   if (pickedConditions.has('level')) level = Math.floor(Math.random() * 21) + 10;
+
+  if (Math.random() < 0.28) {
+    quantityRequired = rarity === 'rare'
+      ? 2
+      : (Math.random() < 0.35 ? 3 : 2);
+  }
 
   if (pickedConditions.has('iv')) {
     const ivConditionCount = Math.random() < 0.25 ? 2 : 1;
@@ -298,10 +312,36 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
   const baselineTier = getDifficultyTier(questValue);
   const targetTierName = chooseTierByStrictController({ analytics: controllerContext.analytics, progression: controllerContext.progression });
   const difficultyTier = getDifficultyTierByName(targetTierName || baselineTier.name);
-  const requirementType = ivConditions.length ? 'iv' : nature ? 'nature' : level ? 'level' : talentConditions.length ? 'talent' : Object.values(specialFlags).some(Boolean) ? 'special' : 'mixed';
+  const requirementKinds = [
+    nature ? 'nature' : null,
+    level ? 'level' : null,
+    ivConditions.length ? 'iv' : null,
+    talentConditions.length ? 'talent' : null,
+    Object.values(specialFlags).some(Boolean) ? 'special' : null,
+    quantityRequired > 1 ? 'quantity' : null
+  ].filter(Boolean);
+  const requirementType = requirementKinds.length > 1
+    ? 'mixed'
+    : (requirementKinds[0] || 'mixed');
+
+  const requirements = {
+    ...(nature ? { nature } : {}),
+    ...(level ? { level } : {}),
+    ...(quantityRequired > 1 ? { quantityRequired } : {}),
+    ...(ivConditions.length ? { ivConditions } : {}),
+    ...(talentConditions.length ? { talentConditions } : {}),
+    ...Object.fromEntries(Object.entries(specialFlags).filter(([, enabled]) => enabled))
+  };
 
   const progressionFactor = getProgressionFactor(controllerContext.progression || {});
-  const reward = getRewardForQuest({ avgTargetLevel: level || 10, difficultyTier, requirementType, questValue, progressionFactor });
+  const reward = getRewardForQuest({
+    avgTargetLevel: level || 10,
+    difficultyTier,
+    requirementType,
+    requirementKinds,
+    questValue,
+    progressionFactor
+  });
 
   const createdAtMinutes = toTotalMinutes(normalizeGameTime(gameTime));
   const expiresAtMinutes = createdAtMinutes + getQuestDurationMinutes({ rarity, difficultyTier });
@@ -314,6 +354,7 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
     requirementType,
     nature,
     level,
+    quantityRequired,
     ivConditions,
     talentConditions,
     ...specialFlags,

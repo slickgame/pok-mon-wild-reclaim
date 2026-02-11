@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Map, Search, Compass, Eye, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,13 +16,6 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 import { 
@@ -1580,105 +1573,6 @@ function ZoneDetailView({ zone, onBack }) {
         </div>
       )}
 
-      <Dialog
-        open={Boolean(selectedNodelet)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedNodelet(null);
-        }}
-      >
-        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl">
-          {selectedNodelet && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-white flex items-center gap-2">
-                  <Map className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
-                </DialogTitle>
-                <DialogDescription className="text-slate-300">
-                  {selectedNodelet.description || 'A location within Verdant Hollow.'}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 text-sm">
-                {selectedNodelet.gameplayFeatures?.length > 0 && (
-                  <div>
-                    <h4 className="text-white font-semibold mb-2">Gameplay Features</h4>
-                    <ul className="list-disc pl-5 space-y-1 text-slate-300">
-                      {selectedNodelet.gameplayFeatures.map((feature) => (
-                        <li key={feature}>{feature}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InfoPills title="NPCs" values={selectedNodelet.npcs} />
-                  <InfoPills title="Items" values={selectedNodelet.items} />
-                  <InfoPills title="Wild Pokémon" values={selectedNodelet.wildPokemon} />
-                  <InfoPills title="Enemy NPCs" values={selectedNodelet.enemyNPCs} />
-                </div>
-
-                {selectedNodelet.actions?.length > 0 && (
-                  <div>
-                    <h4 className="text-white font-semibold mb-2">Available Actions</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedNodelet.actions.map((action) => (
-                        <Badge key={action} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
-                          {action}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedNodelet.isComingSoon && (
-                  <p className="text-amber-300 text-xs bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
-                    Coming Soon: Honey lure encounter mechanics and delayed ambush resolution.
-                  </p>
-                )}
-
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {selectedNodelet.actions?.map((actionLabel) => {
-                    const currentProgress = zoneProgress?.discoveryProgress || 0;
-                    const unlockAt = selectedNodelet.unlockDiscoveryProgress || 0;
-                    const isLocked = currentProgress < unlockAt;
-
-                    return (
-                      <Button
-                        key={actionLabel}
-                        size="sm"
-                        variant="outline"
-                        disabled={isLocked}
-                        className={`border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20 ${
-                          isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                        onClick={() => handleNodeletAction(selectedNodelet, actionLabel)}
-                      >
-                        {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                      </Button>
-                    );
-                  })}
-
-                  {(zoneProgress?.discoveryProgress || 0) < (selectedNodelet.unlockDiscoveryProgress || 0) && (
-                    <Badge className="bg-amber-500/20 text-amber-200 border-amber-500/30">
-                      Unlocks at {selectedNodelet.unlockDiscoveryProgress}% discovery
-                    </Badge>
-                  )}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-slate-700 text-slate-200"
-                    onClick={() => setSelectedNodelet(null)}
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {activeSection === 'camp' && (
         <div className="glass rounded-xl p-6 space-y-4">
           <h3 className="text-lg font-semibold text-white">Camp</h3>
@@ -1809,19 +1703,3 @@ function ZoneDetailView({ zone, onBack }) {
   );
 }
 
-function InfoPills({ title, values = [] }) {
-  if (!values.length) return null;
-
-  return (
-    <div>
-      <h4 className="text-white font-semibold mb-2">{title}</h4>
-      <div className="flex flex-wrap gap-2">
-        {values.map((value) => (
-          <Badge key={`${title}-${value}`} className="bg-slate-800/80 text-slate-200 border-slate-600">
-            {value}
-          </Badge>
-        ))}
-      </div>
-    </div>
-  );
-}

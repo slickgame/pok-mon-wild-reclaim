@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Backpack, Search, Filter, Package, Beaker, Target, Sparkles, Key, Swords, X } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { Backpack, Search, Package, Beaker, Target, Sparkles, Key, Swords, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import PageHeader from '@/components/common/PageHeader';
 import ItemCard from '@/components/inventory/ItemCard';
 import TMUsageModal from '@/components/items/TMUsageModal';
+import { checkEvolution, evolvePokemon } from '@/components/pokemon/evolutionData';
+import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
+import { calculateAllStats } from '@/components/pokemon/statCalculations';
+import { getBaseStats } from '@/components/pokemon/baseStats';
 
 const itemTypes = [
   { value: 'all', label: 'All', icon: Package },
@@ -28,12 +31,202 @@ export default function InventoryPage() {
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [tmModalItem, setTmModalItem] = useState(null);
+  const queryClient = useQueryClient();
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['items'],
     queryFn: () => base44.entities.Item.list()
   });
 
+
+  const { data: teamPokemon = [] } = useQuery({
+    queryKey: ['playerPokemonInventoryUse'],
+    queryFn: () => base44.entities.Pokemon.filter({ isInTeam: true })
+  });
+
+  const consumeItemInstance = async (item) => {
+    if (!item) return;
+    const targetId = item._ids?.[0] || item.id;
+    if (!targetId) return;
+
+    const original = items.find((entry) => entry.id === targetId);
+    const quantity = original?.quantity || item.quantity || 1;
+
+    if (quantity > 1) {
+      await base44.entities.Item.update(targetId, { quantity: quantity - 1 });
+    } else {
+      await base44.entities.Item.delete(targetId);
+    }
+  };
+
+  const useItemMutation = useMutation({
+    mutationFn: async (item) => {
+      const primary = teamPokemon[0];
+      if (!primary) throw new Error('No team Pokémon available to use this item.');
+
+      const normalizedName = item.name?.trim();
+      const pokemonStats = getPokemonStats(primary);
+      const maxHp = pokemonStats?.stats?.maxHp || primary?.stats?.maxHp || primary?.stats?.hp || 100;
+      const currentHp = primary.currentHp ?? maxHp;
+
+      const vitaminMap = {
+        'HP Up': 'hp',
+        Protein: 'atk',
+        Iron: 'def',
+        Calcium: 'spAtk',
+        Zinc: 'spDef',
+        Carbos: 'spd'
+      };
+
+      const expCandyLevels = {
+        'EXP Candy S': 1,
+        'EXP Candy M': 2,
+        'EXP Candy L': 4,
+        'EXP Candy XL': 8,
+        'Rare Candy': 1
+      };
+
+      if (item.type === 'Capture Gear') {
+        alert(`${item.name} can be used during wild battles from the Items/Pokéballs menu.`);
+        return;
+      }
+
+      if (item.type === 'TM') {
+        setTmModalItem(item);
+        return;
+      }
+
+      if (normalizedName === 'Potion' || normalizedName === 'Super Potion' || normalizedName === 'Hyper Potion' || normalizedName === 'Max Potion') {
+        const healByName = { Potion: 50, 'Super Potion': 100, 'Hyper Potion': 200, 'Max Potion': maxHp };
+        const healAmount = healByName[normalizedName] || 0;
+        await base44.entities.Pokemon.update(primary.id, {
+          currentHp: Math.min(maxHp, currentHp + healAmount)
+        });
+        await consumeItemInstance(item);
+        alert(`${primary.nickname || primary.species} recovered HP.`);
+        return;
+      }
+
+      if (normalizedName === 'Revive' || normalizedName === 'Max Revive') {
+        const fainted = teamPokemon.find((mon) => (mon.currentHp ?? (getPokemonStats(mon)?.stats?.maxHp || 0)) <= 0);
+        if (!fainted) throw new Error('No fainted team Pokémon to revive.');
+        const faintedStats = getPokemonStats(fainted);
+        const faintedMax = faintedStats?.stats?.maxHp || fainted?.stats?.maxHp || 100;
+        await base44.entities.Pokemon.update(fainted.id, {
+          currentHp: normalizedName === 'Max Revive' ? faintedMax : Math.max(1, Math.floor(faintedMax * 0.5))
+        });
+        await consumeItemInstance(item);
+        alert(`${fainted.nickname || fainted.species} was revived.`);
+        return;
+      }
+
+      if (normalizedName === 'Antidote') {
+        await base44.entities.Pokemon.update(primary.id, { status: null, statusCondition: null });
+        await consumeItemInstance(item);
+        alert(`${primary.nickname || primary.species} was cured of status ailments.`);
+        return;
+      }
+
+      if (vitaminMap[normalizedName]) {
+        const key = vitaminMap[normalizedName];
+        const evs = { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0, ...(primary.evs || {}) };
+        evs[key] = Math.min(252, (evs[key] || 0) + 10);
+        const baseStats = getBaseStats(primary.species);
+        const recalculated = calculateAllStats({ ...primary, evs }, baseStats);
+        await base44.entities.Pokemon.update(primary.id, { evs, stats: recalculated });
+        await consumeItemInstance(item);
+        alert(`${primary.nickname || primary.species}'s training improved.`);
+        return;
+      }
+
+      if (expCandyLevels[normalizedName]) {
+        const levelIncrease = expCandyLevels[normalizedName];
+        const nextLevel = Math.min(100, (primary.level || 1) + levelIncrease);
+        const baseStats = getBaseStats(primary.species);
+        const recalculated = calculateAllStats({ ...primary, level: nextLevel }, baseStats);
+        await base44.entities.Pokemon.update(primary.id, {
+          level: nextLevel,
+          stats: recalculated,
+          currentHp: Math.min(primary.currentHp ?? recalculated.maxHp, recalculated.maxHp)
+        });
+        await consumeItemInstance(item);
+        alert(`${primary.nickname || primary.species} grew to level ${nextLevel}.`);
+        return;
+      }
+
+      if (normalizedName === 'Modest Mint') {
+        const baseStats = getBaseStats(primary.species);
+        const recalculated = calculateAllStats({ ...primary, nature: 'Modest' }, baseStats);
+        await base44.entities.Pokemon.update(primary.id, { nature: 'Modest', stats: recalculated });
+        await consumeItemInstance(item);
+        alert(`${primary.nickname || primary.species} became Modest.`);
+        return;
+      }
+
+      if (normalizedName === 'Ability Patch') {
+        await base44.entities.Pokemon.update(primary.id, { hasHiddenAbility: true });
+        await consumeItemInstance(item);
+        alert(`${primary.nickname || primary.species} unlocked a hidden ability.`);
+        return;
+      }
+
+      if (normalizedName === 'Ability Capsule') {
+        await base44.entities.Pokemon.update(primary.id, { abilityCapsuleUsedAt: new Date().toISOString() });
+        await consumeItemInstance(item);
+        alert('Ability Capsule applied.');
+        return;
+      }
+
+      if (normalizedName === 'Bottle Cap' || normalizedName === 'Gold Bottle Cap') {
+        await base44.entities.Pokemon.update(primary.id, {
+          hyperTraining: {
+            ...(primary.hyperTraining || {}),
+            [normalizedName === 'Gold Bottle Cap' ? 'all' : 'single']: true,
+            updatedAt: new Date().toISOString()
+          }
+        });
+        await consumeItemInstance(item);
+        alert('Hyper Training applied.');
+        return;
+      }
+
+      if (['Choice Band', 'Choice Specs', 'Choice Scarf', 'Leftovers'].includes(normalizedName)) {
+        await base44.entities.Pokemon.update(primary.id, {
+          heldItem: { name: normalizedName, equippedAt: new Date().toISOString() }
+        });
+        await consumeItemInstance(item);
+        alert(`${normalizedName} equipped to ${primary.nickname || primary.species}.`);
+        return;
+      }
+
+      if (item.type === 'evolution' || /Stone$/.test(normalizedName || '')) {
+        const candidate = teamPokemon.find((mon) => checkEvolution(mon, null, normalizedName)?.canEvolve);
+        if (!candidate) throw new Error(`No team Pokémon can evolve with ${normalizedName}.`);
+        const evo = checkEvolution(candidate, null, normalizedName);
+        const evolved = evolvePokemon(candidate, evo.evolvesInto);
+        await base44.entities.Pokemon.update(candidate.id, evolved);
+        await consumeItemInstance(item);
+        alert(`${candidate.nickname || candidate.species} evolved into ${evo.evolvesInto}!`);
+        return;
+      }
+
+      if (item.type === 'Battle Item') {
+        await consumeItemInstance(item);
+        alert(`${item.name} was used.`);
+        return;
+      }
+
+      throw new Error('This item has no implemented use flow yet.');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
+      queryClient.invalidateQueries({ queryKey: ['playerPokemonInventoryUse'] });
+    },
+    onError: (error) => {
+      alert(error.message || 'Failed to use item.');
+    }
+  });
   // Group items by name to combine duplicates
   const stackedItems = {};
   items.forEach(item => {
@@ -178,6 +371,7 @@ export default function InventoryPage() {
                 setTmModalItem(item);
                 setSelectedItem(null);
               }}
+              onUseItem={(item) => useItemMutation.mutate(item)}
             />
           )}
         </SheetContent>
@@ -202,7 +396,7 @@ export default function InventoryPage() {
   );
 }
 
-function ItemDetailView({ item, onClose, onUseTM }) {
+function ItemDetailView({ item, onClose, onUseTM, onUseItem }) {
   const typeIcons = {
     'Potion': Beaker,
     'Bait': Target,
@@ -302,11 +496,10 @@ function ItemDetailView({ item, onClose, onUseTM }) {
           className="flex-1 bg-gradient-to-r from-indigo-500 to-cyan-500"
           onClick={() => {
             // Check if it's a TM item
-            if (item.name.match(/TM\d+/i)) {
+            if (item.type === 'TM' || item.name.match(/TM\d+/i) || item.name.startsWith('HM:')) {
               onUseTM(item);
             } else {
-              // Other item usage logic
-              alert('Item usage coming soon!');
+              onUseItem(item);
             }
           }}
         >

@@ -113,6 +113,24 @@ test('reward package scales with quest value and applies category', () => {
   assert.ok(Array.isArray(high.itemRewards));
 });
 
+
+test('mixed reward archetype blends specialized pools and scales support rewards', () => {
+  const mixed = buildRewardPackage({
+    difficultyTier: { name: 'Very Hard', difficultyMod: 2.0, trustGain: 8, notesGain: 3 },
+    requirementType: 'mixed',
+    requirementKinds: ['iv', 'talent', 'quantity'],
+    questValue: 10,
+    progressionFactor: 0.7
+  });
+
+  assert.equal(mixed.rewardCategory, 'mixed');
+  assert.equal(mixed.rewardCategoryLabel, 'Mixed Research Rewards');
+  assert.ok(mixed.possibleRewards.includes('pp_up'));
+  assert.ok(mixed.possibleRewards.includes('tm_earthquake'));
+  assert.ok(mixed.trustGain >= 8);
+  assert.ok(mixed.notesGain >= 3);
+});
+
 test('acceptance and reroll lockout are enforced', async () => {
   const { base44 } = createMockBase44({ activeQuests: [{ questId: 'quest-1' }] });
   await assert.rejects(
@@ -152,6 +170,47 @@ test('expiry math and generation invariant', () => {
     );
     assert.ok(hasExtraRequirement, 'quest must have at least one non-species requirement');
   }
+});
+
+
+test('generator produces varied requirement archetypes and mirrors requirements payload', () => {
+  const now = { currentHour: 10, currentMinute: 0, day: 1, month: 0, year: 0 };
+
+  let seenIv = 0;
+  let seenTalent = 0;
+  let seenQuantity = 0;
+  let seenMixed = 0;
+
+  for (let i = 0; i < 300; i++) {
+    const q = generateQuest({ currentZone: 'Verdant Hollow' }, now, {
+      analytics: null,
+      progression: { storyChapter: 2, mapleTrust: 50, avgPartyLevel: 20 }
+    });
+
+    if ((q.ivConditions?.length || 0) > 0) {
+      seenIv += 1;
+      assert.ok((q.requirements?.ivConditions?.length || 0) > 0);
+    }
+
+    if ((q.talentConditions?.length || 0) > 0) {
+      seenTalent += 1;
+      assert.ok((q.requirements?.talentConditions?.length || 0) > 0);
+    }
+
+    if ((q.quantityRequired || 1) > 1) {
+      seenQuantity += 1;
+      assert.ok((q.requirements?.quantityRequired || 1) > 1);
+    }
+
+    if (q.requirementType === 'mixed') {
+      seenMixed += 1;
+    }
+  }
+
+  assert.ok(seenIv > 0, 'expected at least one IV quest in sample');
+  assert.ok(seenTalent > 0, 'expected at least one talent quest in sample');
+  assert.ok(seenQuantity > 0, 'expected at least one multi-submit quest in sample');
+  assert.ok(seenMixed > 0, 'expected at least one mixed-requirement quest in sample');
 });
 
 test('reroll cap transitions from free to paid after daily limit', async () => {

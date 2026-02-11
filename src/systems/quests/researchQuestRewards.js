@@ -78,6 +78,8 @@ const LEGENDARY_CURATED_POOL = [
   { itemId: 'tm_draco_meteor', weight: 1, quantity: [1, 1] }
 ];
 
+const SPECIALIZED_ARCHETYPES = ['iv', 'talent', 'level', 'special'];
+
 function weightedPick(entries = []) {
   if (!entries.length) return null;
   const total = entries.reduce((sum, entry) => sum + (entry.weight || 1), 0);
@@ -95,18 +97,44 @@ function rollQuantity(range = [1, 1]) {
   return min + Math.floor(Math.random() * ((max - min) + 1));
 }
 
-export function getRewardArchetype(requirementType = 'mixed') {
-  if (['iv', 'talent', 'level', 'special'].includes(requirementType)) return requirementType;
+function getPrimaryArchetype(requirementType = 'mixed') {
+  if (SPECIALIZED_ARCHETYPES.includes(requirementType)) return requirementType;
+  return 'general';
+}
+
+function getArchetypeLabel(archetype) {
+  return archetype === 'iv'
+    ? 'Stat Training Rewards'
+    : archetype === 'talent'
+      ? 'Talent Mastery Rewards'
+      : archetype === 'level'
+        ? 'Growth Support Rewards'
+        : archetype === 'special'
+          ? 'Rare Condition Rewards'
+          : archetype === 'mixed'
+            ? 'Mixed Research Rewards'
+            : 'General Research Rewards';
+}
+
+export function getRewardArchetype(requirementType = 'mixed', requirementKinds = []) {
+  if (requirementType !== 'mixed') {
+    return getPrimaryArchetype(requirementType);
+  }
+
+  const specializedKinds = requirementKinds.filter((kind) => SPECIALIZED_ARCHETYPES.includes(kind));
+  if (specializedKinds.length >= 2) return 'mixed';
+  if (specializedKinds.length === 1) return specializedKinds[0];
   return 'general';
 }
 
 export function buildRewardPackage({
   difficultyTier,
   requirementType,
+  requirementKinds = [],
   questValue,
   progressionFactor = 0
 }) {
-  const archetype = getRewardArchetype(requirementType);
+  const archetype = getRewardArchetype(requirementType, requirementKinds);
   const tierName = difficultyTier?.name || 'Normal';
   const tierIndex = ['Easy', 'Normal', 'Hard', 'Very Hard', 'Elite', 'Legendary'].indexOf(tierName);
   const safeTierIndex = Math.max(0, tierIndex);
@@ -122,14 +150,24 @@ export function buildRewardPackage({
 
   const trustBase = difficultyTier?.trustGain || 0;
   const notesBase = difficultyTier?.notesGain || 0;
+  const trustScale = 1 + Math.min(0.35, ((questValue || 1) * 0.015) + (Math.max(0, progressionFactor) * 0.2));
+  const notesScale = 1 + Math.min(0.45, ((questValue || 1) * 0.02) + (Math.max(0, progressionFactor) * 0.25));
+  const trustGain = Math.max(1, Math.round(trustBase * trustScale));
+  const notesGain = Math.max(1, Math.round(notesBase * notesScale));
 
-  const poolByArchetype = ITEM_POOLS[archetype] || ITEM_POOLS.general;
-  const tierPool = poolByArchetype[tierName] || ITEM_POOLS.general[tierName] || [];
+  const poolArchetypes = archetype === 'mixed'
+    ? Array.from(new Set(requirementKinds.filter((kind) => SPECIALIZED_ARCHETYPES.includes(kind))))
+    : [archetype];
+  const safePoolArchetypes = poolArchetypes.length ? poolArchetypes : ['general'];
 
   const rewardRollCount = tierName === 'Legendary' ? 2 : (safeTierIndex >= 3 ? 2 : 1);
   const itemRewards = [];
 
   for (let i = 0; i < rewardRollCount; i++) {
+    const rollArchetype = safePoolArchetypes[i % safePoolArchetypes.length];
+    const poolByArchetype = ITEM_POOLS[rollArchetype] || ITEM_POOLS.general;
+    const tierPool = poolByArchetype[tierName] || ITEM_POOLS.general[tierName] || [];
+
     const picked = weightedPick(tierPool);
     if (!picked) continue;
     itemRewards.push({
@@ -145,6 +183,14 @@ export function buildRewardPackage({
     }
   }
 
+  const possibleRewards = Array.from(new Set(
+    safePoolArchetypes.flatMap((pool) => {
+      const byTier = ITEM_POOLS[pool]?.[tierName];
+      if (!Array.isArray(byTier)) return [];
+      return byTier.map((entry) => entry.itemId);
+    })
+  ));
+
   const unique = [];
   const tally = new Map();
   itemRewards.forEach((entry) => {
@@ -155,19 +201,11 @@ export function buildRewardPackage({
   return {
     formulaVersion: QUEST_VALUE_VERSION,
     rewardCategory: archetype,
-    rewardCategoryLabel: archetype === 'iv'
-      ? 'Stat Training Rewards'
-      : archetype === 'talent'
-        ? 'Talent Mastery Rewards'
-        : archetype === 'level'
-          ? 'Growth Support Rewards'
-          : archetype === 'special'
-            ? 'Rare Condition Rewards'
-            : 'General Research Rewards',
-    possibleRewards: tierPool.map((entry) => entry.itemId),
+    rewardCategoryLabel: getArchetypeLabel(archetype),
+    possibleRewards,
     gold,
-    trustGain: trustBase,
-    notesGain: notesBase,
+    trustGain,
+    notesGain,
     itemRewards: unique,
     items: unique.map((entry) => `${entry.id} x${entry.quantity}`)
   };

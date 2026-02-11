@@ -16,7 +16,7 @@ import {
   rerollAllQuestsAction,
   rerollQuestAction,
   syncExpiredQuestsChunked,
-  normalizeQuestRequirements as normalizeQuestRequirementsService,
+  normalizeQuestRequirements,
   getNextResetLabel,
   getQuestExpiryMinutes,
   getTimeLeft,
@@ -36,7 +36,7 @@ export default function ResearchQuestManager() {
     queryKey: ['researchQuests'],
     queryFn: async () => {
       const list = await base44.entities.ResearchQuest.filter({ active: true });
-      return list.map(normalizeQuestRequirementsService);
+      return list.map(normalizeQuestRequirements);
     }
   });
 
@@ -153,6 +153,7 @@ export default function ResearchQuestManager() {
     const missing = quests.filter((quest) => !(
       quest?.nature
       || quest?.level
+      || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
       || (quest?.ivConditions?.length || 0) > 0
       || (quest?.talentConditions?.length || 0) > 0
       || quest?.shinyRequired
@@ -161,15 +162,22 @@ export default function ResearchQuestManager() {
       || quest?.hiddenAbilityRequired
       || quest?.requirements?.nature
       || quest?.requirements?.level
+      || (quest?.requirements?.quantityRequired || 1) > 1
       || (quest?.requirements?.ivConditions?.length || 0) > 0
       || (quest?.requirements?.talentConditions?.length || 0) > 0
+      || quest?.requirements?.shinyRequired
+      || quest?.requirements?.alphaRequired
+      || quest?.requirements?.bondedRequired
+      || quest?.requirements?.hiddenAbilityRequired
     ));
     if (!missing.length) return;
 
     Promise.all(missing.map((quest) => {
-      const fixed = normalizeQuestRequirementsService(quest);
+      const fixed = normalizeQuestRequirements(quest);
       return base44.entities.ResearchQuest.update(quest.id, {
         nature: fixed.nature,
+        quantityRequired: fixed.quantityRequired || quest.quantityRequired || quest.requiredCount || 1,
+        requirementType: fixed.requirementType || quest.requirementType || 'nature',
         requirements: fixed.requirements,
         createdAtMinutes: fixed.createdAtMinutes,
         expiresAtMinutes: fixed.expiresAtMinutes,
