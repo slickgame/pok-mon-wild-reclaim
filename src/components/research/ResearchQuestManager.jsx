@@ -12,6 +12,21 @@ import { TIME_CONSTANTS, getAbsoluteDayIndex, getTimeLeftLabel, normalizeGameTim
 import { calculateQuestValue, QUEST_VALUE_VERSION } from '@/systems/quests/researchQuestTuning';
 import { buildRewardPackage } from '@/systems/quests/researchQuestRewards';
 import { chooseTierByStrictController, getGlobalResearchAnalytics, getProgressionFactor, saveGlobalResearchAnalytics, updateAnalyticsForGenerated, updateAnalyticsForOutcome } from '@/systems/quests/researchQuestAnalytics';
+import {
+  QUEST_CONFIG as QUEST_SERVICE_CONFIG,
+  acceptQuestAction,
+  completeQuestAction,
+  createGeneratedQuests,
+  generateQuest as generateQuestDomain,
+  getNextResetLabel as getNextResetLabelDomain,
+  getQuestDurationLabel as getQuestDurationLabelDomain,
+  getQuestExpiryMinutes as getQuestExpiryMinutesDomain,
+  getTimeLeft as getTimeLeftDomain,
+  normalizeQuestRequirements as normalizeQuestRequirementsDomain,
+  rerollAllQuestsAction,
+  rerollQuestAction,
+  syncExpiredQuestsChunked
+} from '@/systems/quests/researchQuestService';
 
 const VERDANT_SPECIES = [
   { name: 'Caterpie', weight: 3, rarity: 'common' },
@@ -35,11 +50,7 @@ const NATURES = [
 
 const IV_STATS = ['HP', 'Atk', 'Def', 'SpAtk', 'SpDef', 'Speed'];
 
-const QUEST_CONFIG = {
-  maxFreeRerolls: 3,
-  rerollCost: 150,
-  cooldownReset: 'daily'
-};
+const QUEST_CONFIG = QUEST_SERVICE_CONFIG;
 
 const REWARD_BASE = {
   common: 100,
@@ -211,262 +222,28 @@ function getQuestDurationMinutes({ rarity, difficultyTier }) {
 }
 
 function generateQuest(player, gameTime, controllerContext = {}) {
-  const speciesEntry = weightedRoll(getSpeciesPool(player));
-  const species = speciesEntry.name;
-  const rarity = speciesEntry.rarity;
-  const requirements = [];
-  let nature = null;
-  let level = null;
-  const ivConditions = [];
-  const talentConditions = [];
-  const specialFlags = {
-    shinyRequired: false,
-    alphaRequired: false,
-    bondedRequired: false,
-    hiddenAbilityRequired: false
-  };
-
-  const desiredConditionCount = weightedRoll([
-    { count: 1, weight: 3 },
-    { count: 2, weight: 4 },
-    { count: 3, weight: 3 }
-  ]).count;
-
-  const hasTalentPool = getTalentPool(species).length > 0;
-  const conditionPool = CONDITION_POOL.filter((entry) => entry.type !== 'talent' || hasTalentPool);
-
-  const pickedConditions = new Set();
-  while (pickedConditions.size < Math.min(desiredConditionCount, conditionPool.length)) {
-    const { type } = weightedRoll(conditionPool);
-    pickedConditions.add(type);
-  }
-
-  if (pickedConditions.has('nature')) {
-    nature = pickRandom(NATURES);
-  }
-
-  if (pickedConditions.has('level')) {
-    level = Math.floor(Math.random() * 21) + 10;
-  }
-
-  if (pickedConditions.has('iv')) {
-    const ivConditionCount = Math.random() < 0.25 ? 2 : 1;
-    const availableStats = [...IV_STATS];
-    for (let i = 0; i < ivConditionCount; i++) {
-      const stat = availableStats.splice(Math.floor(Math.random() * availableStats.length), 1)[0];
-      const bucket = weightedRoll(IV_THRESHOLD_BUCKETS);
-      const min = Math.floor(Math.random() * (bucket.max - bucket.min + 1)) + bucket.min;
-      ivConditions.push({ stat, min });
-    }
-  }
-
-  if (pickedConditions.has('talent')) {
-    const talentPool = getTalentPool(species);
-    if (talentPool.length) {
-      const count = Math.random() < 0.5 ? 2 : 3;
-      const grades = Array.from({ length: count }, () => weightedRoll(TALENT_GRADES).grade);
-      const talentTags = talentPool
-        .map((talentId) => TalentRegistry[talentId]?.tagsAffected || [])
-        .flat();
-      const useTag = Math.random() < 0.2 && talentTags.length;
-      talentConditions.push({
-        count,
-        grades,
-        requiredTags: useTag ? [pickRandom(talentTags)] : []
-      });
-    }
-  }
-
-  if (pickedConditions.has('special')) {
-    const specialKeys = Object.keys(specialFlags);
-    const chosen = pickRandom(specialKeys);
-    specialFlags[chosen] = true;
-  }
-
-  const hasRequirement = Boolean(
-    nature
-    || level
-    || ivConditions.length
-    || talentConditions.length
-    || Object.values(specialFlags).some(Boolean)
-  );
-
-  if (!hasRequirement) {
-    const fallbackType = weightedRoll([
-      { type: 'iv', weight: 3 },
-      { type: 'level', weight: 2 },
-      { type: 'nature', weight: 2 },
-      { type: 'special', weight: 1 }
-    ]).type;
-
-    if (fallbackType === 'iv') {
-      const stat = pickRandom(IV_STATS);
-      ivConditions.push({ stat, min: 12 + Math.floor(Math.random() * 7) });
-    } else if (fallbackType === 'level') {
-      level = Math.floor(Math.random() * 21) + 10;
-    } else if (fallbackType === 'special') {
-      const specialKeys = Object.keys(specialFlags);
-      specialFlags[pickRandom(specialKeys)] = true;
-    } else {
-      nature = pickRandom(NATURES);
-    }
-  }
-
-  const questValue = calculateQuestValue({
-    nature,
-    level,
-    ivConditions,
-    talentConditions,
-    specialFlags
-  });
-  const baselineTier = getDifficultyTier(questValue);
-  const targetTierName = chooseTierByStrictController({
-    analytics: controllerContext.analytics,
-    progression: controllerContext.progression
-  });
-  const difficultyTier = getDifficultyTierByName(targetTierName || baselineTier.name);
-  const avgTargetLevel = level || 10;
-  const progressionFactor = getProgressionFactor(controllerContext.progression || {});
-  const reward = getRewardForQuest({
-    avgTargetLevel,
-    difficultyTier,
-    requirementType: ivConditions.length ? 'iv' : nature ? 'nature' : level ? 'level' : talentConditions.length ? 'talent' : Object.values(specialFlags).some(Boolean) ? 'special' : 'mixed',
-    questValue,
-    progressionFactor
-  });
-  const normalizedTime = normalizeGameTime(gameTime);
-  const createdAtMinutes = toTotalMinutes(normalizedTime);
-  const expiresAtMinutes = createdAtMinutes + getQuestDurationMinutes({ rarity, difficultyTier });
-
-  const requirementType = ivConditions.length
-    ? 'iv'
-    : nature
-      ? 'nature'
-      : level
-        ? 'level'
-        : talentConditions.length
-          ? 'talent'
-          : Object.values(specialFlags).some(Boolean)
-            ? 'special'
-            : 'mixed';
-  const rewardBase = REWARD_BASE[rarity] || 100;
-
-  return {
-    requirements,
-    species,
-    rarity,
-    rewardBase,
-    requirementType,
-    nature,
-    level,
-    ivConditions,
-    talentConditions,
-    ...specialFlags,
-    questValue,
-    questValueVersion: QUEST_VALUE_VERSION,
-    difficultyScore: questValue,
-    difficulty: difficultyTier.name,
-    reward,
-    createdAt: new Date().toISOString(),
-    createdAtMinutes,
-    expiresAtMinutes,
-    active: true,
-    isLegendary: difficultyTier.name === 'Legendary'
-  };
+  return generateQuestDomain(player, gameTime, controllerContext);
 }
 
 
 function getQuestExpiryMinutes(quest, currentTime) {
-  if (Number.isFinite(quest?.expiresAtMinutes)) {
-    return quest.expiresAtMinutes;
-  }
-
-  if (quest?.expiresAt) {
-    const parsed = Date.parse(quest.expiresAt);
-    if (Number.isFinite(parsed)) {
-      const deltaMinutes = Math.max(0, Math.floor((parsed - Date.now()) / (1000 * 60)));
-      return toTotalMinutes(normalizeGameTime(currentTime)) + deltaMinutes;
-    }
-  }
-
-  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
-  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes)
-    ? quest.createdAtMinutes
-    : currentTotal;
-  const durationMinutes = getQuestDurationMinutes({
-    rarity: quest?.rarity,
-    difficultyTier: quest?.difficulty || 'Normal'
-  });
-
-  return createdAtMinutes + durationMinutes;
+  return getQuestExpiryMinutesDomain(quest, currentTime);
 }
 
 function getTimeLeft(expiresAtMinutes, currentTime) {
-  if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
-  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
-  return getTimeLeftLabel(currentTotal, expiresAtMinutes);
+  return getTimeLeftDomain(expiresAtMinutes, currentTime);
 }
 
 function getQuestDurationLabel(quest) {
-  const minutes = getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: quest?.difficulty || 'Normal' });
-  const days = Math.floor(minutes / TIME_CONSTANTS.MINUTES_PER_DAY);
-  const hours = Math.floor((minutes % TIME_CONSTANTS.MINUTES_PER_DAY) / TIME_CONSTANTS.MINUTES_PER_HOUR);
-  if (hours > 0) return `${days}d ${hours}h`;
-  return `${days}d`;
+  return getQuestDurationLabelDomain(quest);
 }
 
 function getNextResetLabel(gameTime) {
-  const normalized = normalizeGameTime(gameTime);
-  const currentTotal = toTotalMinutes(normalized);
-  const minuteOfDay = (normalized.currentHour * TIME_CONSTANTS.MINUTES_PER_HOUR) + normalized.currentMinute;
-  const minutesUntilReset = TIME_CONSTANTS.MINUTES_PER_DAY - minuteOfDay;
-  const targetTotal = currentTotal + minutesUntilReset;
-  return getTimeLeftLabel(currentTotal, targetTotal).replace(' left', '');
+  return getNextResetLabelDomain(gameTime);
 }
 
 
-const normalizeQuestRequirements = (quest) => {
-  const hasRequirement = Boolean(
-    quest?.nature
-    || quest?.level
-    || (quest?.ivConditions?.length || 0) > 0
-    || (quest?.talentConditions?.length || 0) > 0
-    || quest?.shinyRequired
-    || quest?.alphaRequired
-    || quest?.bondedRequired
-    || quest?.hiddenAbilityRequired
-    || quest?.requirements?.nature
-    || quest?.requirements?.level
-    || (quest?.requirements?.ivConditions?.length || 0) > 0
-    || (quest?.requirements?.talentConditions?.length || 0) > 0
-  );
-
-  if (hasRequirement) {
-    return quest;
-  }
-
-  const fallbackNature = pickRandom(NATURES);
-  const normalizedNow = normalizeGameTime(null);
-  const nowMinutes = toTotalMinutes(normalizedNow);
-  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes) ? quest.createdAtMinutes : nowMinutes;
-  const inferredTier = quest?.difficulty || 'Normal';
-  const durationMinutes = getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: inferredTier });
-  const expiresAtMinutes = Number.isFinite(quest?.expiresAtMinutes) ? quest.expiresAtMinutes : (createdAtMinutes + durationMinutes);
-
-  return {
-    ...quest,
-    nature: fallbackNature,
-    requirements: {
-      ...(quest.requirements || {}),
-      nature: fallbackNature,
-    },
-    createdAtMinutes,
-    expiresAtMinutes,
-    questValue: quest.questValue || quest.difficultyScore || 1,
-    questValueVersion: quest.questValueVersion || QUEST_VALUE_VERSION,
-    difficultyScore: quest.difficultyScore || quest.questValue || 1,
-  };
-};
+const normalizeQuestRequirements = (quest) => normalizeQuestRequirementsDomain(quest);
 
 export default function ResearchQuestManager() {
   const [selectedQuest, setSelectedQuest] = useState(null);
@@ -524,64 +301,27 @@ export default function ResearchQuestManager() {
   }, [player, teamPokemon]);
 
   const generateQuestsMutation = useMutation({
-    mutationFn: async (count) => {
-      const questsToCreate = [];
-      for (let i = 0; i < count; i++) {
-        questsToCreate.push(generateQuest(player, gameTime, { analytics: researchAnalytics, progression: progressionContext }));
-      }
-      await Promise.all(questsToCreate.map(q => base44.entities.ResearchQuest.create(q)));
-
-      if (questsToCreate.length) {
-        const nextAnalytics = updateAnalyticsForGenerated(researchAnalytics, questsToCreate.map((q) => q.difficulty));
-        await saveGlobalResearchAnalytics(base44, nextAnalytics);
-      }
-    },
+    mutationFn: async (count) => createGeneratedQuests({
+      base44,
+      count,
+      player,
+      gameTime,
+      analytics: researchAnalytics,
+      progression: progressionContext
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
     }
   });
 
   const rerollQuestMutation = useMutation({
-    mutationFn: async (quest) => {
-      const players = await base44.entities.Player.list();
-      const latestPlayer = players[0] || null;
-      if (!latestPlayer) return null;
-
-      const isAccepted = (latestPlayer.activeQuests || []).some((entry) => (entry.questId || entry.id) === quest.id);
-      if (isAccepted) {
-        throw new Error('Accepted quests cannot be rerolled.');
-      }
-
-      const todayIndex = getAbsoluteDayIndex(gameTime);
-      const shouldReset = (latestPlayer.researchQuestRerollResetDay ?? -1) !== todayIndex;
-      const rerollCount = shouldReset ? 0 : (latestPlayer.researchQuestRerolls || 0);
-      const isFree = rerollCount < QUEST_CONFIG.maxFreeRerolls;
-      const cost = isFree ? 0 : QUEST_CONFIG.rerollCost;
-
-      if ((latestPlayer.gold || 0) < cost) {
-        throw new Error('Not enough gold to reroll.');
-      }
-
-      await base44.entities.Player.update(latestPlayer.id, {
-        gold: (latestPlayer.gold || 0) - cost,
-        researchQuestRerolls: rerollCount + 1,
-        researchQuestRerollResetDay: todayIndex
-      });
-
-      const rerolledAt = new Date().toISOString();
-      await base44.entities.ResearchQuest.update(quest.id, {
-        active: false,
-        rerolledAt,
-        status: 'rerolled'
-      });
-
-      const replacement = generateQuest(latestPlayer, gameTime, { analytics: researchAnalytics, progression: progressionContext });
-      await base44.entities.ResearchQuest.create(replacement);
-      const rolled = updateAnalyticsForOutcome(researchAnalytics, quest.difficulty, 'rerolled');
-      const updated = updateAnalyticsForGenerated(rolled, [replacement.difficulty]);
-      await saveGlobalResearchAnalytics(base44, updated);
-      return { cost, replacementTier: replacement.difficulty };
-    },
+    mutationFn: async (quest) => rerollQuestAction({
+      base44,
+      quest,
+      gameTime,
+      analytics: researchAnalytics,
+      progression: progressionContext
+    }),
     onSuccess: (result) => {
       if (!result) return;
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
@@ -598,52 +338,13 @@ export default function ResearchQuestManager() {
   });
 
   const rerollAllMutation = useMutation({
-    mutationFn: async () => {
-      const players = await base44.entities.Player.list();
-      const latestPlayer = players[0] || null;
-      if (!latestPlayer) return null;
-
-      const acceptedIds = new Set((latestPlayer.activeQuests || []).map((entry) => entry.questId || entry.id));
-      const rerollableQuests = quests.filter((quest) => !acceptedIds.has(quest.id));
-      if (!rerollableQuests.length) {
-        throw new Error('No rerollable quests. Accepted quests cannot be rerolled.');
-      }
-
-      const todayIndex = getAbsoluteDayIndex(gameTime);
-      const shouldReset = (latestPlayer.researchQuestRerollResetDay ?? -1) !== todayIndex;
-      const rerollCount = shouldReset ? 0 : (latestPlayer.researchQuestRerolls || 0);
-      const isFree = rerollCount < QUEST_CONFIG.maxFreeRerolls;
-      const cost = isFree ? 0 : QUEST_CONFIG.rerollCost;
-
-      if ((latestPlayer.gold || 0) < cost) {
-        throw new Error('Not enough gold to reroll.');
-      }
-
-      await base44.entities.Player.update(latestPlayer.id, {
-        gold: (latestPlayer.gold || 0) - cost,
-        researchQuestRerolls: rerollCount + 1,
-        researchQuestRerollResetDay: todayIndex
-      });
-
-      const rerolledAt = new Date().toISOString();
-      await Promise.all(rerollableQuests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
-        active: false,
-        rerolledAt,
-        status: 'rerolled'
-      })));
-
-      const replacements = Array.from({ length: rerollableQuests.length }, () => generateQuest(latestPlayer, gameTime, { analytics: researchAnalytics, progression: progressionContext }));
-      await Promise.all(replacements.map((quest) => base44.entities.ResearchQuest.create(quest)));
-
-      let nextAnalytics = researchAnalytics;
-      rerollableQuests.forEach((quest) => {
-        nextAnalytics = updateAnalyticsForOutcome(nextAnalytics, quest.difficulty, 'rerolled');
-      });
-      nextAnalytics = updateAnalyticsForGenerated(nextAnalytics, replacements.map((q) => q.difficulty));
-      await saveGlobalResearchAnalytics(base44, nextAnalytics);
-
-      return { cost, replacedCount: rerollableQuests.length };
-    },
+    mutationFn: async () => rerollAllQuestsAction({
+      base44,
+      quests,
+      gameTime,
+      analytics: researchAnalytics,
+      progression: progressionContext
+    }),
     onSuccess: (result) => {
       if (!result) return;
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
@@ -703,51 +404,27 @@ export default function ResearchQuestManager() {
 
   useEffect(() => {
     if (isLoading || quests.length === 0) return;
-    const currentTotal = toTotalMinutes(normalizeGameTime(gameTime));
-    const expired = quests.filter((quest) => {
-      const expiry = getQuestExpiryMinutes(quest, gameTime);
-      return Number.isFinite(expiry) && expiry <= currentTotal;
+    syncExpiredQuestsChunked({
+      base44,
+      quests,
+      player,
+      gameTime,
+      analytics: researchAnalytics
+    }).then(({ expiredCount }) => {
+      if (expiredCount > 0) {
+        queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
+        queryClient.invalidateQueries({ queryKey: ['player'] });
+      }
     });
-    if (expired.length) {
-      expired.forEach((quest) => {
-        base44.entities.ResearchQuest.update(quest.id, {
-          active: false,
-          expiredAt: new Date().toISOString(),
-          status: 'expired',
-          legendaryLog: quest.isLegendary || quest.difficulty === 'Legendary'
-        });
-      });
-
-      (async () => {
-        let nextAnalytics = researchAnalytics;
-        expired.forEach((quest) => {
-          nextAnalytics = updateAnalyticsForOutcome(nextAnalytics, quest.difficulty, 'expired');
-        });
-        await saveGlobalResearchAnalytics(base44, nextAnalytics);
-      })();
-
-      queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
-    }
-  }, [quests, isLoading, queryClient, gameTime]);
+  }, [quests, isLoading, queryClient, gameTime, player, researchAnalytics]);
 
   const handleSuccess = (reward) => {
     setSelectedQuest(null);
     if (player?.activeQuests?.length && selectedQuest) {
-      const updatedQuests = player.activeQuests.filter(
-        (quest) => (quest.questId || quest.id) !== selectedQuest.id
-      );
-      if (updatedQuests.length !== player.activeQuests.length) {
-        base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
-        queryClient.invalidateQueries({ queryKey: ['player'] });
-      }
+      completeQuestAction({ base44, player, selectedQuest, analytics: researchAnalytics })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['player'] }));
     }
     if (typeof reward === 'object') {
-      if (selectedQuest?.difficulty) {
-        (async () => {
-          const nextAnalytics = updateAnalyticsForOutcome(researchAnalytics, selectedQuest.difficulty, 'completed');
-          await saveGlobalResearchAnalytics(base44, nextAnalytics);
-        })();
-      }
       const itemText = reward.items?.length ? ` Items: ${reward.items.join(', ')}.` : '';
       const trustText = reward.trustGain ? ` Trust +${reward.trustGain}.` : '';
       const notesText = reward.notesGain ? ` Notes +${reward.notesGain}.` : '';
@@ -798,39 +475,11 @@ export default function ResearchQuestManager() {
     if (!player || acceptingQuestId) return;
     setAcceptingQuestId(quest.id);
     try {
-      const updatedQuests = [...(player.activeQuests || [])];
-      if (updatedQuests.length >= 10 && !updatedQuests.some((entry) => (entry.questId || entry.id) === quest.id)) {
-        setRerollMessage('Quest log is full (10/10). Complete or remove quests before accepting more.');
-        setTimeout(() => setRerollMessage(null), 3000);
-        return;
-      }
-
-      const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
-      const rewardGold = quest.reward?.gold ?? quest.rewardBase ?? 0;
-      const description = `Submit ${requiredCount} ${quest.species} for research.`;
-      const newQuest = {
-        id: quest.id,
-        questId: quest.id,
-        type: 'research',
-        name: `Research: ${quest.species}`,
-        description,
-        progress: getSubmissionCount(quest.id),
-        goal: requiredCount,
-        reward: rewardGold ? `${rewardGold} gold` : 'Research rewards',
-        species: quest.species,
-        requirements: quest.requirements || {},
-        nature: quest.nature,
-        level: quest.level,
-        ivConditions: quest.ivConditions || [],
-        acceptedAtMinutes: toTotalMinutes(normalizeGameTime(gameTime)),
-        expiresAtMinutes: toTotalMinutes(normalizeGameTime(gameTime)) + getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: quest?.difficulty || 'Normal' }),
-      };
-
-      if (!updatedQuests.some((entry) => (entry.questId || entry.id) === quest.id)) {
-        updatedQuests.push(newQuest);
-        await base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
-        queryClient.invalidateQueries({ queryKey: ['player'] });
-      }
+      await acceptQuestAction({ base44, player, quest, gameTime, getSubmissionCount });
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+    } catch (error) {
+      setRerollMessage(error.message || 'Unable to accept quest.');
+      setTimeout(() => setRerollMessage(null), 3000);
     } finally {
       setAcceptingQuestId(null);
     }
