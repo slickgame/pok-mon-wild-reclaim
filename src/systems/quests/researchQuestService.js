@@ -110,6 +110,22 @@ function getDifficultyTierByName(name) {
   return DIFFICULTY_TIERS.find((tier) => tier.name === name) || DIFFICULTY_TIERS[0];
 }
 
+
+function appendTransitionLog(entity = {}, toStatus, reason, fromStatus = null) {
+  const previousStatus = fromStatus || entity.status || (entity.active ? 'generated' : 'unknown');
+  const existing = Array.isArray(entity.transitionLog) ? entity.transitionLog : [];
+  return [
+    ...existing,
+    {
+      from: previousStatus,
+      to: toStatus,
+      at: new Date().toISOString(),
+      reason,
+      source: 'researchQuestService'
+    }
+  ];
+}
+
 function getRewardForQuest({ avgTargetLevel, difficultyTier, requirementType, questValue, progressionFactor }) {
   const baseReward = buildRewardPackage({
     difficultyTier,
@@ -310,6 +326,8 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
     createdAtMinutes,
     expiresAtMinutes,
     active: true,
+    status: 'generated',
+    transitionLog: appendTransitionLog({}, 'generated', 'quest_generated', 'none'),
     isLegendary: difficultyTier.name === 'Legendary'
   };
 }
@@ -351,7 +369,8 @@ export async function rerollQuestAction({ base44, quest, gameTime, analytics, pr
   await base44.entities.ResearchQuest.update(quest.id, {
     active: false,
     rerolledAt: new Date().toISOString(),
-    status: 'rerolled'
+    status: 'rerolled',
+    transitionLog: appendTransitionLog(quest, 'rerolled', 'quest_rerolled')
   });
 
   const replacement = generateQuest(latestPlayer, gameTime, { analytics, progression });
@@ -390,7 +409,8 @@ export async function rerollAllQuestsAction({ base44, quests, gameTime, analytic
   await Promise.all(rerollableQuests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
     active: false,
     rerolledAt: new Date().toISOString(),
-    status: 'rerolled'
+    status: 'rerolled',
+    transitionLog: appendTransitionLog(quest, 'rerolled', 'quest_rerolled')
   })));
 
   const replacements = Array.from({ length: rerollableQuests.length }, () => generateQuest(latestPlayer, gameTime, { analytics, progression }));
@@ -441,6 +461,11 @@ export async function acceptQuestAction({ base44, player, quest, gameTime, getSu
   });
 
   await base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
+  await base44.entities.ResearchQuest.update(quest.id, {
+    status: 'accepted',
+    acceptedAtMinutes: nowMinutes,
+    transitionLog: appendTransitionLog(quest, 'accepted', 'quest_accepted')
+  }).catch(() => {});
   return { accepted: true };
 }
 
@@ -451,6 +476,13 @@ export async function completeQuestAction({ base44, player, selectedQuest, analy
   if (updatedQuests.length !== (player.activeQuests || []).length) {
     await base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
   }
+
+  await base44.entities.ResearchQuest.update(selectedQuest.id, {
+    active: false,
+    status: 'completed',
+    completedAt: new Date().toISOString(),
+    transitionLog: appendTransitionLog(selectedQuest, 'completed', 'quest_completed')
+  }).catch(() => {});
 
   if (selectedQuest?.difficulty) {
     const nextAnalytics = updateAnalyticsForOutcome(analytics, selectedQuest.difficulty, 'completed');
@@ -480,7 +512,8 @@ export async function syncExpiredQuestsChunked({ base44, quests, player, gameTim
       active: false,
       expiredAt: new Date().toISOString(),
       status: 'expired',
-      legendaryLog: quest.isLegendary || quest.difficulty === 'Legendary'
+      legendaryLog: quest.isLegendary || quest.difficulty === 'Legendary',
+      transitionLog: appendTransitionLog(latest || quest, 'expired', 'quest_expired')
     });
   }
 
