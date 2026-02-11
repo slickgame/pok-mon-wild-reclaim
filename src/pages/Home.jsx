@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
@@ -17,6 +17,7 @@ import TutorialOverlay from '../components/tutorial/TutorialOverlay';
 
 export default function HomePage() {
   const [currentTutorial, setCurrentTutorial] = useState(null);
+  const queryClient = useQueryClient();
   
   const { data: player, isLoading: playerLoading } = useQuery({
     queryKey: ['player'],
@@ -82,12 +83,8 @@ export default function HomePage() {
       completedAt: new Date().toISOString()
     });
     
-    // Fully clear and invalidate
     setCurrentTutorial(null);
-    
-    // Invalidate to prevent re-trigger
-    const queryClient = await import('@tanstack/react-query').then(m => m.useQueryClient);
-    queryClient().invalidateQueries({ queryKey: ['tutorials'] });
+    queryClient.invalidateQueries({ queryKey: ['tutorials'] });
   };
 
   const handleSkipTutorials = async () => {
@@ -100,6 +97,7 @@ export default function HomePage() {
     }
     
     setCurrentTutorial(null);
+    queryClient.invalidateQueries({ queryKey: ['tutorials'] });
   };
 
   const containerVariants = {

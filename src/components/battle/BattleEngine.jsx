@@ -68,6 +68,11 @@ export const triggerTalent = (event, ctx) => {
           addBattleLog: ctx.addBattleLog ? (message) => ctx.addBattleLog(message, mon, talent) : undefined,
           modifyStat: ctx.modifyStat ? (target, stat, stages) => ctx.modifyStat(target, stat, stages) : undefined
         };
+
+        if (ctx.addBattleLog) {
+          ctx.addBattleLog('activated.', mon, talent);
+        }
+
         effectFn(effectContext);
       }
     }
@@ -150,9 +155,10 @@ export class BattleEngine {
         logs.push({
           turn: battleState.turnNumber,
           actor: pokemon.nickname || pokemon.species,
-          action: talentDef?.name || 'Talent',
+          action: `Talent Triggered: ${talentDef?.name || 'Talent'}`,
           result: message,
-          synergyTriggered: true
+          synergyTriggered: true,
+          talentTriggered: true
         });
       };
 
@@ -561,64 +567,114 @@ export class BattleEngine {
   }
 
   // Smart AI: Choose best move based on strategy
-  chooseEnemyMove(availableMoves, playerPokemon) {
+  chooseEnemyMove(availableMoves, playerPokemon, battleState = null) {
     if (!availableMoves || availableMoves.length === 0) {
-      return availableMoves[0];
+      return null;
     }
-    
-    // Get move data for all available moves
-    const movesWithData = availableMoves.map(move => {
-      const moveData = move?.name ? getMoveData(move.name, this.enemyPokemon) : move;
-      return { ...move, ...moveData };
-    });
-    
-    // Calculate HP percentage
-    const enemyHPPercent = (this.enemyPokemon.currentHp / this.enemyPokemon.stats.maxHp) * 100;
-    
-    // Priority 1: If low HP (<30%), consider healing/status moves
-    if (enemyHPPercent < 30) {
-      const healingMoves = movesWithData.filter(m => 
-        m.category === 'Status' && m.effect && m.effect.includes('heal')
-      );
-      if (healingMoves.length > 0 && Math.random() < 0.6) {
-        return healingMoves[0];
+
+    const movesWithData = availableMoves
+      .map((move) => {
+        if (typeof move === 'string') {
+          const moveData = getMoveData(move, this.enemyPokemon);
+          return moveData ? { name: move, ...moveData } : null;
+        }
+
+        if (!move) return null;
+
+        const moveName = move.name || move.move || null;
+        if (!moveName) return null;
+
+        const moveData = getMoveData(moveName, this.enemyPokemon);
+        return { ...move, name: moveName, ...(moveData || {}) };
+      })
+      .filter(Boolean);
+
+    if (movesWithData.length === 0) {
+      return null;
+    }
+
+    const enemyMaxHp = this.enemyPokemon.stats?.maxHp || this.enemyPokemon.stats?.hp || 1;
+    const enemyCurrentHp = this.enemyPokemon.currentHp ?? enemyMaxHp;
+    const enemyHPPercent = (enemyCurrentHp / enemyMaxHp) * 100;
+    const playerTypes = [playerPokemon?.type1, playerPokemon?.type2].filter(Boolean);
+    const enemyTypes = [this.enemyPokemon?.type1, this.enemyPokemon?.type2].filter(Boolean);
+    const targetHasStatus = Boolean(playerPokemon?.status?.id || playerPokemon?.activeStatus?.type);
+
+    const lastEnemyMove = battleState?.enemyLastMove || null;
+
+    const scoredMoves = movesWithData.map((move) => {
+      let score = 0;
+      const power = Number(move.power) || 0;
+
+      if (move.category === 'Status') {
+        score += 16;
+      } else {
+        score += Math.min(power, 120) / 2;
       }
-    }
-    
-    // Priority 2: Check for super-effective moves (type advantage)
-    const superEffectiveMoves = movesWithData.filter(move => {
-      // Simplified type effectiveness check
-      const playerTypes = [playerPokemon.type1, playerPokemon.type2].filter(Boolean);
-      return this.isSuperEffective(move.type, playerTypes);
-    });
-    
-    if (superEffectiveMoves.length > 0) {
-      // Choose highest power super-effective move
-      return superEffectiveMoves.reduce((best, current) => 
-        (current.power || 0) > (best.power || 0) ? current : best
-      );
-    }
-    
-    // Priority 3: Choose highest damage move
-    const damageMoves = movesWithData.filter(m => m.category !== 'Status' && m.power > 0);
-    if (damageMoves.length > 0) {
-      return damageMoves.reduce((best, current) => 
-        (current.power || 0) > (best.power || 0) ? current : best
-      );
-    }
-    
-    // Priority 4: Random status move for variety (20% chance)
-    if (Math.random() < 0.2) {
-      const statusMoves = movesWithData.filter(m => m.category === 'Status');
-      if (statusMoves.length > 0) {
-        return statusMoves[Math.floor(Math.random() * statusMoves.length)];
+
+      if (move.type && enemyTypes.includes(move.type)) {
+        score += 12; // STAB
       }
+
+      if (move.type && this.isSuperEffective(move.type, playerTypes)) {
+        score += 30;
+      }
+
+      if (move.priority && move.priority > 0) {
+        score += 6;
+      }
+
+      if (move.effectChance) {
+        score += Math.min(12, move.effectChance / 10);
+      }
+
+      const isHealingMove = (m) => {
+        if (!m?.effect) return false;
+        if (typeof m.effect === 'string') {
+          return m.effect.includes('heal') || m.effect === 'drain';
+        }
+        if (typeof m.effect === 'object') {
+          return Boolean(m.effect.heal || m.effect.healSelf || m.effect.healTarget || m.effect.healAllies || m.effect.healOverTime);
+        }
+        return false;
+      };
+
+      if (enemyHPPercent < 35 && isHealingMove(move)) {
+        score += 25;
+      } else if (enemyHPPercent > 70 && isHealingMove(move)) {
+        score -= 8;
+      }
+
+      const isStatusMove = move.category === 'Status';
+      const statusLike = move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralyze' || move.effect === 'paralysis' || move.effect === 'sleep';
+      if (isStatusMove && statusLike && targetHasStatus) {
+        score -= 14;
+      }
+
+      if (lastEnemyMove && move.name === lastEnemyMove && movesWithData.length > 1) {
+        score -= 15;
+      }
+
+      // small jitter to avoid deterministic repeats
+      score += Math.random() * 4;
+
+      return { move, score };
+    });
+
+    scoredMoves.sort((a, b) => b.score - a.score);
+
+    const topBand = scoredMoves.filter((entry) => entry.score >= scoredMoves[0].score - 8);
+    const pool = topBand.length > 0 ? topBand : scoredMoves;
+
+    const choice = pool[Math.floor(Math.random() * pool.length)]?.move || scoredMoves[0]?.move || null;
+
+    if (battleState && choice?.name) {
+      battleState.enemyLastMove = choice.name;
     }
-    
-    // Fallback: random move
-    return movesWithData[Math.floor(Math.random() * movesWithData.length)];
+
+    return choice;
   }
-  
+
   // Simplified type effectiveness check
   isSuperEffective(moveType, defenderTypes) {
     const typeChart = {
@@ -755,9 +811,10 @@ export class BattleEngine {
         logs.push({
           turn: battleState.turnNumber,
           actor: user?.nickname || user?.species,
-          action: talentDef?.name || 'Talent',
+          action: `Talent Triggered: ${talentDef?.name || 'Talent'}`,
           result: message,
-          synergyTriggered: true
+          synergyTriggered: true,
+          talentTriggered: true
         });
       },
       modifyStat: (targetPokemon, stat, stages) => {
@@ -1151,7 +1208,7 @@ export class BattleEngine {
     // Apply move effects from central move data
     if (move.effect && move.effectChance) {
       if (Math.random() * 100 < move.effectChance) {
-        if (move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralysis') {
+        if (move.effect === 'burn' || move.effect === 'poison' || move.effect === 'paralysis' || move.effect === 'paralyze' || move.effect === 'sleep') {
           const statusResult = this.applyStatusEffect(defender.pokemon, move.effect, battleState);
           if (statusResult.success) {
             logs.push({
@@ -1544,6 +1601,8 @@ export class BattleEngine {
           'raiseDefense': 'Defense',
           'lowerSpeed': 'Speed',
           'raiseSpeed': 'Speed',
+          'lowerAccuracy': 'Accuracy',
+          'raiseAccuracy': 'Accuracy',
           'lowerSpDef': 'Sp. Def',
           'raiseSpDef': 'Sp. Def'
         };
