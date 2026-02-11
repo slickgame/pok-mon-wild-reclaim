@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, RefreshCcw, ChevronDown, Info, Star } from 'lucide-react';
+import { Sparkles, Zap, RefreshCcw, ChevronDown, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
@@ -73,7 +73,8 @@ export default function ResearchQuestCard({
   rerollState,
   rerollCost,
   isRerolling,
-  canAffordReroll
+  canAffordReroll,
+  isRerollDisabled = false
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
@@ -83,6 +84,8 @@ export default function ResearchQuestCard({
     || (quest.rarity ? `${quest.rarity[0].toUpperCase()}${quest.rarity.slice(1)}` : 'Normal');
   const rewardGold = quest.reward?.gold ?? quest.rewardBase;
   const rewardItems = quest.reward?.items || [];
+  const rewardCategoryLabel = quest.reward?.rewardCategoryLabel;
+  const possibleRewards = quest.reward?.possibleRewards || [];
   const legacyDetails = quest.requirementType === 'nature' || quest.requirementType === 'iv';
   const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
   const submissionCount = getSubmissionCount(quest.id);
@@ -143,10 +146,6 @@ export default function ResearchQuestCard({
           <Badge className={`mt-2 ${tierColors[difficultyTier] || tierColors.Normal}`}>
             {difficultyTier}
           </Badge>
-          <div className="mt-2 flex items-center gap-1 text-xs text-slate-400">
-            <Star className="w-3 h-3 text-yellow-300" />
-            Score {quest.difficultyScore || '—'}
-          </div>
           <div className="mt-1 text-xs text-slate-400">
             Progress: {submissionCount}/{requiredCount} submitted
           </div>
@@ -215,6 +214,17 @@ export default function ResearchQuestCard({
             {quest.reward?.notesGain ? `Notes +${quest.reward.notesGain}` : ''}
           </div>
         )}
+        {rewardCategoryLabel && (
+          <div className="text-xs text-cyan-300">
+            Reward Category: <span className="text-cyan-200 font-semibold">{rewardCategoryLabel}</span>
+          </div>
+        )}
+        {(possibleRewards.length > 0) && (
+          <div className="text-xs text-slate-400">
+            <span className="text-slate-500 uppercase tracking-wide text-[10px]">Possible Rewards</span>
+            <p className="mt-1 text-slate-300">{possibleRewards.slice(0, 4).join(', ')}</p>
+          </div>
+        )}
 
         {rewardItems.length > 0 && (
           <div className="text-xs text-slate-400">
@@ -249,11 +259,15 @@ export default function ResearchQuestCard({
           <Button
             onClick={() => onReroll(quest)}
             variant="outline"
-            disabled={isRerolling || (!rerollState?.freeLeft && !canAffordReroll)}
+            disabled={isRerollDisabled || isRerolling || (!rerollState?.freeLeft && !canAffordReroll)}
             className="w-full border-indigo-500/50 text-indigo-200 hover:bg-indigo-500/10"
           >
             <RefreshCcw className="w-4 h-4 mr-2" />
-            {rerollState?.freeLeft ? `Free Reroll (${rerollState.freeLeft} left)` : `Reroll (${rerollCost} gold)`}
+            {isRerollDisabled
+              ? 'Accepted quests cannot be rerolled'
+              : rerollState?.freeLeft
+                ? `Free Reroll (${rerollState.freeLeft} left)`
+                : `Reroll (${rerollCost} gold)`}
           </Button>
         )}
       </div>

@@ -87,8 +87,10 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
     if (!itemRewards.length) return [];
     const awarded = [];
     for (const reward of itemRewards) {
-      const itemDef = ItemRegistry[reward.id];
-      if (!itemDef) continue;
+      const itemDef = ItemRegistry[reward.id] || {
+        name: reward.id?.toString?.().replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()) || 'Research Item',
+        type: 'Item'
+      };
       const existing = inventory.find((item) => item.name === itemDef.name && item.type === itemDef.type);
       if (existing) {
         await base44.entities.Item.update(existing.id, {
@@ -106,9 +108,17 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
     return awarded;
   };
 
+  const getDiminishedTrustGain = (baseTrustGain) => {
+    const currentTrust = player?.trustLevels?.maple || 0;
+    if (currentTrust >= 95) return Math.max(1, Math.floor(baseTrustGain * 0.2));
+    if (currentTrust >= 80) return Math.max(1, Math.floor(baseTrustGain * 0.4));
+    if (currentTrust >= 50) return Math.max(1, Math.floor(baseTrustGain * 0.65));
+    return baseTrustGain;
+  };
+
   const applyQuestRewards = async () => {
     const baseGold = quest.reward?.gold ?? quest.rewardBase ?? 0;
-    const trustGain = quest.reward?.trustGain || 0;
+    const trustGain = getDiminishedTrustGain(quest.reward?.trustGain || 0);
     const notesGain = quest.reward?.notesGain || 0;
     const itemRewards = quest.reward?.itemRewards || [];
     const bonusEligible = !hasQuestBonusClaimed(quest.id);

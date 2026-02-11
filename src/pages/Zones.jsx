@@ -315,6 +315,7 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const handleExplore = async () => {
+    await advanceTime(10);
     const currentProgress = zoneProgress?.discoveryProgress || 0;
     const progressGain = Math.floor(Math.random() * 11) + 5; // 5-15
     
