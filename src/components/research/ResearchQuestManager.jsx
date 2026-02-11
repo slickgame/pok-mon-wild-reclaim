@@ -9,6 +9,7 @@ import ResearchQuestCard from './ResearchQuestCard';
 import ResearchSubmitModal from './ResearchSubmitModal';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { TIME_CONSTANTS, getAbsoluteDayIndex, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
+import { calculateQuestValue, QUEST_VALUE_VERSION } from '@/systems/quests/researchQuestTuning';
 
 const VERDANT_SPECIES = [
   { name: 'Caterpie', weight: 3, rarity: 'common' },
@@ -204,34 +205,6 @@ function getQuestDurationMinutes({ rarity, difficultyTier }) {
   return 14 * TIME_CONSTANTS.MINUTES_PER_DAY; // midpoint for uncommon/medium
 }
 
-function calculateQuestValue({ nature, level, ivConditions, talentConditions, specialFlags }) {
-  let score = 1;
-  if (nature) score += 1;
-  if (level && level >= 20) score += 1;
-  if (level && level >= 35) score += 1;
-  if (ivConditions?.length) {
-    ivConditions.forEach((iv) => {
-      score += iv.min > 20 ? 2 : 1;
-    });
-  }
-  if (talentConditions?.length) {
-    talentConditions.forEach((condition) => {
-      const grades = condition.grades || [];
-      grades.forEach((grade) => {
-        score += GRADE_WEIGHTS[grade] || 1;
-      });
-      if (condition.count >= 2) {
-        score += condition.count >= 4 ? 4 : condition.count >= 3 ? 3 : 2;
-      }
-    });
-  }
-  if (specialFlags) {
-    const specialCount = Object.values(specialFlags).filter(Boolean).length;
-    score += specialCount * 2;
-  }
-  return score;
-}
-
 function generateQuest(player, gameTime) {
   const speciesEntry = weightedRoll(getSpeciesPool(player));
   const species = speciesEntry.name;
@@ -373,6 +346,7 @@ function generateQuest(player, gameTime) {
     talentConditions,
     ...specialFlags,
     questValue,
+    questValueVersion: QUEST_VALUE_VERSION,
     difficultyScore: questValue,
     difficulty: difficultyTier.name,
     reward,
@@ -472,6 +446,7 @@ const normalizeQuestRequirements = (quest) => {
     createdAtMinutes,
     expiresAtMinutes,
     questValue: quest.questValue || quest.difficultyScore || 1,
+    questValueVersion: quest.questValueVersion || QUEST_VALUE_VERSION,
     difficultyScore: quest.difficultyScore || quest.questValue || 1,
   };
 };
@@ -667,6 +642,7 @@ export default function ResearchQuestManager() {
         createdAtMinutes: fixed.createdAtMinutes,
         expiresAtMinutes: fixed.expiresAtMinutes,
         questValue: fixed.questValue || fixed.difficultyScore || quest.questValue || quest.difficultyScore || 1,
+        questValueVersion: fixed.questValueVersion || quest.questValueVersion || QUEST_VALUE_VERSION,
         difficultyScore: fixed.difficultyScore || fixed.questValue || quest.difficultyScore || quest.questValue || 1
       });
     })).then(() => {
