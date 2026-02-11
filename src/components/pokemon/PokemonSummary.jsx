@@ -42,8 +42,8 @@ export default function PokemonSummary({ pokemon, onClose }) {
   const gradientClass = typeColors[pokemon.type1] || 'from-indigo-500 to-purple-600';
 
   const updateMutation = useMutation({
-    mutationFn: (data) => base44.entities.Pokemon.update(pokemon.id, data),
-    onSuccess: () => {
+    mutationFn: (updateData) => base44.entities.Pokemon.update(pokemon.id, updateData),
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['pokemon'] });
     }
   });

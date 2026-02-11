@@ -25,6 +25,9 @@ import {
   calculateWildXP 
 } from '@/components/zones/wildPokemonData';
 
+const EXPLORE_TIME_MINUTES = 10;
+
+
 export default function ZonesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
@@ -470,6 +473,9 @@ function ZoneDetailView({ zone, onBack }) {
     } catch (error) {
       console.error('Failed to save progress:', error);
     }
+
+    // Advance world time after the exploration event resolves.
+    await advanceTime(EXPLORE_TIME_MINUTES);
   };
 
   const handleContinueExploring = () => {

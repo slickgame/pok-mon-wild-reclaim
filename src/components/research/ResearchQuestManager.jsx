@@ -25,6 +25,57 @@ import {
 
 const QUEST_CONFIG = QUEST_SERVICE_CONFIG;
 
+function getNextResetLabel(gameTime) {
+  const normalized = normalizeGameTime(gameTime);
+  const currentTotal = toTotalMinutes(normalized);
+  const minuteOfDay = (normalized.currentHour * TIME_CONSTANTS.MINUTES_PER_HOUR) + normalized.currentMinute;
+  const minutesUntilReset = TIME_CONSTANTS.MINUTES_PER_DAY - minuteOfDay;
+  const targetTotal = currentTotal + minutesUntilReset;
+  return getTimeLeftLabel(currentTotal, targetTotal).replace(' left', '');
+}
+
+
+const normalizeQuestRequirements = (quest) => {
+  const hasRequirement = Boolean(
+    quest?.nature
+    || quest?.level
+    || (quest?.ivConditions?.length || 0) > 0
+    || (quest?.talentConditions?.length || 0) > 0
+    || quest?.shinyRequired
+    || quest?.alphaRequired
+    || quest?.bondedRequired
+    || quest?.hiddenAbilityRequired
+    || quest?.requirements?.nature
+    || quest?.requirements?.level
+    || (quest?.requirements?.ivConditions?.length || 0) > 0
+    || (quest?.requirements?.talentConditions?.length || 0) > 0
+  );
+
+  if (hasRequirement) {
+    return quest;
+  }
+
+  const fallbackNature = pickRandom(NATURES);
+  const normalizedNow = normalizeGameTime(null);
+  const nowMinutes = toTotalMinutes(normalizedNow);
+  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes) ? quest.createdAtMinutes : nowMinutes;
+  const inferredTier = quest?.difficulty || 'Normal';
+  const durationMinutes = getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: inferredTier });
+  const expiresAtMinutes = Number.isFinite(quest?.expiresAtMinutes) ? quest.expiresAtMinutes : (createdAtMinutes + durationMinutes);
+
+  return {
+    ...quest,
+    nature: fallbackNature,
+    requirements: {
+      ...(quest.requirements || {}),
+      nature: fallbackNature,
+    },
+    createdAtMinutes,
+    expiresAtMinutes,
+    difficultyScore: quest.difficultyScore || 1,
+  };
+};
+
 export default function ResearchQuestManager() {
   const [selectedQuest, setSelectedQuest] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
