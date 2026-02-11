@@ -10,6 +10,8 @@ import ResearchSubmitModal from './ResearchSubmitModal';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { TIME_CONSTANTS, getAbsoluteDayIndex, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 import { calculateQuestValue, QUEST_VALUE_VERSION } from '@/systems/quests/researchQuestTuning';
+import { buildRewardPackage } from '@/systems/quests/researchQuestRewards';
+import { chooseTierByStrictController, getGlobalResearchAnalytics, getProgressionFactor, saveGlobalResearchAnalytics, updateAnalyticsForGenerated, updateAnalyticsForOutcome } from '@/systems/quests/researchQuestAnalytics';
 
 const VERDANT_SPECIES = [
   { name: 'Caterpie', weight: 3, rarity: 'common' },
@@ -172,19 +174,22 @@ function getDifficultyTier(weight) {
   return DIFFICULTY_TIERS.find((tier) => weight >= tier.min && weight <= tier.max) || DIFFICULTY_TIERS[0];
 }
 
-function getRewardForQuest({ avgTargetLevel, difficultyTier }) {
-  const baseMoney = 100;
-  const levelFactor = (avgTargetLevel || 10) * 0.2;
-  const totalReward = Math.floor(baseMoney * levelFactor * difficultyTier.difficultyMod);
+function getDifficultyTierByName(name) {
+  return DIFFICULTY_TIERS.find((tier) => tier.name === name) || DIFFICULTY_TIERS[0];
+}
+
+function getRewardForQuest({ avgTargetLevel, difficultyTier, requirementType, questValue, progressionFactor }) {
+  const baseReward = buildRewardPackage({
+    difficultyTier,
+    requirementType,
+    questValue,
+    progressionFactor
+  });
+
   return {
-    baseMoney,
-    levelFactor,
-    difficultyMod: difficultyTier.difficultyMod,
-    gold: totalReward,
-    items: difficultyTier.items,
-    itemRewards: difficultyTier.itemRewards || [],
-    trustGain: difficultyTier.trustGain || 0,
-    notesGain: difficultyTier.notesGain || 0
+    ...baseReward,
+    levelFactor: (avgTargetLevel || 10) * 0.2,
+    difficultyMod: difficultyTier.difficultyMod
   };
 }
 
@@ -205,7 +210,7 @@ function getQuestDurationMinutes({ rarity, difficultyTier }) {
   return 14 * TIME_CONSTANTS.MINUTES_PER_DAY; // midpoint for uncommon/medium
 }
 
-function generateQuest(player, gameTime) {
+function generateQuest(player, gameTime, controllerContext = {}) {
   const speciesEntry = weightedRoll(getSpeciesPool(player));
   const species = speciesEntry.name;
   const rarity = speciesEntry.rarity;
@@ -314,9 +319,21 @@ function generateQuest(player, gameTime) {
     talentConditions,
     specialFlags
   });
-  const difficultyTier = getDifficultyTier(questValue);
+  const baselineTier = getDifficultyTier(questValue);
+  const targetTierName = chooseTierByStrictController({
+    analytics: controllerContext.analytics,
+    progression: controllerContext.progression
+  });
+  const difficultyTier = getDifficultyTierByName(targetTierName || baselineTier.name);
   const avgTargetLevel = level || 10;
-  const reward = getRewardForQuest({ avgTargetLevel, difficultyTier });
+  const progressionFactor = getProgressionFactor(controllerContext.progression || {});
+  const reward = getRewardForQuest({
+    avgTargetLevel,
+    difficultyTier,
+    requirementType: ivConditions.length ? 'iv' : nature ? 'nature' : level ? 'level' : talentConditions.length ? 'talent' : Object.values(specialFlags).some(Boolean) ? 'special' : 'mixed',
+    questValue,
+    progressionFactor
+  });
   const normalizedTime = normalizeGameTime(gameTime);
   const createdAtMinutes = toTotalMinutes(normalizedTime);
   const expiresAtMinutes = createdAtMinutes + getQuestDurationMinutes({ rarity, difficultyTier });
@@ -487,13 +504,37 @@ export default function ResearchQuestManager() {
     }
   });
 
+  const { data: teamPokemon = [] } = useQuery({
+    queryKey: ['playerPokemonTeamForResearch'],
+    queryFn: async () => base44.entities.Pokemon.filter({ isInTeam: true })
+  });
+
+  const { data: researchAnalytics } = useQuery({
+    queryKey: ['researchQuestAnalyticsGlobal'],
+    queryFn: async () => getGlobalResearchAnalytics(base44)
+  });
+
+  const progressionContext = useMemo(() => {
+    const storyChapter = player?.storyChapter ?? player?.storyProgress ?? 0;
+    const mapleTrust = player?.trustLevels?.maple || 0;
+    const avgPartyLevel = teamPokemon.length
+      ? teamPokemon.reduce((sum, mon) => sum + (mon.level || 1), 0) / teamPokemon.length
+      : 1;
+    return { storyChapter, mapleTrust, avgPartyLevel };
+  }, [player, teamPokemon]);
+
   const generateQuestsMutation = useMutation({
     mutationFn: async (count) => {
       const questsToCreate = [];
       for (let i = 0; i < count; i++) {
-        questsToCreate.push(generateQuest(player, gameTime));
+        questsToCreate.push(generateQuest(player, gameTime, { analytics: researchAnalytics, progression: progressionContext }));
       }
       await Promise.all(questsToCreate.map(q => base44.entities.ResearchQuest.create(q)));
+
+      if (questsToCreate.length) {
+        const nextAnalytics = updateAnalyticsForGenerated(researchAnalytics, questsToCreate.map((q) => q.difficulty));
+        await saveGlobalResearchAnalytics(base44, nextAnalytics);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
@@ -534,8 +575,11 @@ export default function ResearchQuestManager() {
         status: 'rerolled'
       });
 
-      const replacement = generateQuest(latestPlayer, gameTime);
+      const replacement = generateQuest(latestPlayer, gameTime, { analytics: researchAnalytics, progression: progressionContext });
       await base44.entities.ResearchQuest.create(replacement);
+      const rolled = updateAnalyticsForOutcome(researchAnalytics, quest.difficulty, 'rerolled');
+      const updated = updateAnalyticsForGenerated(rolled, [replacement.difficulty]);
+      await saveGlobalResearchAnalytics(base44, updated);
       return { cost, replacementTier: replacement.difficulty };
     },
     onSuccess: (result) => {
@@ -588,8 +632,15 @@ export default function ResearchQuestManager() {
         status: 'rerolled'
       })));
 
-      const replacements = Array.from({ length: rerollableQuests.length }, () => generateQuest(latestPlayer, gameTime));
+      const replacements = Array.from({ length: rerollableQuests.length }, () => generateQuest(latestPlayer, gameTime, { analytics: researchAnalytics, progression: progressionContext }));
       await Promise.all(replacements.map((quest) => base44.entities.ResearchQuest.create(quest)));
+
+      let nextAnalytics = researchAnalytics;
+      rerollableQuests.forEach((quest) => {
+        nextAnalytics = updateAnalyticsForOutcome(nextAnalytics, quest.difficulty, 'rerolled');
+      });
+      nextAnalytics = updateAnalyticsForGenerated(nextAnalytics, replacements.map((q) => q.difficulty));
+      await saveGlobalResearchAnalytics(base44, nextAnalytics);
 
       return { cost, replacedCount: rerollableQuests.length };
     },
@@ -666,6 +717,15 @@ export default function ResearchQuestManager() {
           legendaryLog: quest.isLegendary || quest.difficulty === 'Legendary'
         });
       });
+
+      (async () => {
+        let nextAnalytics = researchAnalytics;
+        expired.forEach((quest) => {
+          nextAnalytics = updateAnalyticsForOutcome(nextAnalytics, quest.difficulty, 'expired');
+        });
+        await saveGlobalResearchAnalytics(base44, nextAnalytics);
+      })();
+
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
     }
   }, [quests, isLoading, queryClient, gameTime]);
@@ -682,6 +742,12 @@ export default function ResearchQuestManager() {
       }
     }
     if (typeof reward === 'object') {
+      if (selectedQuest?.difficulty) {
+        (async () => {
+          const nextAnalytics = updateAnalyticsForOutcome(researchAnalytics, selectedQuest.difficulty, 'completed');
+          await saveGlobalResearchAnalytics(base44, nextAnalytics);
+        })();
+      }
       const itemText = reward.items?.length ? ` Items: ${reward.items.join(', ')}.` : '';
       const trustText = reward.trustGain ? ` Trust +${reward.trustGain}.` : '';
       const notesText = reward.notesGain ? ` Notes +${reward.notesGain}.` : '';

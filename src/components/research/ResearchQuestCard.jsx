@@ -84,6 +84,8 @@ export default function ResearchQuestCard({
     || (quest.rarity ? `${quest.rarity[0].toUpperCase()}${quest.rarity.slice(1)}` : 'Normal');
   const rewardGold = quest.reward?.gold ?? quest.rewardBase;
   const rewardItems = quest.reward?.items || [];
+  const rewardCategoryLabel = quest.reward?.rewardCategoryLabel;
+  const possibleRewards = quest.reward?.possibleRewards || [];
   const legacyDetails = quest.requirementType === 'nature' || quest.requirementType === 'iv';
   const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
   const submissionCount = getSubmissionCount(quest.id);
@@ -210,6 +212,17 @@ export default function ResearchQuestCard({
             {quest.reward?.trustGain ? `Trust +${quest.reward.trustGain}` : ''}
             {quest.reward?.trustGain && quest.reward?.notesGain ? ' • ' : ''}
             {quest.reward?.notesGain ? `Notes +${quest.reward.notesGain}` : ''}
+          </div>
+        )}
+        {rewardCategoryLabel && (
+          <div className="text-xs text-cyan-300">
+            Reward Category: <span className="text-cyan-200 font-semibold">{rewardCategoryLabel}</span>
+          </div>
+        )}
+        {(possibleRewards.length > 0) && (
+          <div className="text-xs text-slate-400">
+            <span className="text-slate-500 uppercase tracking-wide text-[10px]">Possible Rewards</span>
+            <p className="mt-1 text-slate-300">{possibleRewards.slice(0, 4).join(', ')}</p>
           </div>
         )}
 
