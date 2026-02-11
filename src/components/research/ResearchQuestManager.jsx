@@ -208,7 +208,7 @@ export default function ResearchQuestManager() {
     if (!missing.length) return;
 
     Promise.all(missing.map((quest) => {
-      const fixed = normalizeQuestRequirements(quest);
+      const fixed = normalizeQuestRequirementsService(quest);
       return base44.entities.ResearchQuest.update(quest.id, {
         nature: fixed.nature,
         requirements: fixed.requirements,
