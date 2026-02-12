@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { generateRandomIVs, getRandomNature, calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
+import { VERDANT_HOLLOW_NODELETS, shouldSeedVerdantNodelets } from '@/components/zones/verdantHollowNodelets';
 
 const storySteps = [
   {
@@ -142,12 +143,18 @@ export default function OnboardingPage() {
               { species: 'Rattata', minLevel: 2, maxLevel: 4, rarity: 'Common' },
               { species: 'Caterpie', minLevel: 2, maxLevel: 4, rarity: 'Common' }
             ],
-            nodelets: [],
+            nodelets: VERDANT_HOLLOW_NODELETS,
             discoveryProgress: 0,
             requiredLevel: 1
           });
         } else {
           verdantHollow = existingZones[0];
+
+          if (shouldSeedVerdantNodelets(verdantHollow)) {
+            verdantHollow = await base44.entities.Zone.update(verdantHollow.id, {
+              nodelets: VERDANT_HOLLOW_NODELETS
+            });
+          }
         }
 
         // Create initial ZoneProgress with 0 discovery (only if doesn't exist)
