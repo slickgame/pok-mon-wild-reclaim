@@ -1,12 +1,11 @@
 import React from 'react';
-import { Clock, Sun, Moon, Sunrise, Sunset } from 'lucide-react';
+import { Clock, Sun, Moon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { formatCalendarDate, formatDigitalTime, getCurrentPhase, normalizeGameTime } from '@/systems/time/gameTimeSystem';
 
-const getTimePhase = (hour) => {
-  if (hour >= 5 && hour < 7) return { phase: 'Dawn', icon: Sunrise, color: 'text-orange-400' };
-  if (hour >= 7 && hour < 18) return { phase: 'Day', icon: Sun, color: 'text-yellow-400' };
-  if (hour >= 18 && hour < 20) return { phase: 'Dusk', icon: Sunset, color: 'text-purple-400' };
-  return { phase: 'Night', icon: Moon, color: 'text-blue-400' };
+const getTimePhase = (phaseName) => {
+  if (phaseName === 'Night') return { phase: 'Night', icon: Moon, color: 'text-blue-400' };
+  return { phase: 'Day', icon: Sun, color: 'text-yellow-400' };
 };
 
 const getDayName = (day) => {
@@ -15,12 +14,17 @@ const getDayName = (day) => {
 };
 
 export default function TimeWidget({ gameTime, compact = false }) {
-  const hour = gameTime?.currentHour || 8;
-  const day = gameTime?.currentDay || 1;
-  const week = gameTime?.currentWeek || 1;
-  const season = gameTime?.currentSeason || 'Spring';
+  const normalized = normalizeGameTime(gameTime);
+  const hour = normalized.currentHour;
+  const minute = normalized.currentMinute;
+  const day = normalized.currentDay || 1;
+  const week = normalized.currentWeek || 1;
+  const season = normalized.currentSeason || 'Spring';
+  const calendarDate = formatCalendarDate(normalized);
+  const digitalTime = formatDigitalTime(normalized);
   
-  const { phase, icon: PhaseIcon, color } = getTimePhase(hour);
+  const phaseName = getCurrentPhase(normalized);
+  const { phase, icon: PhaseIcon, color } = getTimePhase(phaseName);
   const dayName = getDayName(day);
 
   if (compact) {
@@ -28,7 +32,7 @@ export default function TimeWidget({ gameTime, compact = false }) {
       <div className="flex items-center gap-2 glass rounded-lg px-3 py-2">
         <PhaseIcon className={`w-4 h-4 ${color}`} />
         <span className="text-white text-sm font-medium">
-          {String(hour).padStart(2, '0')}:00
+          {digitalTime}
         </span>
         <Badge className="text-xs bg-slate-700/50 text-slate-300">
           {dayName}
@@ -55,7 +59,7 @@ export default function TimeWidget({ gameTime, compact = false }) {
           <div className="flex items-center gap-2">
             <PhaseIcon className={`w-4 h-4 ${color}`} />
             <span className="text-white font-mono text-lg">
-              {String(hour).padStart(2, '0')}:00
+              {String(hour).padStart(2, '0')}:{String(minute).padStart(2, '0')}
             </span>
           </div>
         </div>
@@ -70,6 +74,11 @@ export default function TimeWidget({ gameTime, compact = false }) {
           <Badge className="bg-green-500/20 text-green-300 border-green-500/50">
             {season}
           </Badge>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-slate-400 text-sm">Date</span>
+          <span className="text-white text-xs">{calendarDate}</span>
         </div>
       </div>
     </div>
