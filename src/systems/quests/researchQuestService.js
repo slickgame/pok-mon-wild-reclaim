@@ -129,17 +129,18 @@ function hasMeaningfulRequirement(quest = {}) {
 
 
 function ensureQuestHasPersistableVariety(quest, seed = 0) {
-  const hasComplex = hasMeaningfulRequirement(quest);
-  const hasOnlyNature = hasComplex && Boolean(quest?.nature) && !(
-    quest?.level
-    || (quest?.quantityRequired || 1) > 1
-    || (quest?.ivConditions?.length || 0) > 0
-    || quest?.ivStat
-    || (quest?.talentConditions?.length || 0) > 0
-    || quest?.shinyRequired
-    || quest?.alphaRequired
-    || quest?.bondedRequired
-    || quest?.hiddenAbilityRequired
+  const normalized = normalizeQuestRequirements(quest || {});
+  const hasComplex = hasMeaningfulRequirement(normalized);
+  const hasOnlyNature = hasComplex && Boolean(normalized?.nature) && !(
+    normalized?.level
+    || (normalized?.quantityRequired || 1) > 1
+    || (normalized?.ivConditions?.length || 0) > 0
+    || normalized?.ivStat
+    || (normalized?.talentConditions?.length || 0) > 0
+    || normalized?.shinyRequired
+    || normalized?.alphaRequired
+    || normalized?.bondedRequired
+    || normalized?.hiddenAbilityRequired
   );
 
   if (!hasOnlyNature) return quest;
@@ -150,32 +151,32 @@ function ensureQuestHasPersistableVariety(quest, seed = 0) {
     const min = 14 + Math.floor(Math.random() * 8);
     const ivConditions = [{ stat, min }];
     return {
-      ...quest,
-      requirementType: quest.requirementType === 'nature' ? 'mixed' : (quest.requirementType || 'mixed'),
+      ...normalized,
+      requirementType: normalized.requirementType === 'nature' ? 'mixed' : (normalized.requirementType || 'mixed'),
       ivConditions,
       ivStat: stat,
       ivThreshold: min,
-      requirements: { ...(quest.requirements || {}), ivConditions }
+      requirements: { ...(normalized.requirements || {}), ivConditions }
     };
   }
 
   if (mode === 1) {
-    const level = Math.max(12, quest?.level || (12 + Math.floor(Math.random() * 18)));
+    const level = Math.max(12, normalized?.level || (12 + Math.floor(Math.random() * 18)));
     return {
-      ...quest,
-      requirementType: quest.requirementType === 'nature' ? 'mixed' : (quest.requirementType || 'mixed'),
+      ...normalized,
+      requirementType: normalized.requirementType === 'nature' ? 'mixed' : (normalized.requirementType || 'mixed'),
       level,
-      requirements: { ...(quest.requirements || {}), level }
+      requirements: { ...(normalized.requirements || {}), level }
     };
   }
 
   const specialFlags = ['shinyRequired', 'alphaRequired', 'bondedRequired', 'hiddenAbilityRequired'];
   const chosen = specialFlags[Math.floor(Math.random() * specialFlags.length)];
   return {
-    ...quest,
-    requirementType: quest.requirementType === 'nature' ? 'mixed' : (quest.requirementType || 'mixed'),
+    ...normalized,
+    requirementType: normalized.requirementType === 'nature' ? 'mixed' : (normalized.requirementType || 'mixed'),
     [chosen]: true,
-    requirements: { ...(quest.requirements || {}), [chosen]: true }
+    requirements: { ...(normalized.requirements || {}), [chosen]: true }
   };
 }
 
@@ -471,6 +472,14 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
     specialFlags[pickRandom(specialKeys)] = true;
   }
 
+  const hasNonNatureRequirement = () => Boolean(
+    level
+    || (quantityRequired || 1) > 1
+    || ivConditions.length
+    || talentConditions.length
+    || Object.values(specialFlags).some(Boolean)
+  );
+
   const hasRequirement = Boolean(nature || level || ivConditions.length || talentConditions.length || Object.values(specialFlags).some(Boolean));
   if (!hasRequirement) {
     const fallbackType = weightedRoll([{ type: 'iv', weight: 3 }, { type: 'level', weight: 2 }, { type: 'nature', weight: 2 }, { type: 'special', weight: 1 }]).type;
@@ -479,6 +488,12 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
     else if (fallbackType === 'special') specialFlags[pickRandom(Object.keys(specialFlags))] = true;
     else nature = pickRandom(NATURES);
   }
+
+  if (!hasNonNatureRequirement()) {
+    ivConditions.push({ stat: pickRandom(IV_STATS), min: 12 + Math.floor(Math.random() * 7) });
+  }
+
+  const primaryIv = ivConditions[0] || null;
 
   const questValue = calculateQuestValue({ nature, level, ivConditions, talentConditions, specialFlags });
   const baselineTier = getDifficultyTier(questValue);
