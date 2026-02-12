@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -377,10 +377,10 @@ export default function BattlePage() {
       });
     } else {
       // Capture failed, enemy gets free turn
-      const enemyAvailableMoves = moves.filter(m => m.category !== 'Status').slice(0, 3);
-      const enemyMove = enemyAvailableMoves[Math.floor(Math.random() * enemyAvailableMoves.length)] || moves[0];
-      
       const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
+      const fallbackEnemyMoves = getEnemyBattleMoves(battleState.enemyPokemon);
+      const enemyMove = engine.chooseEnemyMove(fallbackEnemyMoves, battleState.playerPokemon, battleState) || fallbackEnemyMoves[0] || getMoveData('Tackle', battleState.enemyPokemon);
+
       const stateCopy = { ...battleState };
       
       // Enemy attacks
@@ -400,7 +400,7 @@ export default function BattlePage() {
           {
             turn: battleState.turnNumber,
             actor: battleState.enemyPokemon.species,
-            action: enemyMove.name,
+            action: enemyMove?.name || 'Tackle',
             result: `Dealt ${damage} damage to ${battleState.playerPokemon.species}`,
             synergyTriggered: false
           }
@@ -442,6 +442,27 @@ export default function BattlePage() {
     }
   };
 
+  const getEnemyBattleMoves = (enemyPokemon) => {
+    const moveNames = enemyPokemon?.abilities || [];
+    const resolvedMoves = moveNames
+      .map((moveName) => getMoveData(moveName, enemyPokemon))
+      .filter(Boolean);
+
+    if (resolvedMoves.length > 0) {
+      return resolvedMoves;
+    }
+
+    return moves.slice(0, 4).map((moveEntry) => {
+      if (typeof moveEntry === 'string') {
+        return getMoveData(moveEntry, enemyPokemon);
+      }
+      if (moveEntry?.name) {
+        return getMoveData(moveEntry.name, enemyPokemon);
+      }
+      return moveEntry;
+    }).filter(Boolean);
+  };
+
   // Use a move
   const useMove = async (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
@@ -449,9 +470,9 @@ export default function BattlePage() {
     // Initialize battle engine
     const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
 
-    // Enemy uses smart AI to choose best move
-    const enemyAvailableMoves = moves.slice(0, 4);
-    const enemyMove = engine.chooseEnemyMove(enemyAvailableMoves, battleState.playerPokemon);
+    // Enemy uses smart AI to choose best move from its own learned moves
+    const enemyAvailableMoves = getEnemyBattleMoves(battleState.enemyPokemon);
+    const enemyMove = engine.chooseEnemyMove(enemyAvailableMoves, battleState.playerPokemon, battleState) || enemyAvailableMoves[0];
 
     // Create a copy of battle state for engine to modify
     const stateCopy = { ...battleState };
@@ -815,9 +836,10 @@ export default function BattlePage() {
         switchTalentLogs.push({
           turn: newBattleState.turnNumber,
           actor: user?.nickname || user?.species,
-          action: talentDef?.name || 'Talent',
+          action: `Talent Triggered: ${talentDef?.name || 'Talent'}`,
           result: message,
-          synergyTriggered: true
+          synergyTriggered: true,
+          talentTriggered: true
         });
       },
       modifyStat: (targetPokemon, stat, stages) => {
@@ -1123,6 +1145,37 @@ export default function BattlePage() {
     setEvolutionState(null);
   };
 
+  // Compute latest talent triggers (must be called before any conditional returns)
+  const latestTalentTriggers = useMemo(() => {
+    if (!battleState?.battleLog?.length) {
+      return { player: null, enemy: null };
+    }
+
+    const findLatestFor = (pokemon) => {
+      if (!pokemon) return null;
+      const displayNames = [pokemon.nickname, pokemon.species].filter(Boolean);
+
+      for (let idx = battleState.battleLog.length - 1; idx >= 0; idx -= 1) {
+        const entry = battleState.battleLog[idx];
+        if (!entry?.talentTriggered) continue;
+        if (!displayNames.includes(entry.actor)) continue;
+
+        return {
+          turn: entry.turn,
+          action: entry.action,
+          result: entry.result
+        };
+      }
+
+      return null;
+    };
+
+    return {
+      player: findLatestFor(battleState?.playerPokemon),
+      enemy: findLatestFor(battleState?.enemyPokemon)
+    };
+  }, [battleState]);
+
   if (loadingPokemon) {
     return (
       <div>
@@ -1171,8 +1224,8 @@ export default function BattlePage() {
     );
   }
 
-  const isPlayerTurn = battleState.currentTurn === 'player';
-  const isBattleEnded = battleState.status === 'won' || battleState.status === 'lost';
+  const isPlayerTurn = battleState?.currentTurn === 'player';
+  const isBattleEnded = battleState?.status === 'won' || battleState?.status === 'lost';
 
   return (
     <div>
@@ -1206,6 +1259,7 @@ export default function BattlePage() {
             })()}
             status={battleState.enemyStatus}
             roles={battleState.enemyPokemon.roles || []}
+            activeTalentIndicator={latestTalentTriggers.enemy}
           />
 
           {/* VS Indicator */}
@@ -1230,6 +1284,7 @@ export default function BattlePage() {
             status={battleState.playerStatus}
             roles={battleState.playerPokemon.roles || []}
             isPlayer
+            activeTalentIndicator={latestTalentTriggers.player}
           />
 
           {/* Evolution Modal */}
@@ -1421,7 +1476,11 @@ export default function BattlePage() {
 
                // Return to exploration if this was a wild battle
                if (returnTo && battleState.isWildBattle) {
-                 navigate(`/${returnTo}`);
+                 const separator = returnTo.includes('?') ? '&' : '?';
+                 const battleOutcome = battleState.status === 'won' || battleState.status === 'captured'
+                   ? 'victory'
+                   : 'defeat';
+                 navigate(`/${returnTo}${separator}battleOutcome=${battleOutcome}`);
                } else {
                  setBattleState(null);
                  setWildPokemonId(null);
