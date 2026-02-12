@@ -101,6 +101,7 @@ function hasMeaningfulRequirement(quest = {}) {
     }
   })();
 
+
   const requirements = {
     ...(requirementsFromJson || {}),
     ...(quest.requirements || {})
@@ -124,6 +125,58 @@ function hasMeaningfulRequirement(quest = {}) {
     || requirements?.bondedRequired
     || requirements?.hiddenAbilityRequired
   );
+}
+
+
+function ensureQuestHasPersistableVariety(quest, seed = 0) {
+  const hasComplex = hasMeaningfulRequirement(quest);
+  const hasOnlyNature = hasComplex && Boolean(quest?.nature) && !(
+    quest?.level
+    || (quest?.quantityRequired || 1) > 1
+    || (quest?.ivConditions?.length || 0) > 0
+    || quest?.ivStat
+    || (quest?.talentConditions?.length || 0) > 0
+    || quest?.shinyRequired
+    || quest?.alphaRequired
+    || quest?.bondedRequired
+    || quest?.hiddenAbilityRequired
+  );
+
+  if (!hasOnlyNature) return quest;
+
+  const mode = seed % 3;
+  if (mode === 0) {
+    const stat = pickRandom(IV_STATS);
+    const min = 14 + Math.floor(Math.random() * 8);
+    const ivConditions = [{ stat, min }];
+    return {
+      ...quest,
+      requirementType: quest.requirementType === 'nature' ? 'mixed' : (quest.requirementType || 'mixed'),
+      ivConditions,
+      ivStat: stat,
+      ivThreshold: min,
+      requirements: { ...(quest.requirements || {}), ivConditions }
+    };
+  }
+
+  if (mode === 1) {
+    const level = Math.max(12, quest?.level || (12 + Math.floor(Math.random() * 18)));
+    return {
+      ...quest,
+      requirementType: quest.requirementType === 'nature' ? 'mixed' : (quest.requirementType || 'mixed'),
+      level,
+      requirements: { ...(quest.requirements || {}), level }
+    };
+  }
+
+  const specialFlags = ['shinyRequired', 'alphaRequired', 'bondedRequired', 'hiddenAbilityRequired'];
+  const chosen = specialFlags[Math.floor(Math.random() * specialFlags.length)];
+  return {
+    ...quest,
+    requirementType: quest.requirementType === 'nature' ? 'mixed' : (quest.requirementType || 'mixed'),
+    [chosen]: true,
+    requirements: { ...(quest.requirements || {}), [chosen]: true }
+  };
 }
 
 function serializeQuestForStorage(quest) {
@@ -294,7 +347,15 @@ export function normalizeQuestRequirements(quest) {
     nature: normalizedQuest.nature ?? normalizedQuest.requirements?.nature ?? null,
     level: normalizedQuest.level ?? normalizedQuest.requirements?.level ?? null,
     quantityRequired: normalizedQuest.quantityRequired ?? normalizedQuest.requiredCount ?? normalizedQuest.requirements?.quantityRequired ?? 1,
-    ivConditions: normalizedQuest.ivConditions?.length ? normalizedQuest.ivConditions : (normalizedQuest.requirements?.ivConditions || []),
+    ivConditions: normalizedQuest.ivConditions?.length
+      ? normalizedQuest.ivConditions
+      : (normalizedQuest.requirements?.ivConditions?.length
+        ? normalizedQuest.requirements.ivConditions
+        : (normalizedQuest.ivStat && normalizedQuest.ivThreshold != null
+          ? [{ stat: normalizedQuest.ivStat, min: normalizedQuest.ivThreshold }]
+          : [])),
+    ivStat: normalizedQuest.ivStat ?? normalizedQuest.requirements?.ivStat ?? null,
+    ivThreshold: normalizedQuest.ivThreshold ?? normalizedQuest.requirements?.ivThreshold ?? null,
     talentConditions: normalizedQuest.talentConditions?.length ? normalizedQuest.talentConditions : (normalizedQuest.requirements?.talentConditions || []),
     shinyRequired: Boolean(normalizedQuest.shinyRequired || normalizedQuest.requirements?.shinyRequired),
     alphaRequired: Boolean(normalizedQuest.alphaRequired || normalizedQuest.requirements?.alphaRequired),
@@ -307,6 +368,7 @@ export function normalizeQuestRequirements(quest) {
     || projected?.level
     || (projected?.quantityRequired || 1) > 1
     || (projected?.ivConditions?.length || 0) > 0
+    || (projected?.ivStat && projected?.ivThreshold != null)
     || (projected?.talentConditions?.length || 0) > 0
     || projected?.shinyRequired
     || projected?.alphaRequired
@@ -434,11 +496,12 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
     ? 'mixed'
     : (requirementKinds[0] || 'mixed');
 
+
   const requirements = {
     ...(nature ? { nature } : {}),
     ...(level ? { level } : {}),
     ...(quantityRequired > 1 ? { quantityRequired } : {}),
-    ...(ivConditions.length ? { ivConditions } : {}),
+    ...(ivConditions.length ? { ivConditions, ivStat: primaryIv?.stat, ivThreshold: primaryIv?.min } : {}),
     ...(talentConditions.length ? { talentConditions } : {}),
     ...Object.fromEntries(Object.entries(specialFlags).filter(([, enabled]) => enabled))
   };
@@ -466,6 +529,8 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
     level,
     quantityRequired,
     ivConditions,
+    ivStat: primaryIv?.stat || null,
+    ivThreshold: primaryIv?.min ?? null,
     talentConditions,
     ...specialFlags,
     questValue,
@@ -484,7 +549,7 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
 }
 
 export async function createGeneratedQuests({ base44, count, player, gameTime, analytics, progression }) {
-  const questsToCreate = Array.from({ length: count }, () => generateQuest(player, gameTime, { analytics, progression }));
+  const questsToCreate = Array.from({ length: count }, (_, index) => ensureQuestHasPersistableVariety(generateQuest(player, gameTime, { analytics, progression }), index));
   await Promise.all(questsToCreate.map((quest) => createQuestWithPersistenceGuard(base44, quest, 'initial_generation')));
 
   if (questsToCreate.length) {
@@ -524,7 +589,7 @@ export async function rerollQuestAction({ base44, quest, gameTime, analytics, pr
     transitionLog: appendTransitionLog(quest, 'rerolled', 'quest_rerolled')
   });
 
-  const replacement = generateQuest(latestPlayer, gameTime, { analytics, progression });
+  const replacement = ensureQuestHasPersistableVariety(generateQuest(latestPlayer, gameTime, { analytics, progression }), 0);
   await createQuestWithPersistenceGuard(base44, replacement, 'single_reroll');
 
   let nextAnalytics = updateAnalyticsForOutcome(analytics, quest.difficulty, 'rerolled');
@@ -564,7 +629,7 @@ export async function rerollAllQuestsAction({ base44, quests, gameTime, analytic
     transitionLog: appendTransitionLog(quest, 'rerolled', 'quest_rerolled')
   })));
 
-  const replacements = Array.from({ length: rerollableQuests.length }, () => generateQuest(latestPlayer, gameTime, { analytics, progression }));
+  const replacements = Array.from({ length: rerollableQuests.length }, (_, index) => ensureQuestHasPersistableVariety(generateQuest(latestPlayer, gameTime, { analytics, progression }), index));
   await Promise.all(replacements.map((quest) => createQuestWithPersistenceGuard(base44, quest, 'reroll_all')));
 
   let nextAnalytics = analytics;
