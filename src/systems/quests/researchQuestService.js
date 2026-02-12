@@ -55,6 +55,8 @@ const DIFFICULTY_TIERS = [
   { name: 'Legendary', min: 11, max: Infinity, difficultyMod: 6.0, trustGain: 14, notesGain: 6 }
 ];
 
+const DIFFICULTY_TIER_ORDER = DIFFICULTY_TIERS.map((tier) => tier.name);
+
 const CONDITION_POOL = [
   { type: 'nature', weight: 2 },
   { type: 'iv', weight: 4 },
@@ -241,6 +243,13 @@ function getDifficultyTier(weight) {
 
 function getDifficultyTierByName(name) {
   return DIFFICULTY_TIERS.find((tier) => tier.name === name) || DIFFICULTY_TIERS[0];
+}
+
+function chooseFinalDifficultyTier({ baselineTier, controllerTierName }) {
+  const controllerTier = getDifficultyTierByName(controllerTierName || baselineTier?.name);
+  const baselineIdx = DIFFICULTY_TIER_ORDER.indexOf(baselineTier?.name || 'Easy');
+  const controllerIdx = DIFFICULTY_TIER_ORDER.indexOf(controllerTier?.name || 'Easy');
+  return DIFFICULTY_TIERS[Math.max(baselineIdx, controllerIdx, 0)] || baselineTier || controllerTier || DIFFICULTY_TIERS[0];
 }
 
 
@@ -495,10 +504,17 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
 
   const primaryIv = ivConditions[0] || null;
 
-  const questValue = calculateQuestValue({ nature, level, ivConditions, talentConditions, specialFlags });
+  const questValue = calculateQuestValue({
+    nature,
+    level,
+    quantityRequired,
+    ivConditions,
+    talentConditions,
+    specialFlags
+  });
   const baselineTier = getDifficultyTier(questValue);
   const targetTierName = chooseTierByStrictController({ analytics: controllerContext.analytics, progression: controllerContext.progression });
-  const difficultyTier = getDifficultyTierByName(targetTierName || baselineTier.name);
+  const difficultyTier = chooseFinalDifficultyTier({ baselineTier, controllerTierName: targetTierName });
   const requirementKinds = [
     nature ? 'nature' : null,
     level ? 'level' : null,

@@ -1,10 +1,13 @@
-export const QUEST_VALUE_VERSION = 1;
+export const QUEST_VALUE_VERSION = 2;
 
 export const QUEST_VALUE_TUNING = {
   baseScore: 1,
   nature: {
     enabled: true,
     weight: 1
+  },
+  quantity: {
+    perAdditionalPokemonWeight: 1
   },
   level: {
     thresholds: [
@@ -14,8 +17,11 @@ export const QUEST_VALUE_TUNING = {
   },
   iv: {
     defaultWeight: 1,
+    thresholdStep: 3,
+    maxThresholdBonus: 4,
     highThresholds: [
-      { min: 21, weight: 2 }
+      { min: 21, weight: 2 },
+      { min: 25, weight: 3 }
     ]
   },
   talents: {
@@ -36,13 +42,20 @@ export const QUEST_VALUE_TUNING = {
   }
 };
 
-function getIvWeight(ivCondition) {
+function getIvWeight(ivCondition, tuning = QUEST_VALUE_TUNING) {
   if (!ivCondition) return 0;
-  const highMatch = QUEST_VALUE_TUNING.iv.highThresholds
-    .filter((entry) => (ivCondition.min || 0) >= entry.min)
+  const threshold = Number(ivCondition.min || 0);
+  const highMatch = (tuning.iv?.highThresholds || [])
+    .filter((entry) => threshold >= entry.min)
     .sort((a, b) => b.min - a.min)[0];
-  return highMatch?.weight ?? QUEST_VALUE_TUNING.iv.defaultWeight;
+
+  const baseline = highMatch?.weight ?? tuning.iv?.defaultWeight ?? 0;
+  const step = Math.max(1, tuning.iv?.thresholdStep || 3);
+  const rawBonus = Math.floor(Math.max(0, threshold - 12) / step);
+  const maxBonus = Math.max(0, tuning.iv?.maxThresholdBonus || 0);
+  return baseline + Math.min(rawBonus, maxBonus);
 }
+
 
 function getTalentCountBonus(count = 0) {
   const match = QUEST_VALUE_TUNING.talents.multiCountBonus
@@ -56,7 +69,8 @@ export function calculateQuestValue(requirements = {}, tuning = QUEST_VALUE_TUNI
     level,
     ivConditions = [],
     talentConditions = [],
-    specialFlags = {}
+    specialFlags = {},
+    quantityRequired = 1
   } = requirements;
 
   let score = tuning.baseScore || 0;
@@ -75,7 +89,7 @@ export function calculateQuestValue(requirements = {}, tuning = QUEST_VALUE_TUNI
 
   if (Array.isArray(ivConditions)) {
     ivConditions.forEach((ivCondition) => {
-      score += getIvWeight(ivCondition);
+      score += getIvWeight(ivCondition, tuning);
     });
   }
 
@@ -86,6 +100,11 @@ export function calculateQuestValue(requirements = {}, tuning = QUEST_VALUE_TUNI
       });
       score += getTalentCountBonus(condition.count || 0);
     });
+  }
+
+  const additionalQuantity = Math.max(0, (quantityRequired || 1) - 1);
+  if (additionalQuantity > 0) {
+    score += additionalQuantity * (tuning.quantity?.perAdditionalPokemonWeight || 0);
   }
 
   const enabledSpecialCount = Object.values(specialFlags).filter(Boolean).length;

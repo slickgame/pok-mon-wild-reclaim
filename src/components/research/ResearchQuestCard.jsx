@@ -4,6 +4,7 @@ import { Sparkles, Zap, RefreshCcw, ChevronDown, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
+import { ItemRegistry } from '@/components/data/ItemRegistry';
 import { formatTalentName } from '@/components/utils/talentUtils';
 import { formatQuestCard } from '@/components/research/questUtils';
 import talentTagIcons from '@/components/research/talentTagIcons.json';
@@ -42,6 +43,17 @@ function renderTagIcon(tag) {
   const normalized = tag?.toString?.().toLowerCase?.();
   const icon = talentTagIcons[normalized];
   return icon ? `${icon} ${tag}` : tag;
+}
+
+
+function formatItemLabel(itemId) {
+  if (!itemId) return 'Unknown item';
+  const item = ItemRegistry[itemId];
+  if (item?.name) return item.name;
+  return itemId
+    .toString()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function renderTalentRequirement(condition) {
@@ -86,6 +98,7 @@ export default function ResearchQuestCard({
   const rewardItems = quest.reward?.items || [];
   const rewardCategoryLabel = quest.reward?.rewardCategoryLabel;
   const possibleRewards = quest.reward?.possibleRewards || [];
+  const possibleRewardLabels = possibleRewards.map(formatItemLabel);
   const legacyDetails = quest.requirementType === 'nature' || quest.requirementType === 'iv';
   const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
   const submissionCount = getSubmissionCount(quest.id);
@@ -248,7 +261,7 @@ export default function ResearchQuestCard({
         {(possibleRewards.length > 0) && (
           <div className="text-xs text-slate-400">
             <span className="text-slate-500 uppercase tracking-wide text-[10px]">Possible Rewards</span>
-            <p className="mt-1 text-slate-300">{possibleRewards.slice(0, 4).join(', ')}</p>
+            <p className="mt-1 text-slate-300">{possibleRewardLabels.slice(0, 6).join(', ')}</p>
           </div>
         )}
 

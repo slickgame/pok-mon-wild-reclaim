@@ -80,6 +80,20 @@ test('quest value scoring increases with harder requirements', () => {
   assert.ok(harder > easy);
 });
 
+
+test('quest value increases with higher IV thresholds and quantity requirements', () => {
+  const lowIvSingle = calculateQuestValue({
+    ivConditions: [{ stat: 'SpAtk', min: 12 }],
+    quantityRequired: 1
+  });
+  const highIvMulti = calculateQuestValue({
+    ivConditions: [{ stat: 'SpAtk', min: 24 }],
+    quantityRequired: 3
+  });
+
+  assert.ok(highIvMulti > lowIvSingle);
+});
+
 test('strict controller respects hard locks for top tiers', () => {
   const tier = chooseTierByStrictController({
     analytics: {
