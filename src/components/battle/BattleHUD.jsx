@@ -49,7 +49,7 @@ function StatStageDisplay({ stat, stage }) {
   );
 }
 
-export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false, roles = [] }) {
+export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false, roles = [], activeTalentIndicator = null }) {
   const hpPercent = (hp / maxHp) * 100;
   const hpColor = hpPercent > 50 ? 'bg-emerald-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const statusKey = pokemon.status?.id || pokemon.activeStatus?.type || null;
@@ -72,6 +72,13 @@ export default function BattleHUD({ pokemon, hp, maxHp, status, isPlayer = false
             <Badge className="bg-slate-700/50 text-slate-300 text-xs">
               Lv. {pokemon.level}
             </Badge>
+
+          {activeTalentIndicator && (
+            <Badge className="bg-violet-500/20 text-violet-200 border-violet-400/50 text-[0.65rem] animate-pulse">
+              ✨ Talent Triggered
+            </Badge>
+          )}
+
           </div>
           {/* Roles */}
           {roles.length > 0 && (

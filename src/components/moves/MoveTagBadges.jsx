@@ -17,13 +17,21 @@ const getTagStyle = (tag) => {
     if (tag) {
       console.warn('Missing tag in registry:', tag);
     }
-    return 'bg-slate-700/50 text-slate-200 border border-slate-500/30';
+    return {};
   }
   return {
     backgroundColor: `${registryEntry.color}33`,
     borderColor: `${registryEntry.color}80`,
     color: registryEntry.color,
   };
+};
+
+const getTagClassName = (tag) => {
+  const registryEntry = resolveRegistryEntry(tag);
+  if (!registryEntry?.color) {
+    return 'bg-slate-700/50 text-slate-200 border-slate-500/30';
+  }
+  return '';
 };
 
 const normalizeTagClass = (tag) => {
@@ -41,7 +49,7 @@ export default function MoveTagBadges({ tags = [], className = '' }) {
           <Tooltip key={tag}>
             <TooltipTrigger asChild>
               <span
-                className={`move-tag tag-tooltip ${normalizeTagClass(tag)} text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide border ${
+                className={`move-tag tag-tooltip ${normalizeTagClass(tag)} ${getTagClassName(tag)} text-[0.65rem] px-2 py-0.5 rounded-full uppercase tracking-wide border ${
                   resolveRegistryEntry(tag) ? '' : 'unknown-tag'
                 }`}
                 style={getTagStyle(tag)}
