@@ -9,7 +9,8 @@ import {
   generateQuest,
   getQuestExpiryMinutes,
   rerollQuestAction,
-  acceptQuestAction
+  acceptQuestAction,
+  normalizeQuestRequirements
 } from '../researchQuestService.js';
 
 function createMockBase44(player = {}, quest = {}) {
@@ -193,6 +194,8 @@ test('generator produces varied requirement archetypes and mirrors requirements 
   let seenIv = 0;
   let seenTalent = 0;
   let seenQuantity = 0;
+  let seenLevel = 0;
+  let seenSpecial = 0;
   let seenMixed = 0;
 
   for (let i = 0; i < 300; i++) {
@@ -216,6 +219,14 @@ test('generator produces varied requirement archetypes and mirrors requirements 
       assert.ok((q.requirements?.quantityRequired || 1) > 1);
     }
 
+    if (q.level) {
+      seenLevel += 1;
+    }
+
+    if (q.shinyRequired || q.alphaRequired || q.bondedRequired || q.hiddenAbilityRequired) {
+      seenSpecial += 1;
+    }
+
     if (q.requirementType === 'mixed') {
       seenMixed += 1;
     }
@@ -224,7 +235,25 @@ test('generator produces varied requirement archetypes and mirrors requirements 
   assert.ok(seenIv > 0, 'expected at least one IV quest in sample');
   assert.ok(seenTalent > 0, 'expected at least one talent quest in sample');
   assert.ok(seenQuantity > 0, 'expected at least one multi-submit quest in sample');
+  assert.ok(seenLevel > 0, 'expected at least one level-gated quest in sample');
+  assert.ok(seenSpecial > 0, 'expected at least one special-condition quest in sample');
   assert.ok(seenMixed > 0, 'expected at least one mixed-requirement quest in sample');
+});
+
+test('normalization backfills reward preview metadata when missing', () => {
+  const normalized = normalizeQuestRequirements({
+    species: 'Caterpie',
+    rarity: 'common',
+    difficulty: 'Normal',
+    requirements: {
+      quantityRequired: 2,
+      level: 16,
+      talentConditions: [{ count: 2, grades: ['Basic', 'Rare'], requiredTags: [] }]
+    }
+  });
+
+  assert.ok(normalized.reward?.gold > 0);
+  assert.ok((normalized.reward?.possibleRewards || []).length > 0);
 });
 
 test('reroll cap transitions from free to paid after daily limit', async () => {

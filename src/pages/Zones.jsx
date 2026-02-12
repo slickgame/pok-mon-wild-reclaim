@@ -1103,7 +1103,8 @@ function ZoneDetailView({ zone, onBack }) {
           roles: wildData.roles,
           signatureMove: wildData.signatureMove,
           isInTeam: false,
-          isWild: true
+          isWild: true,
+          isWildInstance: true
         });
 
         logEntry.details = `Started battle with ${encounter.pokemon}`;

@@ -60,9 +60,9 @@ const DIFFICULTY_TIER_ORDER = DIFFICULTY_TIERS.map((tier) => tier.name);
 const CONDITION_POOL = [
   { type: 'nature', weight: 2 },
   { type: 'iv', weight: 4 },
-  { type: 'talent', weight: 3 },
-  { type: 'level', weight: 3 },
-  { type: 'special', weight: 2 }
+  { type: 'talent', weight: 4 },
+  { type: 'level', weight: 4 },
+  { type: 'special', weight: 3 }
 ];
 
 const IV_THRESHOLD_BUCKETS = [
@@ -333,6 +333,48 @@ export function getNextResetLabel(gameTime) {
   return getTimeLeftLabel(currentTotal, targetTotal).replace(' left', '');
 }
 
+function buildRewardIfMissing(projectedQuest = {}) {
+  if (projectedQuest?.reward?.gold != null) return projectedQuest.reward;
+
+  const specialFlags = {
+    shinyRequired: Boolean(projectedQuest.shinyRequired),
+    alphaRequired: Boolean(projectedQuest.alphaRequired),
+    bondedRequired: Boolean(projectedQuest.bondedRequired),
+    hiddenAbilityRequired: Boolean(projectedQuest.hiddenAbilityRequired)
+  };
+
+  const requirementKinds = [
+    projectedQuest.nature ? 'nature' : null,
+    projectedQuest.level ? 'level' : null,
+    (projectedQuest.ivConditions?.length || 0) > 0 ? 'iv' : null,
+    (projectedQuest.talentConditions?.length || 0) > 0 ? 'talent' : null,
+    Object.values(specialFlags).some(Boolean) ? 'special' : null,
+    (projectedQuest.quantityRequired || 1) > 1 ? 'quantity' : null
+  ].filter(Boolean);
+
+  const requirementType = projectedQuest.requirementType
+    || (requirementKinds.length > 1 ? 'mixed' : (requirementKinds[0] || 'mixed'));
+
+  const questValue = projectedQuest.questValue || projectedQuest.difficultyScore || calculateQuestValue({
+    nature: projectedQuest.nature,
+    level: projectedQuest.level,
+    quantityRequired: projectedQuest.quantityRequired || 1,
+    ivConditions: projectedQuest.ivConditions || [],
+    talentConditions: projectedQuest.talentConditions || [],
+    specialFlags
+  });
+
+  const difficultyTier = getDifficultyTierByName(projectedQuest.difficulty || getDifficultyTier(questValue).name);
+  return getRewardForQuest({
+    avgTargetLevel: projectedQuest.level || 10,
+    difficultyTier,
+    requirementType,
+    requirementKinds,
+    questValue,
+    progressionFactor: 0
+  });
+}
+
 export function normalizeQuestRequirements(quest) {
   const requirementsFromJson = (() => {
     if (!quest?.requirementsJson) return {};
@@ -395,7 +437,12 @@ export function normalizeQuestRequirements(quest) {
     || projected?.requirements?.hiddenAbilityRequired
   );
 
-  if (hasRequirement) return projected;
+  if (hasRequirement) {
+    return {
+      ...projected,
+      reward: projected.reward || buildRewardIfMissing(projected)
+    };
+  }
 
   const fallbackNature = pickRandom(NATURES);
   const nowMinutes = toTotalMinutes(normalizeGameTime(null));
@@ -412,7 +459,13 @@ export function normalizeQuestRequirements(quest) {
     expiresAtMinutes,
     questValue: projected.questValue || projected.difficultyScore || 1,
     questValueVersion: projected.questValueVersion || QUEST_VALUE_VERSION,
-    difficultyScore: projected.difficultyScore || projected.questValue || 1
+    difficultyScore: projected.difficultyScore || projected.questValue || 1,
+    reward: projected.reward || buildRewardIfMissing({
+      ...projected,
+      nature: fallbackNature,
+      requirementType: projected.requirementType || 'nature',
+      requirements: { ...(projected.requirements || {}), nature: fallbackNature }
+    })
   };
 }
 
@@ -437,8 +490,7 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
   const specialFlags = { shinyRequired: false, alphaRequired: false, bondedRequired: false, hiddenAbilityRequired: false };
 
   const desiredConditionCount = weightedRoll([{ count: 1, weight: 3 }, { count: 2, weight: 4 }, { count: 3, weight: 3 }]).count;
-  const hasTalentPool = getTalentPool(species).length > 0;
-  const conditionPool = CONDITION_POOL.filter((entry) => entry.type !== 'talent' || hasTalentPool);
+  const conditionPool = CONDITION_POOL;
 
   const pickedConditions = new Set();
   while (pickedConditions.size < Math.min(desiredConditionCount, conditionPool.length)) {
@@ -448,10 +500,10 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
   if (pickedConditions.has('nature')) nature = pickRandom(NATURES);
   if (pickedConditions.has('level')) level = Math.floor(Math.random() * 21) + 10;
 
-  if (Math.random() < 0.28) {
+  if (Math.random() < 0.45) {
     quantityRequired = rarity === 'rare'
-      ? 2
-      : (Math.random() < 0.35 ? 3 : 2);
+      ? (Math.random() < 0.55 ? 2 : 3)
+      : (Math.random() < 0.4 ? 3 : 2);
   }
 
   if (pickedConditions.has('iv')) {
@@ -467,13 +519,11 @@ export function generateQuest(player, gameTime, controllerContext = {}) {
 
   if (pickedConditions.has('talent')) {
     const talentPool = getTalentPool(species);
-    if (talentPool.length) {
-      const count = Math.random() < 0.5 ? 2 : 3;
-      const grades = Array.from({ length: count }, () => weightedRoll(TALENT_GRADES).grade);
-      const talentTags = talentPool.map((talentId) => TalentRegistry[talentId]?.tagsAffected || []).flat();
-      const useTag = Math.random() < 0.2 && talentTags.length;
-      talentConditions.push({ count, grades, requiredTags: useTag ? [pickRandom(talentTags)] : [] });
-    }
+    const count = Math.random() < 0.5 ? 2 : 3;
+    const grades = Array.from({ length: count }, () => weightedRoll(TALENT_GRADES).grade);
+    const talentTags = talentPool.map((talentId) => TalentRegistry[talentId]?.tagsAffected || []).flat();
+    const useTag = Math.random() < 0.2 && talentTags.length;
+    talentConditions.push({ count, grades, requiredTags: useTag ? [pickRandom(talentTags)] : [] });
   }
 
   if (pickedConditions.has('special')) {
