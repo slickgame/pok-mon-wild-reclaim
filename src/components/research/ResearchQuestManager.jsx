@@ -392,6 +392,26 @@ function getTimeLeft(expiresAtMinutes, currentTime) {
   return getTimeLeftLabel(currentTotal, expiresAtMinutes);
 }
 
+function getQuestDurationLabel(quest) {
+  const durationMinutes = getQuestDurationMinutes({
+    rarity: quest?.rarity,
+    difficultyTier: quest?.difficulty || 'Normal'
+  });
+  
+  const days = Math.floor(durationMinutes / TIME_CONSTANTS.MINUTES_PER_DAY);
+  if (days >= TIME_CONSTANTS.DAYS_PER_MONTH) {
+    return '1 month';
+  } else if (days >= 7) {
+    const weeks = Math.floor(days / 7);
+    return `${weeks} week${weeks > 1 ? 's' : ''}`;
+  } else if (days > 0) {
+    return `${days} day${days > 1 ? 's' : ''}`;
+  } else {
+    const hours = Math.floor(durationMinutes / 60);
+    return `${hours} hour${hours > 1 ? 's' : ''}`;
+  }
+}
+
 function getNextResetLabel(gameTime) {
   const normalized = normalizeGameTime(gameTime);
   const currentTotal = toTotalMinutes(normalized);
