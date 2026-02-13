@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Map, Search, Compass, Eye, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,13 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 import { 
@@ -163,6 +170,7 @@ function ZoneDetailView({ zone, onBack }) {
   const [currentEncounter, setCurrentEncounter] = useState(null);
   const [zoneProgress, setZoneProgress] = useState(null);
   const [selectedNodelet, setSelectedNodelet] = useState(null);
+  const [activeNodelet, setActiveNodelet] = useState(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -336,9 +344,38 @@ function ZoneDetailView({ zone, onBack }) {
       return false;
     }
   };
+
+  const handleExploreNodelet = async (nodelet) => {
+    const availableSpecies = nodelet?.wildPokemon || [];
+    if (!availableSpecies.length) {
+      setExplorationEvents(prev => [{
+        title: '🌿 Quiet Location',
+        description: `${nodelet.name} has no active encounter table yet.`,
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+      return;
+    }
+
+    const species = availableSpecies[Math.floor(Math.random() * availableSpecies.length)];
+    await startNodeletWildEncounter({
+      species,
+      level: 7 + Math.floor(Math.random() * 5),
+      nodelet,
+      battleType: 'locationExplore'
+    });
+  };
   
   const handleNodeletInspect = (nodelet) => {
     setSelectedNodelet(nodelet);
+  };
+
+  const handleEnterNodelet = (nodelet) => {
+    setActiveNodelet(nodelet);
+  };
+
+  const handleLeaveNodelet = () => {
+    setActiveNodelet(null);
   };
 
   const handleNodeletAction = async (nodelet, action) => {
@@ -743,6 +780,7 @@ function ZoneDetailView({ zone, onBack }) {
 
       const refreshedNodelet = updatedNodelets.find((currentNodelet) => currentNodelet.id === nodelet.id);
       setSelectedNodelet(refreshedNodelet || null);
+      setActiveNodelet(refreshedNodelet || null);
     } catch (error) {
       console.error('Failed to update nodelet:', error);
     }
@@ -778,6 +816,7 @@ function ZoneDetailView({ zone, onBack }) {
 
         return nextNodelet;
       });
+      const updatedActiveNodelet = updatedNodelets.find((nodelet) => nodelet.id === nodeletId);
 
       try {
         const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
@@ -786,6 +825,7 @@ function ZoneDetailView({ zone, onBack }) {
             existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
           )
         );
+        setActiveNodelet(updatedActiveNodelet || null);
 
         if (nodeletBattleType === 'eclipse') {
           setExplorationEvents(prev => [{
@@ -1530,7 +1570,7 @@ function ZoneDetailView({ zone, onBack }) {
                       key={idx}
                       onClick={() => {
                         if (isDiscovered) {
-                          handleNodeletInspect(nodelet);
+                          handleEnterNodelet(nodelet);
                         }
                       }}
                       disabled={!isDiscovered}
@@ -1571,8 +1611,178 @@ function ZoneDetailView({ zone, onBack }) {
               No places discovered yet.
             </div>
           )}
+
+          {activeNodelet && (
+            <div className="glass rounded-xl p-4 border border-indigo-500/30">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="text-base font-semibold text-white">{activeNodelet.name}</h3>
+                  <p className="text-xs text-slate-400">{activeNodelet.type} Location</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                    onClick={() => handleExploreNodelet(activeNodelet)}
+                  >
+                    Explore Location
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-700 text-slate-200"
+                    onClick={() => handleNodeletInspect(activeNodelet)}
+                  >
+                    Details
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-700 text-slate-200"
+                    onClick={handleLeaveNodelet}
+                  >
+                    Leave
+                  </Button>
+                </div>
+              </div>
+
+              {activeNodelet.description && (
+                <p className="text-sm text-slate-300 mb-3">{activeNodelet.description}</p>
+              )}
+
+              {activeNodelet.gameplayFeatures?.length > 0 && (
+                <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300 mb-3">
+                  {activeNodelet.gameplayFeatures.map((feature) => (
+                    <li key={feature}>{feature}</li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {activeNodelet.actions?.map((actionLabel) => {
+                  const currentProgress = zoneProgress?.discoveryProgress || 0;
+                  const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
+                  const isLocked = currentProgress < unlockAt;
+
+                  return (
+                    <Button
+                      key={`active-${actionLabel}`}
+                      size="sm"
+                      variant="outline"
+                      disabled={isLocked}
+                      className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
+                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      onClick={() => handleNodeletAction(activeNodelet, actionLabel)}
+                    >
+                      {isLocked ? `${actionLabel} 🔒` : actionLabel}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      <Dialog
+        open={Boolean(selectedNodelet)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNodelet(null);
+        }}
+      >
+        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl">
+          {selectedNodelet && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-white flex items-center gap-2">
+                  <Map className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
+                </DialogTitle>
+                <DialogDescription className="text-slate-300">
+                  {selectedNodelet.description || 'A location within Verdant Hollow.'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 text-sm">
+                {selectedNodelet.gameplayFeatures?.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Gameplay Features</h4>
+                    <ul className="list-disc pl-5 space-y-1 text-slate-300">
+                      {selectedNodelet.gameplayFeatures.map((feature) => (
+                        <li key={feature}>{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InfoPills title="NPCs" values={selectedNodelet.npcs} />
+                  <InfoPills title="Items" values={selectedNodelet.items} />
+                  <InfoPills title="Wild Pokémon" values={selectedNodelet.wildPokemon} />
+                  <InfoPills title="Enemy NPCs" values={selectedNodelet.enemyNPCs} />
+                </div>
+
+                {selectedNodelet.actions?.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Available Actions</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedNodelet.actions.map((action) => (
+                        <Badge key={action} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
+                          {action}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedNodelet.isComingSoon && (
+                  <p className="text-amber-300 text-xs bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+                    Coming Soon: Honey lure encounter mechanics and delayed ambush resolution.
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {selectedNodelet.actions?.map((actionLabel) => {
+                    const currentProgress = zoneProgress?.discoveryProgress || 0;
+                    const unlockAt = selectedNodelet.unlockDiscoveryProgress || 0;
+                    const isLocked = currentProgress < unlockAt;
+
+                    return (
+                      <Button
+                        key={actionLabel}
+                        size="sm"
+                        variant="outline"
+                        disabled={isLocked}
+                        className={`border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20 ${
+                          isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        onClick={() => handleNodeletAction(selectedNodelet, actionLabel)}
+                      >
+                        {isLocked ? `${actionLabel} 🔒` : actionLabel}
+                      </Button>
+                    );
+                  })}
+
+                  {(zoneProgress?.discoveryProgress || 0) < (selectedNodelet.unlockDiscoveryProgress || 0) && (
+                    <Badge className="bg-amber-500/20 text-amber-200 border-amber-500/30">
+                      Unlocks at {selectedNodelet.unlockDiscoveryProgress}% discovery
+                    </Badge>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-700 text-slate-200"
+                    onClick={() => setSelectedNodelet(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {activeSection === 'camp' && (
         <div className="glass rounded-xl p-6 space-y-4">
@@ -1704,3 +1914,19 @@ function ZoneDetailView({ zone, onBack }) {
   );
 }
 
+function InfoPills({ title, values = [] }) {
+  if (!values.length) return null;
+
+  return (
+    <div>
+      <h4 className="text-white font-semibold mb-2">{title}</h4>
+      <div className="flex flex-wrap gap-2">
+        {values.map((value) => (
+          <Badge key={`${title}-${value}`} className="bg-slate-800/80 text-slate-200 border-slate-600">
+            {value}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
