@@ -1,4 +1,4 @@
-import { PokemonRegistry } from '@/components/data/PokemonRegistry';
+import { PokemonRegistry, getPokemonData } from '@/components/data/PokemonRegistry';
 import { DropTableRegistry } from '@/components/data/DropTableRegistry';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 import { assignRandomTalents } from '@/components/utils/talentAssignment';
@@ -54,6 +54,8 @@ function convertPokemonData(jsonData) {
     })),
     talentPool: jsonData.talentPool,
     battleRole: jsonData.battleRole,
+    passiveAbilities: jsonData.passiveAbilities || [],
+    hiddenAbility: jsonData.hiddenAbility || null,
     signatureMove: jsonData.signatureMove,
     learnset: jsonData.learnset,
     catchRate: jsonData.catchRate / 255,
@@ -68,6 +70,11 @@ export const wildPokemonData = {
   Butterfree: convertPokemonData(PokemonRegistry.butterfree),
   Pidgey: convertPokemonData(PokemonRegistry.pidgey),
   Pikachu: convertPokemonData(PokemonRegistry.pikachu),
+  Cherubi: convertPokemonData(PokemonRegistry.cherubi),
+  Cherrim: convertPokemonData(PokemonRegistry.cherrim),
+  Bounsweet: convertPokemonData(PokemonRegistry.bounsweet),
+  Steenee: convertPokemonData(PokemonRegistry.steenee),
+  Tsareena: convertPokemonData(PokemonRegistry.tsareena),
 
   Oddish: {
     species: "Oddish",
@@ -426,7 +433,7 @@ export function randomNature() {
 }
 
 export function assignWildTalents(species) {
-  const speciesData = PokemonRegistry[species?.toLowerCase()];
+  const speciesData = getPokemonData(species);
   if (!speciesData) return [];
   return assignRandomTalents(speciesData);
 }
@@ -462,6 +469,59 @@ export function rollEncounter(encounterTable, party, environment) {
   return null;
 }
 
+
+export function createWildPokemonInstance(species, options = {}) {
+  const registrySpecies = getPokemonData(species);
+  const speciesData = wildPokemonData[species] || (registrySpecies ? convertPokemonData(registrySpecies) : null);
+  if (!speciesData?.species) {
+    console.error(`Cannot create wild Pokémon instance for unknown species: ${species}`);
+    return null;
+  }
+
+  const level = typeof options.level === 'number' ? options.level : randomLevel(5, 12);
+  const ivs = options.ivs || generateRandomIVs();
+  const nature = options.nature || randomNature();
+
+  let moves = [];
+  if (Array.isArray(speciesData.learnset)) {
+    const learnableMoves = speciesData.learnset
+      .filter((m) => m.level <= level)
+      .sort((a, b) => a.level - b.level);
+    moves = learnableMoves.slice(-4).map((m) => m.move || m.name).filter(Boolean);
+  } else if (speciesData.learnset && typeof speciesData.learnset === 'object') {
+    const availableMoves = [];
+    for (const [learnLevel, movesAtLevel] of Object.entries(speciesData.learnset)) {
+      if (parseInt(learnLevel, 10) <= level) {
+        availableMoves.push(...movesAtLevel);
+      }
+    }
+    moves = availableMoves.slice(-4);
+  }
+
+  if (moves.length === 0) {
+    moves = ['Tackle', 'Growl'];
+  }
+
+  return {
+    species: speciesData.species,
+    level,
+    nature,
+    ivs,
+    evs: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+    type1: speciesData.type1,
+    type2: speciesData.type2,
+    currentHp: null,
+    abilities: moves,
+    passiveAbilities: speciesData.passiveAbilities || [],
+    hiddenAbility: speciesData.hiddenAbility || null,
+    talents: options.talents || assignWildTalents(speciesData.species),
+    roles: [speciesData.battleRole],
+    signatureMove: speciesData.signatureMove,
+    isWild: true,
+    _speciesData: speciesData
+  };
+}
+
 // Calculate XP gained from wild Pokémon (scaled by level)
 export function calculateWildXP(speciesData, level, isTrainerBattle = false) {
   const multiplier = isTrainerBattle ? 1.5 : 1.0;
@@ -484,53 +544,34 @@ export function rollItemDrops(speciesData) {
 // Create wild Pokémon instance
 export function generateWildPokemon(encounterTable) {
   const encounter = selectWildEncounter(encounterTable);
-  const speciesData = wildPokemonData[encounter.species];
-  
+
+  let speciesData = wildPokemonData[encounter.species];
   if (!speciesData) {
-    console.error(`No data found for species: ${encounter.species}`);
+    const fallbackEncounter = encounterTable.encounters.find((candidate) => wildPokemonData[candidate.species]);
+    if (fallbackEncounter) {
+      const fallbackSpecies = fallbackEncounter.species;
+      speciesData = wildPokemonData[fallbackSpecies];
+      console.warn(`No data found for species: ${encounter.species}. Falling back to ${fallbackSpecies}.`);
+    } else {
+      const fallbackSpecies = 'Pidgey';
+      speciesData = wildPokemonData[fallbackSpecies] || null;
+      console.warn(`No valid species in encounter table. Falling back to ${fallbackSpecies}.`);
+    }
+  }
+
+  if (!speciesData) {
+    console.error('No valid Pokémon species data found for wild encounter generation.');
     return null;
   }
-  
+
   const level = randomLevel(encounter.levelRange[0], encounter.levelRange[1]);
   const ivs = generateRandomIVs();
   const nature = randomNature();
-  
-  // Select moves based on level
-  let moves = [];
-  if (Array.isArray(speciesData.learnset)) {
-    // New format: learnset is array of move objects
-    const learnableMoves = speciesData.learnset
-      .filter(m => m.level <= level)
-      .sort((a, b) => a.level - b.level);
-    moves = learnableMoves.slice(-4).map(m => m.move || m.name);
-  } else {
-    // Old format: learnset is object with level keys
-    const availableMoves = [];
-    for (const [learnLevel, movesAtLevel] of Object.entries(speciesData.learnset)) {
-      if (parseInt(learnLevel) <= level) {
-        availableMoves.push(...movesAtLevel);
-      }
-    }
-    moves = availableMoves.slice(-4);
-  }
-  
-  // Assign random talents from pool
-  const talents = assignWildTalents(speciesData.species);
-  
-  return {
-    species: speciesData.species,
+
+  return createWildPokemonInstance(speciesData.species, {
     level,
-    nature,
     ivs,
-    evs: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 },
-    type1: speciesData.type1,
-    type2: speciesData.type2,
-    currentHp: null, // Will be calculated
-    abilities: moves,
-    talents,
-    roles: [speciesData.battleRole],
-    signatureMove: speciesData.signatureMove,
-    isWild: true,
-    _speciesData: speciesData // Store for rewards calculation
-  };
+    nature,
+    talents: assignWildTalents(speciesData.species)
+  });
 }

@@ -904,7 +904,376 @@ export const TalentEffectHandlers = {
         return { dodged: true };
       }
     }
+  },
+  berryAroma: {
+    Basic: ({ user, move, addBattleLog }) => {
+      if (move?.effect !== 'drain' || !user?.stats?.maxHp) return;
+      const bonus = Math.max(1, Math.floor(user.stats.maxHp * 0.03));
+      user.currentHp = Math.min(user.stats.maxHp, (user.currentHp ?? user.stats.maxHp) + bonus);
+      addBattleLog?.('Berry Aroma amplified restorative nutrients.');
+    },
+    Rare: ({ user, move, addBattleLog }) => {
+      if (move?.effect !== 'drain' || !user?.stats?.maxHp) return;
+      const bonus = Math.max(1, Math.floor(user.stats.maxHp * 0.05));
+      user.currentHp = Math.min(user.stats.maxHp, (user.currentHp ?? user.stats.maxHp) + bonus);
+      addBattleLog?.('Berry Aroma greatly amplified restorative nutrients.');
+    },
+    Epic: ({ user, move, addBattleLog }) => {
+      if (move?.effect !== 'drain' || !user?.stats?.maxHp) return;
+      const bonus = Math.max(1, Math.floor(user.stats.maxHp * 0.08));
+      user.currentHp = Math.min(user.stats.maxHp, (user.currentHp ?? user.stats.maxHp) + bonus);
+      addBattleLog?.('Berry Aroma supercharged restorative nutrients.');
+    }
+  },
+  sunSip: {
+    Basic: ({ user, weather, addBattleLog }) => {
+      if (weather !== 'sun' || !user?.stats?.maxHp) return;
+      const heal = Math.max(1, Math.floor(user.stats.maxHp * 0.03));
+      user.currentHp = Math.min(user.stats.maxHp, (user.currentHp ?? user.stats.maxHp) + heal);
+      addBattleLog?.('Sun Sip restored HP in sunlight.');
+    },
+    Rare: ({ user, weather, addBattleLog }) => {
+      if (weather !== 'sun' || !user?.stats?.maxHp) return;
+      const heal = Math.max(1, Math.floor(user.stats.maxHp * 0.05));
+      user.currentHp = Math.min(user.stats.maxHp, (user.currentHp ?? user.stats.maxHp) + heal);
+      addBattleLog?.('Sun Sip restored more HP in sunlight.');
+    },
+    Epic: ({ user, weather, addBattleLog }) => {
+      if (weather !== 'sun' || !user?.stats?.maxHp) return;
+      const heal = Math.max(1, Math.floor(user.stats.maxHp * 0.08));
+      user.currentHp = Math.min(user.stats.maxHp, (user.currentHp ?? user.stats.maxHp) + heal);
+      addBattleLog?.('Sun Sip flourished in sunlight.');
+    }
+  },
+  seedReserve: {
+    Basic: ({ user, damage, modifyStat, addBattleLog }) => {
+      if (!damage || !user?.stats?.maxHp || user.currentHp > user.stats.maxHp * 0.5 || user.__seedReserveUsed) return;
+      modifyStat?.(user, 'defense', 1);
+      user.__seedReserveUsed = true;
+      addBattleLog?.('Seed Reserve hardened defenses.');
+    },
+    Rare: ({ user, damage, modifyStat, addBattleLog }) => {
+      if (!damage || !user?.stats?.maxHp || user.currentHp > user.stats.maxHp * 0.5 || user.__seedReserveUsed) return;
+      modifyStat?.(user, 'defense', 1);
+      modifyStat?.(user, 'spDef', 1);
+      user.__seedReserveUsed = true;
+      addBattleLog?.('Seed Reserve strengthened both defenses.');
+    },
+    Epic: ({ user, damage, modifyStat, addBattleLog }) => {
+      if (!damage || !user?.stats?.maxHp || user.currentHp > user.stats.maxHp * 0.5 || user.__seedReserveUsed) return;
+      modifyStat?.(user, 'defense', 2);
+      modifyStat?.(user, 'spDef', 1);
+      user.__seedReserveUsed = true;
+      addBattleLog?.('Seed Reserve fortified the user.');
+    }
+  },
+  petalGuard: {
+    Basic: ({ user, target, move, addBattleLog }) => {
+      if (user !== target || move?.category !== 'Status' || !move?.accuracy) return;
+      move.accuracy = Math.max(1, Math.floor(move.accuracy * 0.9));
+      addBattleLog?.('Petal Guard reduced incoming status accuracy.');
+    },
+    Rare: ({ user, target, move, addBattleLog }) => {
+      if (user !== target || move?.category !== 'Status' || !move?.accuracy) return;
+      move.accuracy = Math.max(1, Math.floor(move.accuracy * 0.82));
+      addBattleLog?.('Petal Guard strongly reduced incoming status accuracy.');
+    },
+    Epic: ({ user, target, move, addBattleLog }) => {
+      if (user !== target || move?.category !== 'Status' || !move?.accuracy) return;
+      move.accuracy = Math.max(1, Math.floor(move.accuracy * 0.72));
+      addBattleLog?.('Petal Guard sharply reduced incoming status accuracy.');
+    }
+  },
+  orchardRhythm: {
+    Basic: ({ user, move, modifyStat, addBattleLog }) => {
+      if (move?.category !== 'Status' || Math.random() > 0.2) return;
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Orchard Rhythm granted momentum.');
+    },
+    Rare: ({ user, move, modifyStat, addBattleLog }) => {
+      if (move?.category !== 'Status' || Math.random() > 0.35) return;
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Orchard Rhythm boosted Speed.');
+    },
+    Epic: ({ user, move, modifyStat, addBattleLog }) => {
+      if (move?.category !== 'Status' || Math.random() > 0.5) return;
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Orchard Rhythm surged Speed.');
+    }
+  },
+  sweetCanopy: {
+    Basic: ({ user, move, damage, addBattleLog }) => {
+      if (!damage || move?.category !== 'Special') return;
+      const heal = Math.max(1, Math.floor(damage * 0.05));
+      user.currentHp = Math.min(user.stats?.maxHp || user.currentHp, user.currentHp + heal);
+      addBattleLog?.('Sweet Canopy softened the special blow.');
+    },
+    Rare: ({ user, move, damage, addBattleLog }) => {
+      if (!damage || move?.category !== 'Special') return;
+      const heal = Math.max(1, Math.floor(damage * 0.08));
+      user.currentHp = Math.min(user.stats?.maxHp || user.currentHp, user.currentHp + heal);
+      addBattleLog?.('Sweet Canopy softened much of the special blow.');
+    },
+    Epic: ({ user, move, damage, addBattleLog }) => {
+      if (!damage || move?.category !== 'Special') return;
+      const heal = Math.max(1, Math.floor(damage * 0.12));
+      user.currentHp = Math.min(user.stats?.maxHp || user.currentHp, user.currentHp + heal);
+      addBattleLog?.('Sweet Canopy absorbed the special impact.');
+    }
+  },
+  fruitfulBloom: {
+    Basic: ({ user, move, addBattleLog }) => {
+      if (!user?.stats?.maxHp || user.currentHp > user.stats.maxHp * 0.5 || (move?.effect !== 'drain' && move?.effect !== 'healSelf')) return;
+      const heal = Math.max(1, Math.floor(user.stats.maxHp * 0.1));
+      user.currentHp = Math.min(user.stats.maxHp, user.currentHp + heal);
+      addBattleLog?.('Fruitful Bloom strengthened recovery.');
+    },
+    Rare: ({ user, move, addBattleLog }) => {
+      if (!user?.stats?.maxHp || user.currentHp > user.stats.maxHp * 0.5 || (move?.effect !== 'drain' && move?.effect !== 'healSelf')) return;
+      const heal = Math.max(1, Math.floor(user.stats.maxHp * 0.18));
+      user.currentHp = Math.min(user.stats.maxHp, user.currentHp + heal);
+      addBattleLog?.('Fruitful Bloom greatly strengthened recovery.');
+    },
+    Epic: ({ user, move, addBattleLog }) => {
+      if (!user?.stats?.maxHp || user.currentHp > user.stats.maxHp * 0.5 || (move?.effect !== 'drain' && move?.effect !== 'healSelf')) return;
+      const heal = Math.max(1, Math.floor(user.stats.maxHp * 0.25));
+      user.currentHp = Math.min(user.stats.maxHp, user.currentHp + heal);
+      addBattleLog?.('Fruitful Bloom maximized recovery.');
+    }
+  },
+  solarNectar: {
+    Basic: ({ user, move, weather, addBattleLog }) => {
+      if (weather !== 'sun' || move?.type !== 'Grass' || !move.power) return;
+      move.power = Math.floor(move.power * 1.08);
+      addBattleLog?.('Solar Nectar empowered Grass moves.');
+    },
+    Rare: ({ user, move, weather, addBattleLog }) => {
+      if (weather !== 'sun' || move?.type !== 'Grass' || !move.power) return;
+      move.power = Math.floor(move.power * 1.12);
+      addBattleLog?.('Solar Nectar greatly empowered Grass moves.');
+    },
+    Epic: ({ user, move, weather, addBattleLog }) => {
+      if (weather !== 'sun' || move?.type !== 'Grass' || !move.power) return;
+      move.power = Math.floor(move.power * 1.18);
+      addBattleLog?.('Solar Nectar massively empowered Grass moves.');
+    }
+  },
+  harvestPulse: {
+    Basic: ({ user, weather, addBattleLog }) => {
+      if (weather !== 'sun' || user.__harvestPulseUsed || Math.random() > 0.1) return;
+      user.__harvestPulseUsed = true;
+      user.__berryRefreshReady = true;
+      addBattleLog?.('Harvest Pulse prepared a berry refresh.');
+    },
+    Rare: ({ user, weather, addBattleLog }) => {
+      if (weather !== 'sun' || user.__harvestPulseUsed || Math.random() > 0.15) return;
+      user.__harvestPulseUsed = true;
+      user.__berryRefreshReady = true;
+      addBattleLog?.('Harvest Pulse prepared an enhanced berry refresh.');
+    },
+    Epic: ({ user, weather, addBattleLog }) => {
+      if (weather !== 'sun' || user.__harvestPulseUsed || Math.random() > 0.25) return;
+      user.__harvestPulseUsed = true;
+      user.__berryRefreshReady = true;
+      addBattleLog?.('Harvest Pulse guaranteed a potent berry refresh.');
+    }
+  },
+  sweetRush: {
+    Basic: ({ user, addBattleLog, modifyStat }) => {
+      if (!user?.stats?.maxHp || user.currentHp < user.stats.maxHp * 0.75 || Math.random() > 0.1) return;
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Sweet Rush increased Speed.');
+    },
+    Rare: ({ user, addBattleLog, modifyStat }) => {
+      if (!user?.stats?.maxHp || user.currentHp < user.stats.maxHp * 0.7 || Math.random() > 0.18) return;
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Sweet Rush sharply increased Speed.');
+    },
+    Epic: ({ user, addBattleLog, modifyStat }) => {
+      if (!user?.stats?.maxHp || user.currentHp < user.stats.maxHp * 0.65 || Math.random() > 0.28) return;
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Sweet Rush surged forward.');
+    }
+  },
+  queenlyPoise: {
+    Basic: ({ attacker, addBattleLog, modifyStat }) => {
+      if (!attacker || Math.random() > 0.2) return;
+      modifyStat?.(attacker, 'atk', -1);
+      addBattleLog?.('Queenly Poise weakened the attacker.');
+    },
+    Rare: ({ attacker, addBattleLog, modifyStat }) => {
+      if (!attacker || Math.random() > 0.3) return;
+      modifyStat?.(attacker, 'atk', -1);
+      addBattleLog?.('Queenly Poise punished aggression.');
+    },
+    Epic: ({ attacker, addBattleLog, modifyStat }) => {
+      if (!attacker || Math.random() > 0.4) return;
+      modifyStat?.(attacker, 'atk', -1);
+      modifyStat?.(attacker, 'speed', -1);
+      addBattleLog?.('Queenly Poise severely disrupted the attacker.');
+    }
+  },
+  tropicGuard: {
+    Basic: ({ move }) => {
+      if (move?.category !== 'Special' || !move?.power) return;
+      move.power = Math.floor(move.power * 0.95);
+    },
+    Rare: ({ move }) => {
+      if (move?.category !== 'Special' || !move?.power) return;
+      move.power = Math.floor(move.power * 0.9);
+    },
+    Epic: ({ move }) => {
+      if (move?.category !== 'Special' || !move?.power) return;
+      move.power = Math.floor(move.power * 0.85);
+    }
+  },
+  velvetAroma: {
+    Basic: ({ move }) => {
+      if (!move) return;
+      if (move.effect === 'healSelf' && move.healPercentage) move.healPercentage *= 1.08;
+      if (move.effect === 'drain' && move.drainPercentage) move.drainPercentage *= 1.08;
+    },
+    Rare: ({ move }) => {
+      if (!move) return;
+      if (move.effect === 'healSelf' && move.healPercentage) move.healPercentage *= 1.14;
+      if (move.effect === 'drain' && move.drainPercentage) move.drainPercentage *= 1.14;
+    },
+    Epic: ({ move }) => {
+      if (!move) return;
+      if (move.effect === 'healSelf' && move.healPercentage) move.healPercentage *= 1.2;
+      if (move.effect === 'drain' && move.drainPercentage) move.drainPercentage *= 1.2;
+    }
+  },
+  stompTempo: {
+    Basic: ({ move }) => {
+      if (move?.category !== 'Physical' || !move?.power) return;
+      move.power = Math.floor(move.power * 1.06);
+    },
+    Rare: ({ move }) => {
+      if (move?.category !== 'Physical' || !move?.power) return;
+      move.power = Math.floor(move.power * 1.1);
+    },
+    Epic: ({ move }) => {
+      if (move?.category !== 'Physical' || !move?.power) return;
+      move.power = Math.floor(move.power * 1.15);
+    }
+  },
+  crownStep: {
+    Basic: ({ move, target, modifyStat, addBattleLog }) => {
+      if (move?.name !== 'Trop Kick' || Math.random() > 0.15) return;
+      modifyStat?.(target, 'speed', -1);
+      addBattleLog?.('Crown Step also lowered the target\'s Speed.');
+    },
+    Rare: ({ move, target, modifyStat, addBattleLog }) => {
+      if (move?.name !== 'Trop Kick' || Math.random() > 0.25) return;
+      modifyStat?.(target, 'speed', -1);
+      addBattleLog?.('Crown Step pressured the target\'s Speed.');
+    },
+    Epic: ({ move, target, modifyStat, addBattleLog }) => {
+      if (move?.name !== 'Trop Kick' || Math.random() > 0.4) return;
+      modifyStat?.(target, 'speed', -1);
+      addBattleLog?.('Crown Step crushed the target\'s pace.');
+    }
+  },
+  petalWard: {
+    Basic: ({ user, addBattleLog }) => {
+      if (!user?.status || Math.random() > 0.1) return;
+      user.status = null;
+      addBattleLog?.('Petal Ward cleansed status.');
+    },
+    Rare: ({ user, addBattleLog }) => {
+      if (!user?.status || Math.random() > 0.18) return;
+      user.status = null;
+      addBattleLog?.('Petal Ward cleansed status.');
+    },
+    Epic: ({ user, addBattleLog }) => {
+      if (!user?.status || Math.random() > 0.28) return;
+      user.status = null;
+      addBattleLog?.('Petal Ward purified all status pressure.');
+    }
+  },
+  sunlitStride: {
+    Basic: ({ weather, user, modifyStat, addBattleLog }) => {
+      if (weather !== 'sun' || Math.random() > 0.15) return;
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Sunlit Stride boosted Speed.');
+    },
+    Rare: ({ weather, user, modifyStat, addBattleLog }) => {
+      if (weather !== 'sun' || Math.random() > 0.25) return;
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Sunlit Stride boosted Speed.');
+    },
+    Epic: ({ weather, user, modifyStat, addBattleLog }) => {
+      if (weather !== 'sun' || Math.random() > 0.35) return;
+      modifyStat?.(user, 'speed', 1);
+      modifyStat?.(user, 'atk', 1);
+      addBattleLog?.('Sunlit Stride boosted Speed and Attack.');
+    }
+  },
+  royalHarvest: {
+    Basic: ({ user }) => {
+      if (!user || user.__royalHarvestUsed || Math.random() > 0.08) return;
+      user.__royalHarvestUsed = true;
+      user.__berryRefreshReady = true;
+    },
+    Rare: ({ user }) => {
+      if (!user || user.__royalHarvestUsed || Math.random() > 0.14) return;
+      user.__royalHarvestUsed = true;
+      user.__berryRefreshReady = true;
+    },
+    Epic: ({ user }) => {
+      if (!user || user.__royalHarvestUsed || Math.random() > 0.22) return;
+      user.__royalHarvestUsed = true;
+      user.__berryRefreshReady = true;
+    }
+  },
+  majesticFlourish: {
+    Basic: ({ user, modifyStat, addBattleLog }) => {
+      if (user.__majesticFlourishUsed) return;
+      user.__majesticFlourishUsed = true;
+      modifyStat?.(user, 'atk', 1);
+      addBattleLog?.('Majestic Flourish raised Attack.');
+    },
+    Rare: ({ user, modifyStat, addBattleLog }) => {
+      if (user.__majesticFlourishUsed) return;
+      user.__majesticFlourishUsed = true;
+      modifyStat?.(user, 'atk', 1);
+      modifyStat?.(user, 'defense', 1);
+      addBattleLog?.('Majestic Flourish raised Attack and Defense.');
+    },
+    Epic: ({ user, modifyStat, addBattleLog }) => {
+      if (user.__majesticFlourishUsed) return;
+      user.__majesticFlourishUsed = true;
+      modifyStat?.(user, 'atk', 1);
+      modifyStat?.(user, 'defense', 1);
+      modifyStat?.(user, 'speed', 1);
+      addBattleLog?.('Majestic Flourish raised Attack, Defense, and Speed.');
+    }
+  },
+  verdantGift: {
+    Basic: ({ user, weather, modifyStat, addBattleLog }) => {
+      if (weather !== 'sun' || user.__verdantGiftUsed) return;
+      modifyStat?.(user, 'spDef', 1);
+      user.__verdantGiftUsed = true;
+      addBattleLog?.('Verdant Gift raised Sp. Def in sunlight.');
+    },
+    Rare: ({ user, weather, modifyStat, addBattleLog }) => {
+      if (weather !== 'sun' || user.__verdantGiftUsed) return;
+      modifyStat?.(user, 'spDef', 1);
+      modifyStat?.(user, 'spAtk', 1);
+      user.__verdantGiftUsed = true;
+      addBattleLog?.('Verdant Gift raised Sp. Def and Sp. Atk in sunlight.');
+    },
+    Epic: ({ user, weather, modifyStat, addBattleLog }) => {
+      if (weather !== 'sun' || user.__verdantGiftUsed) return;
+      modifyStat?.(user, 'spDef', 1);
+      modifyStat?.(user, 'spAtk', 1);
+      modifyStat?.(user, 'speed', 1);
+      user.__verdantGiftUsed = true;
+      addBattleLog?.('Verdant Gift fully blossomed in sunlight.');
+    }
   }
+
 };
 
 function healAllies(allies, user, addBattleLog) {

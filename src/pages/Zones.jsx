@@ -27,7 +27,8 @@ import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 import { 
   verdantHollowEncounters, 
-  generateWildPokemon
+  generateWildPokemon,
+  createWildPokemonInstance
 } from '@/components/zones/wildPokemonData';
 import { VERDANT_HOLLOW_NODELETS, shouldSeedVerdantNodelets } from '@/components/zones/verdantHollowNodelets';
 
@@ -257,21 +258,14 @@ function ZoneDetailView({ zone, onBack }) {
           )
         );
 
+        const revenantTemplate = createWildPokemonInstance(encounter.species, { level });
+        if (!revenantTemplate) return;
+
         const revenantPokemon = await base44.entities.Pokemon.create({
-          species: encounter.species,
-          level,
+          ...revenantTemplate,
           isInTeam: false,
           isWild: true,
-          isRevenant: true,
-          stats: {
-            hp: level * 11,
-            maxHp: level * 11,
-            atk: level * 6,
-            def: level * 5,
-            spAtk: level * 6,
-            spDef: level * 5,
-            spd: level * 5
-          }
+          isRevenant: true
         });
 
         setExplorationEvents(prev => [{
@@ -301,23 +295,55 @@ function ZoneDetailView({ zone, onBack }) {
     runChallenge();
   };
 
-  const startNodeletWildEncounter = async ({ species, level = 8, nodelet, battleType = 'wild' }) => {
+  const buildTrainerRoster = ({ nodelet, leadSpecies, level = 8 }) => {
+    const speciesPool = Array.from(new Set([
+      leadSpecies,
+      ...(nodelet?.wildPokemon || [])
+    ].filter(Boolean)));
+
+    if (speciesPool.length === 0) {
+      return [];
+    }
+
+    const minTeamSize = 3;
+    const maxTeamSize = 6;
+    const teamSize = Math.floor(Math.random() * (maxTeamSize - minTeamSize + 1)) + minTeamSize;
+
+    const selected = [leadSpecies];
+    while (selected.length < teamSize) {
+      const randomSpecies = speciesPool[Math.floor(Math.random() * speciesPool.length)] || leadSpecies;
+      selected.push(randomSpecies);
+    }
+
+    return selected.map((speciesName, index) => ({
+      species: speciesName,
+      level: Math.max(1, (level || 8) + index)
+    }));
+  };
+
+  const startNodeletWildEncounter = async ({ species, level = 8, nodelet, battleType = 'wild', extraState = {}, isTrainerNPC = false, trainerName = null }) => {
     try {
-      const wildPokemon = await base44.entities.Pokemon.create({
-        species,
-        level,
-        isInTeam: false,
-        isWild: true,
-        stats: {
-          hp: level * 10,
-          maxHp: level * 10,
-          atk: level * 5,
-          def: level * 4,
-          spAtk: level * 5,
-          spDef: level * 4,
-          spd: level * 5
-        }
-      });
+      const rosterPlan = isTrainerNPC
+        ? buildTrainerRoster({ nodelet, leadSpecies: species, level })
+        : [{ species, level }];
+
+      const rosterInstances = [];
+      for (const entry of rosterPlan) {
+        const wildTemplate = createWildPokemonInstance(entry.species, { level: entry.level });
+        if (!wildTemplate) continue;
+
+        const createdPokemon = await base44.entities.Pokemon.create({
+          ...wildTemplate,
+          isInTeam: false,
+          isWild: !isTrainerNPC,
+          isTrainerNPC,
+          trainerName
+        });
+        rosterInstances.push(createdPokemon);
+      }
+
+      const wildPokemon = rosterInstances[0];
+      if (!wildPokemon) return false;
 
       setExplorationEvents(prev => [{
         title: '⚔️ Location Encounter',
@@ -335,7 +361,10 @@ function ZoneDetailView({ zone, onBack }) {
             zoneId: zone.id,
             nodeletId: nodelet.id,
             battleType
-          }
+          },
+          trainerRoster: isTrainerNPC ? rosterInstances : undefined,
+          encounterPokemonIds: rosterInstances.map((pokemon) => pokemon.id),
+          ...extraState
         }
       });
       return true;
@@ -345,9 +374,43 @@ function ZoneDetailView({ zone, onBack }) {
     }
   };
 
+  const maybeTriggerEnemyNPCEncounter = async (nodelet, chance = 0.2) => {
+    const contractState = getBrambleberryContractState(nodelet);
+    const scaledChance = nodelet?.id === 'vh-brambleberry-thicket'
+      ? chance + (contractState.tier1Completed ? 0.06 : 0) + (contractState.tier2Completed ? 0.08 : 0)
+      : chance;
+
+    if (!nodelet?.enemyNPCs?.length || Math.random() > scaledChance) {
+      return false;
+    }
+
+    const enemyTrainer = nodelet.enemyNPCs[Math.floor(Math.random() * nodelet.enemyNPCs.length)];
+    const encounter = getNodeletEncounter(nodelet, 'Explore') || { species: nodelet.wildPokemon?.[0], level: 10 };
+    if (!encounter?.species) return false;
+
+    setExplorationEvents(prev => [{
+      title: '⚔️ Trainer Ambush',
+      description: `${enemyTrainer} challenged you near ${nodelet.name}.`,
+      type: 'special',
+      rarity: 'rare'
+    }, ...prev].slice(0, 10));
+
+    return startNodeletWildEncounter({
+      species: encounter.species,
+      level: (encounter.level || 10) + 1,
+      nodelet,
+      battleType: 'enemyNpc',
+      isTrainerNPC: true,
+      trainerName: enemyTrainer
+    });
+  };
+
   const handleExploreNodelet = async (nodelet) => {
-    const availableSpecies = nodelet?.wildPokemon || [];
-    if (!availableSpecies.length) {
+    const enemyTriggered = await maybeTriggerEnemyNPCEncounter(nodelet, 0.18);
+    if (enemyTriggered) return;
+
+    const encounter = getNodeletEncounter(nodelet, 'Explore');
+    if (!encounter?.species) {
       setExplorationEvents(prev => [{
         title: '🌿 Quiet Location',
         description: `${nodelet.name} has no active encounter table yet.`,
@@ -357,10 +420,9 @@ function ZoneDetailView({ zone, onBack }) {
       return;
     }
 
-    const species = availableSpecies[Math.floor(Math.random() * availableSpecies.length)];
     await startNodeletWildEncounter({
-      species,
-      level: 7 + Math.floor(Math.random() * 5),
+      species: encounter.species,
+      level: encounter.level,
       nodelet,
       battleType: 'locationExplore'
     });
@@ -406,12 +468,12 @@ function ZoneDetailView({ zone, onBack }) {
     };
 
     const now = new Date().toISOString();
-    const nowDate = new Date();
+    const nowGameTs = getCurrentGameTimestamp();
 
     if (action === 'Harvest') {
       const berryPool = ['Oran Berry', 'Pecha Berry', 'Cheri Berry'];
       const berry = berryPool[Math.floor(Math.random() * berryPool.length)];
-      const bonusYield = nodelet.replantReadyAt && new Date(nodelet.replantReadyAt) <= nowDate ? 1 : 0;
+      const bonusYield = nodelet.replantReadyAt && toNodeletTimestamp(nodelet.replantReadyAt) <= nowGameTs ? 1 : 0;
       try {
         await upsertItem(berry, 1, { type: 'Consumable', description: 'A berry harvested in Verdant Hollow' });
 
@@ -422,12 +484,19 @@ function ZoneDetailView({ zone, onBack }) {
           });
         }
 
-        if (Math.random() < 0.25) {
-          const localSpecies = nodelet.wildPokemon?.length ? nodelet.wildPokemon : ['Oddish', 'Caterpie', 'Pidgey'];
-          const encounteredSpecies = localSpecies[Math.floor(Math.random() * localSpecies.length)];
+        const poacherChance = nodelet.id === 'vh-brambleberry-thicket' ? 0.22 : 0.12;
+        const poacherTriggered = await maybeTriggerEnemyNPCEncounter(nodelet, poacherChance);
+        if (poacherTriggered) {
+          return;
+        }
+
+        const harvestEncounterChance = (nodelet.harvestStreak || 0) >= 2 ? 0.38 : 0.25;
+        if (Math.random() < harvestEncounterChance) {
+          const encounter = getNodeletEncounter(nodelet, 'Harvest');
+          const encounteredSpecies = encounter?.species;
           const started = await startNodeletWildEncounter({
             species: encounteredSpecies,
-            level: 6 + Math.floor(Math.random() * 3),
+            level: encounter?.level || (6 + Math.floor(Math.random() * 3)),
             nodelet,
             battleType: 'berry'
           });
@@ -516,17 +585,23 @@ function ZoneDetailView({ zone, onBack }) {
 
       try {
         await base44.entities.Item.update(bait.id, { quantity: Math.max(0, (bait.quantity || 0) - 1) });
-        const fishPool = nodelet.wildPokemon?.length ? nodelet.wildPokemon : ['Magikarp', 'Poliwag'];
-        const hooked = fishPool[Math.floor(Math.random() * fishPool.length)];
-        const hasSurveyBuff = nodelet.surveyBuffUntil && new Date(nodelet.surveyBuffUntil) > nowDate;
+        const fishEncounter = getNodeletEncounter(nodelet, 'Fish') || { species: 'Magikarp', level: 7 };
+        const hooked = fishEncounter.species;
+        const hasSurveyBuff = nodelet.surveyBuffUntil && toNodeletTimestamp(nodelet.surveyBuffUntil) > nowGameTs;
+        const isNight = (gameTime?.currentHour ?? 12) >= 18 || (gameTime?.currentHour ?? 12) < 6;
+        const isBog = nodelet.id === 'vh-mosswater-bog';
+        const escapePenalty = isBog ? 10 : 0;
         const loot = hasSurveyBuff || Math.random() < 0.6 ? 'Bog Reed' : 'River Stone';
 
         if (Math.random() < (hasSurveyBuff ? 0.45 : 0.25)) {
           const started = await startNodeletWildEncounter({
             species: hooked,
-            level: 7 + Math.floor(Math.random() * 3),
+            level: fishEncounter.level,
             nodelet,
-            battleType: 'fishing'
+            battleType: 'fishing',
+            extraState: {
+              locationHazardEscapePenalty: isBog ? 15 : 0
+            }
           });
 
           if (started) {
@@ -538,7 +613,7 @@ function ZoneDetailView({ zone, onBack }) {
         queryClient.invalidateQueries({ queryKey: ['items'] });
         setExplorationEvents(prev => [{
           title: '🎣 Fishing Success',
-          description: `Hooked signs of ${hooked} and collected ${loot}.`,
+          description: `Hooked signs of ${hooked}${isNight && isBog ? ' (night waters)' : ''} and collected ${loot}.${escapePenalty ? ' Mud is thick: flee chance reduced in this area.' : ''}`,
           type: 'special',
           rarity: 'uncommon'
         }, ...prev].slice(0, 10));
@@ -573,9 +648,15 @@ function ZoneDetailView({ zone, onBack }) {
     }
 
     if (action === 'Inspect Corruption') {
+      const puzzleRoll = Math.random();
+      const puzzleHint = puzzleRoll < 0.33
+        ? 'Water resonance pattern logged.'
+        : puzzleRoll < 0.66
+          ? 'Strange spores orbit the spring core.'
+          : 'Corruption signature mapped to Eclipse residue.';
       setExplorationEvents(prev => [{
         title: '🔍 Corruption Scanned',
-        description: 'The spring pulses with Eclipse residue. Challenge is now available.',
+        description: `The spring pulses with Eclipse residue. ${puzzleHint} Challenge is now available.`,
         type: 'special',
         rarity: 'uncommon'
       }, ...prev].slice(0, 10));
@@ -627,7 +708,7 @@ function ZoneDetailView({ zone, onBack }) {
     }
 
     if (action === 'Harvest Hive') {
-      if (!nodelet.lureReadyAt || new Date(nodelet.lureReadyAt) > nowDate) {
+      if (!nodelet.lureReadyAt || toNodeletTimestamp(nodelet.lureReadyAt) > nowGameTs) {
         setExplorationEvents(prev => [{
           title: '🐝 Hive Dormant',
           description: 'Set a lure and wait a little before harvesting the hive.',
@@ -659,7 +740,7 @@ function ZoneDetailView({ zone, onBack }) {
     }
 
     if (action === 'Defend Apiary') {
-      if (!nodelet.lureReadyAt || new Date(nodelet.lureReadyAt) > nowDate) {
+      if (!nodelet.lureReadyAt || toNodeletTimestamp(nodelet.lureReadyAt) > nowGameTs) {
         setExplorationEvents(prev => [{
           title: '🛡️ Nothing to Defend Yet',
           description: 'Set a lure and wait for swarms before defending the apiary.',
@@ -669,11 +750,10 @@ function ZoneDetailView({ zone, onBack }) {
         return;
       }
 
-      const defenders = nodelet.wildPokemon?.length ? nodelet.wildPokemon : ['Combee', 'Burmy'];
-      const defenderSpecies = defenders[Math.floor(Math.random() * defenders.length)];
+      const defendEncounter = getNodeletEncounter(nodelet, 'DefendApiary') || { species: 'Combee', level: 10 };
       const started = await startNodeletWildEncounter({
-        species: defenderSpecies,
-        level: 10 + Math.floor(Math.random() * 3),
+        species: defendEncounter.species,
+        level: defendEncounter.level,
         nodelet,
         battleType: 'apiary'
       });
@@ -686,11 +766,45 @@ function ZoneDetailView({ zone, onBack }) {
     const updatedNodelets = (zone.nodelets || []).map((currentNodelet) => {
       if (currentNodelet.id !== nodelet.id) return currentNodelet;
 
+      const objectives = currentNodelet.objectives || [];
+      const objective = objectives.find((entry) => entry.action === action);
+      const objectiveProgress = { ...(currentNodelet.objectiveProgress || {}) };
+      const objectiveCompletedAt = { ...(currentNodelet.objectiveCompletedAt || {}) };
+      const objectiveHistory = [...(currentNodelet.objectiveHistory || [])];
+
+      if (objective) {
+        const completedAt = objectiveCompletedAt[objective.id];
+        const cooldownEnd = completedAt
+          ? (typeof completedAt === 'number' ? completedAt : new Date(completedAt).getTime()) + (objective.repeatMinutes || 0) * 60 * 1000
+          : null;
+        const onCooldown = Boolean(cooldownEnd && cooldownEnd > nowGameTs);
+
+        if (!onCooldown) {
+          const progress = (objectiveProgress[objective.id] || 0) + 1;
+          if (progress >= (objective.goal || 1)) {
+            objectiveProgress[objective.id] = 0;
+            objectiveCompletedAt[objective.id] = nowGameTs;
+            objectiveHistory.unshift({
+              id: objective.id,
+              label: objective.label,
+              completedAt: nowGameTs,
+              reward: objective.reward || {},
+              claimedAt: null
+            });
+          } else {
+            objectiveProgress[objective.id] = progress;
+          }
+        }
+      }
+
       if (action === 'Purify Spring') {
         return {
           ...currentNodelet,
           eclipseControlled: false,
           isCompleted: true,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
           lastAction: action,
           lastActionAt: now
         };
@@ -701,6 +815,9 @@ function ZoneDetailView({ zone, onBack }) {
           ...currentNodelet,
           eclipseControlled: false,
           isCompleted: true,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
           lastAction: action,
           lastActionAt: now
         };
@@ -709,7 +826,10 @@ function ZoneDetailView({ zone, onBack }) {
       if (action === 'Replant') {
         return {
           ...currentNodelet,
-          replantReadyAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          replantReadyAt: nowGameTs + 30 * 60 * 1000,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
           lastAction: action,
           lastActionAt: now
         };
@@ -718,7 +838,10 @@ function ZoneDetailView({ zone, onBack }) {
       if (action === 'Survey Pool') {
         return {
           ...currentNodelet,
-          surveyBuffUntil: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+          surveyBuffUntil: nowGameTs + 20 * 60 * 1000,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
           lastAction: action,
           lastActionAt: now
         };
@@ -728,7 +851,10 @@ function ZoneDetailView({ zone, onBack }) {
         return {
           ...currentNodelet,
           lureSetAt: now,
-          lureReadyAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+          lureReadyAt: nowGameTs + 15 * 60 * 1000,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
           lastAction: action,
           lastActionAt: now
         };
@@ -737,13 +863,21 @@ function ZoneDetailView({ zone, onBack }) {
       if (action === 'Harvest') {
         return {
           ...currentNodelet,
+          harvestStreak: (currentNodelet.harvestStreak || 0) + 1,
           replantReadyAt:
-            currentNodelet.replantReadyAt && new Date(currentNodelet.replantReadyAt) <= nowDate
+            currentNodelet.replantReadyAt && toNodeletTimestamp(currentNodelet.replantReadyAt) <= nowGameTs
               ? null
               : currentNodelet.replantReadyAt,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
           lastAction: action,
           lastActionAt: now
         };
+      }
+
+      if (action === 'HarvestHive') {
+        // backward-compat typo guard
       }
 
       if (action === 'Harvest Hive') {
@@ -751,6 +885,10 @@ function ZoneDetailView({ zone, onBack }) {
           ...currentNodelet,
           lureSetAt: null,
           lureReadyAt: null,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
+          harvestStreak: action === 'Harvest' ? (currentNodelet.harvestStreak || 0) : 0,
           lastAction: action,
           lastActionAt: now
         };
@@ -759,6 +897,10 @@ function ZoneDetailView({ zone, onBack }) {
       if (nodelet.actions?.includes(action)) {
         return {
           ...currentNodelet,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
+          harvestStreak: action === 'Harvest' ? (currentNodelet.harvestStreak || 0) : 0,
           lastAction: action,
           lastActionAt: now
         };
@@ -781,8 +923,87 @@ function ZoneDetailView({ zone, onBack }) {
       const refreshedNodelet = updatedNodelets.find((currentNodelet) => currentNodelet.id === nodelet.id);
       setSelectedNodelet(refreshedNodelet || null);
       setActiveNodelet(refreshedNodelet || null);
+
+      const pendingRewards = getUnclaimedObjectiveRewards(refreshedNodelet || nodelet);
+      if (pendingRewards.length > 0) {
+        setExplorationEvents(prev => [{
+          title: '🏁 Objective Complete',
+          description: `${pendingRewards.length} reward${pendingRewards.length > 1 ? 's are' : ' is'} ready to claim at ${nodelet.name}.`,
+          type: 'special',
+          rarity: 'rare'
+        }, ...prev].slice(0, 10));
+      }
     } catch (error) {
       console.error('Failed to update nodelet:', error);
+    }
+  };
+
+
+  const handleClaimNodeletRewards = async (nodelet) => {
+    const pending = getUnclaimedObjectiveRewards(nodelet);
+    if (!pending.length) {
+      setExplorationEvents((prev) => [{
+        title: '📘 No Rewards Pending',
+        description: `${nodelet.name} has no claimable rewards right now.`,
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+      return;
+    }
+
+    try {
+      const latestPlayers = await base44.entities.Player.list();
+      const latestPlayer = latestPlayers?.[0] || player;
+      const totalGold = pending.reduce((sum, entry) => sum + (entry.reward?.gold || 0), 0);
+
+      if (totalGold > 0 && latestPlayer?.id) {
+        await base44.entities.Player.update(latestPlayer.id, {
+          gold: (latestPlayer.gold || 0) + totalGold
+        });
+        queryClient.invalidateQueries({ queryKey: ['player'] });
+      }
+
+      for (const entry of pending) {
+        if (Array.isArray(entry.reward?.items)) {
+          for (const rewardItem of entry.reward.items) {
+            await upsertItem(rewardItem.name, rewardItem.quantity || 1, {
+              type: 'Material',
+              rarity: 'Uncommon',
+              description: `Objective reward from ${nodelet.name}`
+            });
+          }
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+
+      const claimTime = getCurrentGameTimestamp();
+      const updatedNodelets = (zone.nodelets || []).map((existingNodelet) => {
+        if (existingNodelet.id !== nodelet.id) return existingNodelet;
+        const updatedHistory = (existingNodelet.objectiveHistory || []).map((entry) =>
+          entry.claimedAt ? entry : { ...entry, claimedAt: claimTime }
+        );
+        return { ...existingNodelet, objectiveHistory: updatedHistory };
+      });
+
+      const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
+      queryClient.setQueryData(['zones'], (existingZones = []) =>
+        existingZones.map((existingZone) =>
+          existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
+        )
+      );
+
+      const refreshedNodelet = updatedNodelets.find((entry) => entry.id === nodelet.id);
+      setActiveNodelet(refreshedNodelet || null);
+      setSelectedNodelet(refreshedNodelet || null);
+
+      setExplorationEvents((prev) => [{
+        title: '🎁 Rewards Claimed',
+        description: `Claimed ${pending.length} objective reward${pending.length > 1 ? 's' : ''}${totalGold ? ` (+${totalGold}g)` : ''}.`,
+        type: 'special',
+        rarity: 'rare'
+      }, ...prev].slice(0, 10));
+    } catch (error) {
+      console.error('Failed to claim nodelet rewards:', error);
     }
   };
 
@@ -1335,6 +1556,113 @@ function ZoneDetailView({ zone, onBack }) {
   }, [partyPokemon, player]);
   const activeQuests = player?.activeQuests || [];
 
+  const getNodeletEncounter = (nodelet, trigger = 'Explore') => {
+    const isNight = (gameTime?.currentHour ?? 12) >= 18 || (gameTime?.currentHour ?? 12) < 6;
+    const harvestStreak = nodelet?.harvestStreak || 0;
+    const encounterTables = nodelet?.encounterTables || {};
+
+    let table = encounterTables[trigger];
+    if (!table?.length && trigger === 'Explore') {
+      table = isNight ? encounterTables.ExploreNight : encounterTables.ExploreDay;
+    }
+    const contractState = getBrambleberryContractState(nodelet);
+    if (!table?.length && trigger === 'Harvest' && (harvestStreak >= 3 || contractState.tier2Completed)) {
+      table = encounterTables.HarvestStreak;
+    }
+    if (!table?.length) {
+      table = encounterTables.Explore || encounterTables.ExploreDay || [];
+    }
+    if (!table.length) return null;
+
+    const adjustedTable = table.map((entry) => {
+      if (nodelet?.id !== 'vh-brambleberry-thicket') return entry;
+      const species = entry.species;
+      let bonus = 0;
+      if (contractState.tier1Completed && species === 'Cherubi') bonus += 4;
+      if (contractState.tier2Completed && species === 'Bounsweet') bonus += 6;
+      return { ...entry, weight: (entry.weight || 0) + bonus };
+    });
+
+    const totalWeight = adjustedTable.reduce((sum, entry) => sum + (entry.weight || 0), 0);
+    if (totalWeight <= 0) return table[0] || null;
+
+    let random = Math.random() * totalWeight;
+    for (const entry of adjustedTable) {
+      random -= entry.weight || 0;
+      if (random <= 0) {
+        const [min = 7, max = 10] = entry.levelRange || [7, 10];
+        const level = Math.floor(Math.random() * (max - min + 1)) + min;
+        return { species: entry.species, level };
+      }
+    }
+
+    const fallback = adjustedTable[0] || table[0];
+    const [min = 7, max = 10] = fallback.levelRange || [7, 10];
+    return { species: fallback.species, level: Math.floor(Math.random() * (max - min + 1)) + min };
+  };
+
+  const getCurrentGameTimestamp = () => {
+    const year = gameTime?.year || 0;
+    const month = gameTime?.month || 0;
+    const day = gameTime?.day || gameTime?.currentDay || 1;
+    const hour = gameTime?.currentHour || 0;
+    const minute = gameTime?.currentMinute || 0;
+    return new Date(Date.UTC(year, month, day, hour, minute, 0)).getTime();
+  };
+
+  const toNodeletTimestamp = (value) => {
+    if (typeof value === 'number') return value;
+    if (!value) return null;
+    const parsed = new Date(value).getTime();
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const getBrambleberryContractState = (nodelet) => {
+    const history = Array.isArray(nodelet?.objectiveHistory) ? nodelet.objectiveHistory : [];
+    const isClaimed = (id) => history.some((entry) => entry.id === id && Boolean(entry.claimedAt));
+    const completed = (id) => history.filter((entry) => entry.id === id).length;
+
+    return {
+      tier1Completed: completed('merra-contract-tier1') > 0,
+      tier2Completed: completed('merra-contract-tier2') > 0,
+      tier1Claimed: isClaimed('merra-contract-tier1'),
+      tier2Claimed: isClaimed('merra-contract-tier2'),
+      tier1Runs: completed('merra-contract-tier1'),
+      tier2Runs: completed('merra-contract-tier2')
+    };
+  };
+
+  const getUnclaimedObjectiveRewards = (nodelet) =>
+    (Array.isArray(nodelet?.objectiveHistory) ? nodelet.objectiveHistory : []).filter((entry) => !entry.claimedAt);
+
+  const getObjectiveState = (nodelet) => {
+    const now = getCurrentGameTimestamp();
+    return (nodelet?.objectives || []).map((objective) => {
+      const progress = nodelet?.objectiveProgress?.[objective.id] || 0;
+      const completedAt = nodelet?.objectiveCompletedAt?.[objective.id];
+      const nextAvailableAt = completedAt
+        ? (typeof completedAt === 'number' ? completedAt : new Date(completedAt).getTime()) + (objective.repeatMinutes || 0) * 60 * 1000
+        : null;
+      const cooldownMs = nextAvailableAt ? Math.max(0, nextAvailableAt - now) : 0;
+      const inCooldown = Boolean(nextAvailableAt && cooldownMs > 0);
+
+      return {
+        ...objective,
+        progress,
+        isComplete: progress >= (objective.goal || 1),
+        inCooldown,
+        cooldownMs,
+      };
+    });
+  };
+
+  const formatCooldown = (ms) => {
+    const totalMinutes = Math.ceil(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  };
+
   const currentTimeTotal = toTotalMinutes(normalizeGameTime(gameTime));
 
   const getQuestTimeLeft = (quest) => {
@@ -1658,7 +1986,106 @@ function ZoneDetailView({ zone, onBack }) {
                 </ul>
               )}
 
+              {Array.isArray(activeNodelet.npcHooks) && activeNodelet.npcHooks.length > 0 && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 mb-3">
+                  <h4 className="text-xs font-semibold text-amber-200 mb-2">Contract Hooks</h4>
+                  <ul className="list-disc pl-5 space-y-1 text-xs text-amber-100/90">
+                    {activeNodelet.npcHooks.map((hook) => (
+                      <li key={hook}>{hook}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                {activeNodelet.replantReadyAt && (
+                  <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/30">
+                    {toNodeletTimestamp(activeNodelet.replantReadyAt) <= getCurrentGameTimestamp() ? '🌱 Replant Bonus Ready' : '🌱 Replant Growing'}
+                  </Badge>
+                )}
+                {activeNodelet.surveyBuffUntil && (
+                  <Badge className="bg-cyan-500/20 text-cyan-200 border-cyan-500/30">
+                    {toNodeletTimestamp(activeNodelet.surveyBuffUntil) > getCurrentGameTimestamp() ? '🧭 Survey Buff Active' : '🧭 Survey Buff Expired'}
+                  </Badge>
+                )}
+                {typeof activeNodelet.harvestStreak === 'number' && activeNodelet.harvestStreak > 0 && (
+                  <Badge className="bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-500/30">
+                    🧺 Harvest Streak x{activeNodelet.harvestStreak}
+                  </Badge>
+                )}
+                {activeNodelet.lureReadyAt && (
+                  <Badge className="bg-amber-500/20 text-amber-200 border-amber-500/30">
+                    {toNodeletTimestamp(activeNodelet.lureReadyAt) <= getCurrentGameTimestamp() ? '🍯 Lure Ready' : '🍯 Lure Set'}
+                  </Badge>
+                )}
+              </div>
+
+              {getObjectiveState(activeNodelet).length > 0 && (
+                <div className="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3 mb-3">
+                  <h4 className="text-xs font-semibold text-slate-200 mb-2">Location Objectives</h4>
+                  <div className="space-y-2">
+                    {getObjectiveState(activeNodelet).map((objective) => (
+                      <div key={objective.id} className="flex items-center justify-between text-xs">
+                        <div>
+                          <p className="text-slate-200">{objective.label}</p>
+                          <p className="text-slate-400">
+                            {objective.inCooldown
+                              ? `Resets in ${formatCooldown(objective.cooldownMs)}`
+                              : `Progress: ${objective.progress}/${objective.goal || 1}`}
+                          </p>
+                        </div>
+                        <Badge className={objective.inCooldown ? 'bg-slate-700/70 text-slate-300' : 'bg-indigo-500/20 text-indigo-200 border-indigo-500/30'}>
+                          {objective.inCooldown ? 'Cooldown' : 'Active'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+
+              {activeNodelet.id === 'vh-brambleberry-thicket' && (() => {
+                const contractState = getBrambleberryContractState(activeNodelet);
+                return (
+                  <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 mb-3">
+                    <h4 className="text-xs font-semibold text-fuchsia-200 mb-2">Brambleberry Contract Board</h4>
+                    <div className="space-y-1 text-xs text-fuchsia-100/90">
+                      <p>Tier I (Merra Contract): {contractState.tier1Completed ? `Complete (${contractState.tier1Runs} run${contractState.tier1Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
+                      <p>Tier II (Streak Contract): {contractState.tier2Completed ? `Complete (${contractState.tier2Runs} run${contractState.tier2Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {Array.isArray(activeNodelet.objectiveHistory) && activeNodelet.objectiveHistory.length > 0 && (
+                <div className="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3 mb-3">
+                  <h4 className="text-xs font-semibold text-slate-200 mb-2">Objective Journal & Recent Rewards</h4>
+                  <div className="space-y-2">
+                    {activeNodelet.objectiveHistory.slice(0, 3).map((entry, idx) => (
+                      <div key={`${entry.id}-${idx}`} className="text-xs text-slate-300">
+                        <p>{entry.label} {entry.claimedAt ? '✅' : '🕓'}</p>
+                        <p className="text-slate-500">
+                          {entry.reward?.gold ? `+${entry.reward.gold}g` : ''}
+                          {Array.isArray(entry.reward?.items) && entry.reward.items.length > 0
+                            ? `${entry.reward?.gold ? ' • ' : ''}${entry.reward.items.map((item) => `${item.quantity || 1}x ${item.name}`).join(', ')}`
+                            : ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2">
+                {getUnclaimedObjectiveRewards(activeNodelet).length > 0 && (
+                  <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    onClick={() => handleClaimNodeletRewards(activeNodelet)}
+                  >
+                    Claim Rewards ({getUnclaimedObjectiveRewards(activeNodelet).length})
+                  </Button>
+                )}
                 {activeNodelet.actions?.map((actionLabel) => {
                   const currentProgress = zoneProgress?.discoveryProgress || 0;
                   const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
@@ -1726,6 +2153,15 @@ function ZoneDetailView({ zone, onBack }) {
                   <div>
                     <h4 className="text-white font-semibold mb-2">Available Actions</h4>
                     <div className="flex flex-wrap gap-2">
+                {getUnclaimedObjectiveRewards(activeNodelet).length > 0 && (
+                  <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    onClick={() => handleClaimNodeletRewards(activeNodelet)}
+                  >
+                    Claim Rewards ({getUnclaimedObjectiveRewards(activeNodelet).length})
+                  </Button>
+                )}
                       {selectedNodelet.actions.map((action) => (
                         <Badge key={action} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
                           {action}

@@ -1,4 +1,4 @@
-import { PokemonRegistry } from '@/components/data/PokemonRegistry';
+import { getPokemonData } from '@/components/data/PokemonRegistry';
 import { consumeItem, playerHasItem } from '@/utils/itemUtils';
 
 const gradeWeights = {
@@ -26,7 +26,7 @@ function rollTalentCount() {
 }
 
 function getTalentPoolFor(species) {
-  return PokemonRegistry[species?.toLowerCase()]?.talentPool || [];
+  return getPokemonData(species)?.talentPool || [];
 }
 
 export function reRollTalents(pokemon, inventory) {

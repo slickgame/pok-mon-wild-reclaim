@@ -3,27 +3,445 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, CheckCircle, RefreshCcw } from 'lucide-react';
+import { getPokemonData } from '@/components/data/PokemonRegistry';
+import { TalentRegistry } from '@/components/data/TalentRegistry';
 import ResearchQuestCard from './ResearchQuestCard';
 import ResearchSubmitModal from './ResearchSubmitModal';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
-import { getAbsoluteDayIndex, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
-import { getGlobalResearchAnalytics } from '@/systems/quests/researchQuestAnalytics';
-import {
-  QUEST_CONFIG as QUEST_SERVICE_CONFIG,
-  acceptQuestAction,
-  completeQuestAction,
-  createGeneratedQuests,
-  rerollAllQuestsAction,
-  rerollQuestAction,
-  syncExpiredQuestsChunked,
-  normalizeQuestRequirements,
-  getNextResetLabel,
-  getQuestExpiryMinutes,
-  getTimeLeft,
-  getQuestDurationLabel
-} from '@/systems/quests/researchQuestService';
+import { TIME_CONSTANTS, getAbsoluteDayIndex, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 
-const QUEST_CONFIG = QUEST_SERVICE_CONFIG;
+const VERDANT_SPECIES = [
+  { name: 'Caterpie', weight: 3, rarity: 'common' },
+  { name: 'Pidgey', weight: 3, rarity: 'common' },
+  { name: 'Oddish', weight: 2, rarity: 'uncommon' },
+  { name: 'Pikachu', weight: 1, rarity: 'rare' }
+];
+
+const REGION_SPECIES_POOLS = {
+  'Verdant Hollow': VERDANT_SPECIES,
+  default: VERDANT_SPECIES
+};
+
+const NATURES = [
+  "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
+  "Bold", "Docile", "Relaxed", "Impish", "Lax",
+  "Timid", "Hasty", "Serious", "Jolly", "Naive",
+  "Modest", "Mild", "Quiet", "Bashful", "Rash",
+  "Calm", "Gentle", "Sassy", "Careful", "Quirky"
+];
+
+const IV_STATS = ['HP', 'Atk', 'Def', 'SpAtk', 'SpDef', 'Speed'];
+
+const QUEST_CONFIG = {
+  maxFreeRerolls: 3,
+  rerollCost: 150,
+  cooldownReset: 'daily'
+};
+
+const REWARD_BASE = {
+  common: 100,
+  uncommon: 250,
+  rare: 500
+};
+
+const DIFFICULTY_TIERS = [
+  {
+    name: 'Easy',
+    min: 1,
+    max: 2,
+    expiryHours: 24,
+    difficultyMod: 1.0,
+    items: ['1–2 basic mats'],
+    itemRewards: [{ id: 'featherSoft', quantity: 2 }],
+    trustGain: 2,
+    notesGain: 1
+  },
+  {
+    name: 'Normal',
+    min: 3,
+    max: 4,
+    expiryHours: 48,
+    difficultyMod: 1.2,
+    items: ['Chance for Pokéball or Potion (10–20%)'],
+    itemRewards: [{ id: 'windDust', quantity: 2 }],
+    trustGain: 4,
+    notesGain: 1
+  },
+  {
+    name: 'Hard',
+    min: 5,
+    max: 6,
+    expiryHours: 72,
+    difficultyMod: 1.5,
+    items: ['Uncommon mats', 'Higher drop rates'],
+    itemRewards: [{ id: 'powderSpore', quantity: 2 }],
+    trustGain: 6,
+    notesGain: 2
+  },
+  {
+    name: 'Very Hard',
+    min: 7,
+    max: 8,
+    expiryHours: 96,
+    difficultyMod: 2.0,
+    items: ['Rare mat', '2–4 quality items'],
+    itemRewards: [{ id: 'ancientShard', quantity: 1 }],
+    trustGain: 8,
+    notesGain: 3
+  },
+  {
+    name: 'Elite',
+    min: 9,
+    max: 10,
+    expiryHours: 120,
+    difficultyMod: 3.0,
+    items: ['Evolution stones', 'Rare ingredients'],
+    itemRewards: [{ id: 'trainingScroll', quantity: 1 }],
+    trustGain: 10,
+    notesGain: 4
+  },
+  {
+    name: 'Legendary',
+    min: 11,
+    max: Infinity,
+    expiryHours: 168,
+    difficultyMod: 6.0,
+    items: ['1-of-a-kind items', 'Exclusive crafting'],
+    itemRewards: [{ id: 'leafStone', quantity: 1 }],
+    trustGain: 14,
+    notesGain: 6
+  }
+];
+
+const GRADE_WEIGHTS = {
+  Basic: 1,
+  Rare: 2,
+  Epic: 3,
+  Diamond: 4
+};
+
+const CONDITION_POOL = [
+  { type: 'nature', weight: 3 },
+  { type: 'iv', weight: 3 },
+  { type: 'talent', weight: 2 },
+  { type: 'level', weight: 2 },
+  { type: 'special', weight: 1 }
+];
+
+const IV_THRESHOLD_BUCKETS = [
+  { min: 12, max: 16, weight: 4 },
+  { min: 17, max: 20, weight: 3 },
+  { min: 21, max: 25, weight: 2 }
+];
+
+const TALENT_GRADES = [
+  { grade: 'Basic', weight: 5 },
+  { grade: 'Rare', weight: 3 },
+  { grade: 'Epic', weight: 1 }
+];
+
+function weightedRoll(options) {
+  const totalWeight = options.reduce((sum, option) => sum + option.weight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const option of options) {
+    if (roll < option.weight) return option;
+    roll -= option.weight;
+  }
+  return options[options.length - 1];
+}
+
+function pickRandom(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function getTalentPool(speciesName) {
+  const speciesData = getPokemonData(speciesName);
+  const pool = speciesData?.talentPool;
+  if (Array.isArray(pool)) return pool;
+  if (pool?.options && Array.isArray(pool.options)) return pool.options;
+  return [];
+}
+
+function getSpeciesPool(player) {
+  const regionKey = player?.currentRegion || player?.region || player?.currentZone || 'default';
+  return REGION_SPECIES_POOLS[regionKey] || REGION_SPECIES_POOLS.default;
+}
+
+function getDifficultyTier(weight) {
+  return DIFFICULTY_TIERS.find((tier) => weight >= tier.min && weight <= tier.max) || DIFFICULTY_TIERS[0];
+}
+
+function getRewardForQuest({ avgTargetLevel, difficultyTier }) {
+  const baseMoney = 100;
+  const levelFactor = (avgTargetLevel || 10) * 0.2;
+  const totalReward = Math.floor(baseMoney * levelFactor * difficultyTier.difficultyMod);
+  return {
+    baseMoney,
+    levelFactor,
+    difficultyMod: difficultyTier.difficultyMod,
+    gold: totalReward,
+    items: difficultyTier.items,
+    itemRewards: difficultyTier.itemRewards || [],
+    trustGain: difficultyTier.trustGain || 0,
+    notesGain: difficultyTier.notesGain || 0
+  };
+}
+
+
+function getQuestDurationMinutes({ rarity, difficultyTier }) {
+  const tierName = difficultyTier?.name || difficultyTier || 'Normal';
+  const isEasyLike = rarity === 'common' || tierName === 'Easy' || tierName === 'Normal';
+  const isHardLike = rarity === 'rare' || ['Hard', 'Very Hard', 'Elite', 'Legendary'].includes(tierName);
+
+  if (isEasyLike) {
+    return TIME_CONSTANTS.DAYS_PER_MONTH * TIME_CONSTANTS.MINUTES_PER_DAY; // 1 month
+  }
+
+  if (isHardLike) {
+    return 7 * TIME_CONSTANTS.MINUTES_PER_DAY; // 1 week
+  }
+
+  return 14 * TIME_CONSTANTS.MINUTES_PER_DAY; // midpoint for uncommon/medium
+}
+
+function calculateDifficultyScore({ nature, level, ivConditions, talentConditions }) {
+  let score = 1;
+  if (nature) score += 1;
+  if (level && level >= 20) score += 1;
+  if (ivConditions?.length) {
+    ivConditions.forEach((iv) => {
+      score += iv.min > 20 ? 2 : 1;
+    });
+  }
+  if (talentConditions?.length) {
+    talentConditions.forEach((condition) => {
+      const grades = condition.grades || [];
+      grades.forEach((grade) => {
+        score += GRADE_WEIGHTS[grade] || 1;
+      });
+      if (condition.count >= 2) {
+        score += condition.count >= 4 ? 4 : condition.count >= 3 ? 3 : 2;
+      }
+    });
+  }
+  if (arguments[0]?.specialFlags) {
+    const specialCount = Object.values(arguments[0].specialFlags).filter(Boolean).length;
+    score += specialCount * 2;
+  }
+  return score;
+}
+
+function generateQuest(player, gameTime) {
+  const speciesEntry = weightedRoll(getSpeciesPool(player));
+  const species = speciesEntry.name;
+  const rarity = speciesEntry.rarity;
+  const requirements = [];
+  let nature = null;
+  let level = null;
+  const ivConditions = [];
+  const talentConditions = [];
+  const specialFlags = {
+    shinyRequired: false,
+    alphaRequired: false,
+    bondedRequired: false,
+    hiddenAbilityRequired: false
+  };
+
+  const desiredConditionCount = weightedRoll([
+    { count: 1, weight: 4 },
+    { count: 2, weight: 3 },
+    { count: 3, weight: 2 }
+  ]).count;
+
+  const pickedConditions = new Set();
+  while (pickedConditions.size < desiredConditionCount) {
+    const { type } = weightedRoll(CONDITION_POOL);
+    pickedConditions.add(type);
+  }
+
+  if (pickedConditions.has('nature')) {
+    nature = pickRandom(NATURES);
+  }
+
+  if (pickedConditions.has('level')) {
+    level = Math.floor(Math.random() * 21) + 10;
+  }
+
+  if (pickedConditions.has('iv')) {
+    const ivConditionCount = Math.random() < 0.25 ? 2 : 1;
+    const availableStats = [...IV_STATS];
+    for (let i = 0; i < ivConditionCount; i++) {
+      const stat = availableStats.splice(Math.floor(Math.random() * availableStats.length), 1)[0];
+      const bucket = weightedRoll(IV_THRESHOLD_BUCKETS);
+      const min = Math.floor(Math.random() * (bucket.max - bucket.min + 1)) + bucket.min;
+      ivConditions.push({ stat, min });
+    }
+  }
+
+  if (pickedConditions.has('talent')) {
+    const talentPool = getTalentPool(species);
+    if (talentPool.length) {
+      const count = Math.random() < 0.5 ? 2 : 3;
+      const grades = Array.from({ length: count }, () => weightedRoll(TALENT_GRADES).grade);
+      const talentTags = talentPool
+        .map((talentId) => TalentRegistry[talentId]?.tagsAffected || [])
+        .flat();
+      const useTag = Math.random() < 0.2 && talentTags.length;
+      talentConditions.push({
+        count,
+        grades,
+        requiredTags: useTag ? [pickRandom(talentTags)] : []
+      });
+    }
+  }
+
+  if (pickedConditions.has('special')) {
+    const specialKeys = Object.keys(specialFlags);
+    const chosen = pickRandom(specialKeys);
+    specialFlags[chosen] = true;
+  }
+
+  const hasRequirement = Boolean(
+    nature
+    || level
+    || ivConditions.length
+    || talentConditions.length
+    || Object.values(specialFlags).some(Boolean)
+  );
+
+  if (!hasRequirement) {
+    if (Math.random() < 0.5) {
+      nature = pickRandom(NATURES);
+    } else {
+      const stat = pickRandom(IV_STATS);
+      ivConditions.push({ stat, min: 12 + Math.floor(Math.random() * 7) });
+    }
+  }
+
+  const difficultyScore = calculateDifficultyScore({
+    nature,
+    level,
+    ivConditions,
+    talentConditions,
+    specialFlags
+  });
+  const difficultyTier = getDifficultyTier(difficultyScore);
+  const avgTargetLevel = level || 10;
+  const reward = getRewardForQuest({ avgTargetLevel, difficultyTier });
+  const normalizedTime = normalizeGameTime(gameTime);
+  const createdAtMinutes = toTotalMinutes(normalizedTime);
+  const expiresAtMinutes = createdAtMinutes + getQuestDurationMinutes({ rarity, difficultyTier });
+
+  if (ivConditions.length === 0 && !nature) {
+    nature = pickRandom(NATURES);
+  }
+  const requirementType = ivConditions.length ? 'iv' : 'nature';
+  const rewardBase = REWARD_BASE[rarity] || 100;
+
+  return {
+    requirements,
+    species,
+    rarity,
+    rewardBase,
+    requirementType,
+    nature,
+    level,
+    ivConditions,
+    talentConditions,
+    ...specialFlags,
+    difficultyScore,
+    difficulty: difficultyTier.name,
+    reward,
+    createdAt: new Date().toISOString(),
+    createdAtMinutes,
+    expiresAtMinutes,
+    active: true,
+    isLegendary: difficultyTier.name === 'Legendary'
+  };
+}
+
+
+function getQuestExpiryMinutes(quest, currentTime) {
+  if (Number.isFinite(quest?.expiresAtMinutes)) {
+    return quest.expiresAtMinutes;
+  }
+
+  if (quest?.expiresAt) {
+    const parsed = Date.parse(quest.expiresAt);
+    if (Number.isFinite(parsed)) {
+      const deltaMinutes = Math.max(0, Math.floor((parsed - Date.now()) / (1000 * 60)));
+      return toTotalMinutes(normalizeGameTime(currentTime)) + deltaMinutes;
+    }
+  }
+
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes)
+    ? quest.createdAtMinutes
+    : currentTotal;
+  const durationMinutes = getQuestDurationMinutes({
+    rarity: quest?.rarity,
+    difficultyTier: quest?.difficulty || 'Normal'
+  });
+
+  return createdAtMinutes + durationMinutes;
+}
+
+function getTimeLeft(expiresAtMinutes, currentTime) {
+  if (!Number.isFinite(expiresAtMinutes)) return 'No expiry';
+  const currentTotal = toTotalMinutes(normalizeGameTime(currentTime));
+  return getTimeLeftLabel(currentTotal, expiresAtMinutes);
+}
+
+function getNextResetLabel(gameTime) {
+  const normalized = normalizeGameTime(gameTime);
+  const currentTotal = toTotalMinutes(normalized);
+  const minuteOfDay = (normalized.currentHour * TIME_CONSTANTS.MINUTES_PER_HOUR) + normalized.currentMinute;
+  const minutesUntilReset = TIME_CONSTANTS.MINUTES_PER_DAY - minuteOfDay;
+  const targetTotal = currentTotal + minutesUntilReset;
+  return getTimeLeftLabel(currentTotal, targetTotal).replace(' left', '');
+}
+
+
+const normalizeQuestRequirements = (quest) => {
+  const hasRequirement = Boolean(
+    quest?.nature
+    || quest?.level
+    || (quest?.ivConditions?.length || 0) > 0
+    || (quest?.talentConditions?.length || 0) > 0
+    || quest?.shinyRequired
+    || quest?.alphaRequired
+    || quest?.bondedRequired
+    || quest?.hiddenAbilityRequired
+    || quest?.requirements?.nature
+    || quest?.requirements?.level
+    || (quest?.requirements?.ivConditions?.length || 0) > 0
+    || (quest?.requirements?.talentConditions?.length || 0) > 0
+  );
+
+  if (hasRequirement) {
+    return quest;
+  }
+
+  const fallbackNature = pickRandom(NATURES);
+  const normalizedNow = normalizeGameTime(null);
+  const nowMinutes = toTotalMinutes(normalizedNow);
+  const createdAtMinutes = Number.isFinite(quest?.createdAtMinutes) ? quest.createdAtMinutes : nowMinutes;
+  const inferredTier = quest?.difficulty || 'Normal';
+  const durationMinutes = getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: inferredTier });
+  const expiresAtMinutes = Number.isFinite(quest?.expiresAtMinutes) ? quest.expiresAtMinutes : (createdAtMinutes + durationMinutes);
+
+  return {
+    ...quest,
+    nature: fallbackNature,
+    requirements: {
+      ...(quest.requirements || {}),
+      nature: fallbackNature,
+    },
+    createdAtMinutes,
+    expiresAtMinutes,
+    difficultyScore: quest.difficultyScore || 1,
+  };
+};
 
 export default function ResearchQuestManager() {
   const [selectedQuest, setSelectedQuest] = useState(null);

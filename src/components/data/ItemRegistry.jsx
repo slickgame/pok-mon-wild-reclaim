@@ -68,6 +68,53 @@ export const ItemRegistry = {
     type: "material",
     sellPrice: 150
   },
+  oranBerry: {
+    id: "oranBerry",
+    name: "Oran Berry",
+    description: "A held berry that restores HP when its holder is low.",
+    type: "berry",
+    berryTrigger: "low_hp",
+    triggerHpPercent: 0.5,
+    healPercent: 0.125,
+    sellPrice: 80
+  },
+  pechaBerry: {
+    id: "pechaBerry",
+    name: "Pecha Berry",
+    description: "A held berry that cures poison.",
+    type: "berry",
+    berryTrigger: "status",
+    curesStatus: ["poison"],
+    sellPrice: 80
+  },
+  cheriBerry: {
+    id: "cheriBerry",
+    name: "Cheri Berry",
+    description: "A held berry that cures paralysis.",
+    type: "berry",
+    berryTrigger: "status",
+    curesStatus: ["paralyze", "paralysis"],
+    sellPrice: 80
+  },
+  sitrusBerry: {
+    id: "sitrusBerry",
+    name: "Sitrus Berry",
+    description: "A held berry that restores a larger amount of HP when low.",
+    type: "berry",
+    berryTrigger: "low_hp",
+    triggerHpPercent: 0.5,
+    healPercent: 0.25,
+    sellPrice: 150
+  },
+  lumBerry: {
+    id: "lumBerry",
+    name: "Lum Berry",
+    description: "A held berry that cures any status condition.",
+    type: "berry",
+    berryTrigger: "status",
+    curesStatus: ["any"],
+    sellPrice: 180
+  },
   talentCrystal: {
     id: "talentCrystal",
     name: "Talent Crystal",
