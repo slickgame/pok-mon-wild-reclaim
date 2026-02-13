@@ -421,6 +421,174 @@ function getNextResetLabel(gameTime) {
   return getTimeLeftLabel(currentTotal, targetTotal).replace(' left', '');
 }
 
+async function syncExpiredQuestsChunked({ base44, quests, player, gameTime, analytics }) {
+  const currentTotal = toTotalMinutes(normalizeGameTime(gameTime));
+  const expiredQuests = quests.filter((quest) => {
+    const expiry = getQuestExpiryMinutes(quest, gameTime);
+    return Number.isFinite(expiry) && expiry <= currentTotal && quest.active;
+  });
+
+  if (expiredQuests.length === 0) {
+    return { expiredCount: 0 };
+  }
+
+  await Promise.all(
+    expiredQuests.map((quest) =>
+      base44.entities.ResearchQuest.update(quest.id, {
+        active: false,
+        status: 'expired',
+        expiredAt: new Date().toISOString(),
+        transitionLog: [
+          ...(Array.isArray(quest.transitionLog) ? quest.transitionLog : []),
+          {
+            from: quest.status || 'generated',
+            to: 'expired',
+            at: new Date().toISOString(),
+            reason: 'time_expired',
+            source: 'syncExpiredQuestsChunked'
+          }
+        ]
+      })
+    )
+  );
+
+  if (player?.activeQuests?.length) {
+    const expiredIds = new Set(expiredQuests.map((q) => q.id));
+    const updatedActiveQuests = player.activeQuests.filter(
+      (activeQuest) => !expiredIds.has(activeQuest.questId || activeQuest.id)
+    );
+    if (updatedActiveQuests.length !== player.activeQuests.length) {
+      await base44.entities.Player.update(player.id, {
+        activeQuests: updatedActiveQuests
+      });
+    }
+  }
+
+  return { expiredCount: expiredQuests.length };
+}
+
+async function createGeneratedQuests({ base44, count, player, gameTime, analytics, progression }) {
+  const quests = Array.from({ length: count }, () => generateQuest(player, gameTime));
+  return Promise.all(quests.map((quest) => base44.entities.ResearchQuest.create(quest)));
+}
+
+async function rerollQuestAction({ base44, quest, gameTime, analytics, progression }) {
+  const players = await base44.entities.Player.list();
+  const player = players[0];
+  if (!player) throw new Error('Player not found');
+
+  const todayIndex = getAbsoluteDayIndex(gameTime);
+  const shouldReset = (player.researchQuestRerollResetDay ?? -1) !== todayIndex;
+  const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
+  const freeLeft = Math.max(QUEST_CONFIG.maxFreeRerolls - rerollCount, 0);
+  const cost = freeLeft > 0 ? 0 : QUEST_CONFIG.rerollCost;
+
+  if (cost > 0 && (player.gold || 0) < cost) {
+    throw new Error(`Not enough gold! Need ${cost} gold to reroll.`);
+  }
+
+  const newQuest = generateQuest(player, gameTime);
+  await base44.entities.ResearchQuest.update(quest.id, {
+    active: false,
+    status: 'rerolled',
+    rerolledAt: new Date().toISOString()
+  });
+  await base44.entities.ResearchQuest.create(newQuest);
+
+  await base44.entities.Player.update(player.id, {
+    gold: (player.gold || 0) - cost,
+    researchQuestRerolls: rerollCount + 1,
+    researchQuestRerollResetDay: todayIndex
+  });
+
+  return { cost, replacementTier: newQuest.difficulty };
+}
+
+async function rerollAllQuestsAction({ base44, quests, gameTime, analytics, progression }) {
+  const players = await base44.entities.Player.list();
+  const player = players[0];
+  if (!player) throw new Error('Player not found');
+
+  const todayIndex = getAbsoluteDayIndex(gameTime);
+  const shouldReset = (player.researchQuestRerollResetDay ?? -1) !== todayIndex;
+  const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
+  const freeLeft = Math.max(QUEST_CONFIG.maxFreeRerolls - rerollCount, 0);
+  const costPerQuest = freeLeft > 0 ? 0 : QUEST_CONFIG.rerollCost;
+  const totalCost = costPerQuest * quests.length;
+
+  if (totalCost > 0 && (player.gold || 0) < totalCost) {
+    throw new Error(`Not enough gold! Need ${totalCost} gold to reroll all quests.`);
+  }
+
+  const newQuests = quests.map(() => generateQuest(player, gameTime));
+  
+  await Promise.all(
+    quests.map((quest) =>
+      base44.entities.ResearchQuest.update(quest.id, {
+        active: false,
+        status: 'rerolled',
+        rerolledAt: new Date().toISOString()
+      })
+    )
+  );
+
+  await Promise.all(newQuests.map((quest) => base44.entities.ResearchQuest.create(quest)));
+
+  await base44.entities.Player.update(player.id, {
+    gold: (player.gold || 0) - totalCost,
+    researchQuestRerolls: rerollCount + quests.length,
+    researchQuestRerollResetDay: todayIndex
+  });
+
+  return { cost: totalCost, replacedCount: quests.length };
+}
+
+async function acceptQuestAction({ base44, player, quest, gameTime, getSubmissionCount }) {
+  const activeQuests = player?.activeQuests || [];
+  
+  if (activeQuests.some((aq) => (aq.questId || aq.id) === quest.id)) {
+    throw new Error('Quest already accepted');
+  }
+
+  const normalizedTime = normalizeGameTime(gameTime);
+  const acceptedAtMinutes = toTotalMinutes(normalizedTime);
+  const durationMinutes = getQuestDurationMinutes({ rarity: quest.rarity, difficultyTier: quest.difficulty });
+  const expiresAtMinutes = acceptedAtMinutes + durationMinutes;
+
+  const activeQuest = {
+    questId: quest.id,
+    acceptedAt: new Date().toISOString(),
+    acceptedAtMinutes,
+    expiresAtMinutes,
+    submissionCount: 0
+  };
+
+  await base44.entities.Player.update(player.id, {
+    activeQuests: [...activeQuests, activeQuest]
+  });
+}
+
+async function completeQuestAction({ base44, player, selectedQuest, analytics }) {
+  if (!player?.activeQuests?.length) return;
+
+  const updatedActiveQuests = player.activeQuests.filter(
+    (aq) => (aq.questId || aq.id) !== selectedQuest.id
+  );
+
+  await base44.entities.Player.update(player.id, {
+    activeQuests: updatedActiveQuests
+  });
+
+  await base44.entities.ResearchQuest.update(selectedQuest.id, {
+    active: false,
+    status: 'completed',
+    completedAt: new Date().toISOString()
+  });
+}
+
+async function getGlobalResearchAnalytics(base44) {
+  return { totalCompleted: 0, totalExpired: 0, averageDifficulty: 5 };
+}
 
 const normalizeQuestRequirements = (quest) => {
   const hasRequirement = Boolean(
