@@ -479,49 +479,47 @@ export default function ResearchQuestManager() {
     }
   });
 
+  const { data: teamPokemon = [] } = useQuery({
+    queryKey: ['playerPokemonTeamForResearch'],
+    queryFn: async () => base44.entities.Pokemon.filter({ isInTeam: true })
+  });
+
+  const { data: researchAnalytics } = useQuery({
+    queryKey: ['researchQuestAnalyticsGlobal'],
+    queryFn: async () => getGlobalResearchAnalytics(base44)
+  });
+
+  const progressionContext = useMemo(() => {
+    const storyChapter = player?.storyChapter ?? player?.storyProgress ?? 0;
+    const mapleTrust = player?.trustLevels?.maple || 0;
+    const avgPartyLevel = teamPokemon.length
+      ? teamPokemon.reduce((sum, mon) => sum + (mon.level || 1), 0) / teamPokemon.length
+      : 1;
+    return { storyChapter, mapleTrust, avgPartyLevel };
+  }, [player, teamPokemon]);
+
   const generateQuestsMutation = useMutation({
-    mutationFn: async (count) => {
-      const questsToCreate = [];
-      for (let i = 0; i < count; i++) {
-        questsToCreate.push(generateQuest(player, gameTime));
-      }
-      await Promise.all(questsToCreate.map(q => base44.entities.ResearchQuest.create(q)));
-    },
+    mutationFn: async (count) => createGeneratedQuests({
+      base44,
+      count,
+      player,
+      gameTime,
+      analytics: researchAnalytics,
+      progression: progressionContext
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
     }
   });
 
   const rerollQuestMutation = useMutation({
-    mutationFn: async (quest) => {
-      if (!player) return null;
-      const todayIndex = getAbsoluteDayIndex(gameTime);
-      const shouldReset = (player.researchQuestRerollResetDay ?? -1) !== todayIndex;
-      const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
-      const isFree = rerollCount < QUEST_CONFIG.maxFreeRerolls;
-      const cost = isFree ? 0 : QUEST_CONFIG.rerollCost;
-
-      if ((player.gold || 0) < cost) {
-        throw new Error('Not enough gold to reroll.');
-      }
-
-      await base44.entities.Player.update(player.id, {
-        gold: (player.gold || 0) - cost,
-        researchQuestRerolls: rerollCount + 1,
-        researchQuestRerollResetDay: todayIndex
-      });
-
-      const rerolledAt = new Date().toISOString();
-      await base44.entities.ResearchQuest.update(quest.id, {
-        active: false,
-        rerolledAt,
-        status: 'rerolled'
-      });
-
-      const replacement = generateQuest(player, gameTime);
-      await base44.entities.ResearchQuest.create(replacement);
-      return { cost, replacementTier: replacement.difficulty };
-    },
+    mutationFn: async (quest) => rerollQuestAction({
+      base44,
+      quest,
+      gameTime,
+      analytics: researchAnalytics,
+      progression: progressionContext
+    }),
     onSuccess: (result) => {
       if (!result) return;
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
@@ -538,42 +536,19 @@ export default function ResearchQuestManager() {
   });
 
   const rerollAllMutation = useMutation({
-    mutationFn: async () => {
-      if (!player) return null;
-      const todayIndex = getAbsoluteDayIndex(gameTime);
-      const shouldReset = (player.researchQuestRerollResetDay ?? -1) !== todayIndex;
-      const rerollCount = shouldReset ? 0 : (player.researchQuestRerolls || 0);
-      const isFree = rerollCount < QUEST_CONFIG.maxFreeRerolls;
-      const cost = isFree ? 0 : QUEST_CONFIG.rerollCost;
-
-      if ((player.gold || 0) < cost) {
-        throw new Error('Not enough gold to reroll.');
-      }
-
-      await base44.entities.Player.update(player.id, {
-        gold: (player.gold || 0) - cost,
-        researchQuestRerolls: rerollCount + 1,
-        researchQuestRerollResetDay: todayIndex
-      });
-
-      const rerolledAt = new Date().toISOString();
-      await Promise.all(quests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
-        active: false,
-        rerolledAt,
-        status: 'rerolled'
-      })));
-
-      const replacements = Array.from({ length: quests.length }, () => generateQuest(player, gameTime));
-      await Promise.all(replacements.map((quest) => base44.entities.ResearchQuest.create(quest)));
-
-      return { cost };
-    },
+    mutationFn: async () => rerollAllQuestsAction({
+      base44,
+      quests,
+      gameTime,
+      analytics: researchAnalytics,
+      progression: progressionContext
+    }),
     onSuccess: (result) => {
       if (!result) return;
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
       queryClient.invalidateQueries({ queryKey: ['player'] });
       setRerollMessage(
-        `All quests rerolled${result.cost ? ` for ${result.cost} gold` : ''}.`
+        `${result.replacedCount} quest${result.replacedCount === 1 ? '' : 's'} rerolled${result.cost ? ` for ${result.cost} gold` : ''}.`
       );
       setTimeout(() => setRerollMessage(null), 3000);
     },
@@ -596,6 +571,7 @@ export default function ResearchQuestManager() {
     const missing = quests.filter((quest) => !(
       quest?.nature
       || quest?.level
+      || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
       || (quest?.ivConditions?.length || 0) > 0
       || (quest?.talentConditions?.length || 0) > 0
       || quest?.shinyRequired
@@ -604,8 +580,13 @@ export default function ResearchQuestManager() {
       || quest?.hiddenAbilityRequired
       || quest?.requirements?.nature
       || quest?.requirements?.level
+      || (quest?.requirements?.quantityRequired || 1) > 1
       || (quest?.requirements?.ivConditions?.length || 0) > 0
       || (quest?.requirements?.talentConditions?.length || 0) > 0
+      || quest?.requirements?.shinyRequired
+      || quest?.requirements?.alphaRequired
+      || quest?.requirements?.bondedRequired
+      || quest?.requirements?.hiddenAbilityRequired
     ));
     if (!missing.length) return;
 
@@ -613,46 +594,116 @@ export default function ResearchQuestManager() {
       const fixed = normalizeQuestRequirements(quest);
       return base44.entities.ResearchQuest.update(quest.id, {
         nature: fixed.nature,
+        quantityRequired: fixed.quantityRequired || quest.quantityRequired || quest.requiredCount || 1,
+        requirementType: fixed.requirementType || quest.requirementType || 'nature',
         requirements: fixed.requirements,
         createdAtMinutes: fixed.createdAtMinutes,
         expiresAtMinutes: fixed.expiresAtMinutes,
-        difficultyScore: fixed.difficultyScore || quest.difficultyScore || 1
+        questValue: fixed.questValue || fixed.difficultyScore || quest.questValue || quest.difficultyScore || 1,
+        questValueVersion: fixed.questValueVersion || quest.questValueVersion || 1,
+        difficultyScore: fixed.difficultyScore || fixed.questValue || quest.difficultyScore || quest.questValue || 1
       });
     })).then(() => {
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
     });
   }, [quests, isLoading, queryClient]);
 
+
   useEffect(() => {
-    if (isLoading || quests.length === 0) return;
-    const currentTotal = toTotalMinutes(normalizeGameTime(gameTime));
-    const expired = quests.filter((quest) => {
-      const expiry = getQuestExpiryMinutes(quest, gameTime);
-      return Number.isFinite(expiry) && expiry <= currentTotal;
+    if (isLoading || !player?.id || quests.length === 0) return;
+
+    const migrationKey = 'researchQuestLegacyResetV1';
+    if (localStorage.getItem(migrationKey) === 'done') return;
+
+    const looksLegacyOnly = quests.every((quest) => {
+      const hasComplex = Boolean(
+        quest?.level
+        || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
+        || (quest?.ivConditions?.length || 0) > 0
+        || (quest?.talentConditions?.length || 0) > 0
+        || quest?.shinyRequired
+        || quest?.alphaRequired
+        || quest?.bondedRequired
+        || quest?.hiddenAbilityRequired
+        || quest?.requirements?.level
+        || (quest?.requirements?.quantityRequired || 1) > 1
+        || (quest?.requirements?.ivConditions?.length || 0) > 0
+        || (quest?.requirements?.talentConditions?.length || 0) > 0
+        || quest?.requirements?.shinyRequired
+        || quest?.requirements?.alphaRequired
+        || quest?.requirements?.bondedRequired
+        || quest?.requirements?.hiddenAbilityRequired
+      );
+      return !hasComplex;
     });
-    if (expired.length) {
-      expired.forEach((quest) => {
-        base44.entities.ResearchQuest.update(quest.id, {
-          active: false,
-          expiredAt: new Date().toISOString(),
-          status: 'expired',
-          legendaryLog: quest.isLegendary || quest.difficulty === 'Legendary'
-        });
+
+    if (!looksLegacyOnly) {
+      localStorage.setItem(migrationKey, 'done');
+      return;
+    }
+
+    localStorage.setItem(migrationKey, 'running');
+
+    Promise.all(quests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
+      active: false,
+      status: 'expired',
+      expiredAt: new Date().toISOString(),
+      transitionLog: Array.isArray(quest.transitionLog)
+        ? [...quest.transitionLog, {
+          from: quest.status || 'generated',
+          to: 'expired',
+          at: new Date().toISOString(),
+          reason: 'legacy_reset',
+          source: 'ResearchQuestManager'
+        }]
+        : [{
+          from: quest.status || 'generated',
+          to: 'expired',
+          at: new Date().toISOString(),
+          reason: 'legacy_reset',
+          source: 'ResearchQuestManager'
+        }]
+    }))).then(async () => {
+      await base44.entities.Player.update(player.id, { activeQuests: [] }).catch(() => {});
+      localStorage.setItem(migrationKey, 'done');
+      await createGeneratedQuests({
+        base44,
+        count: 3,
+        player,
+        gameTime,
+        analytics: researchAnalytics,
+        progression: progressionContext
       });
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
-    }
-  }, [quests, isLoading, queryClient, gameTime]);
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+      setRerollMessage('Legacy research quests were refreshed to enable full requirement variety.');
+      setTimeout(() => setRerollMessage(null), 4000);
+    }).catch(() => {
+      localStorage.removeItem(migrationKey);
+    });
+  }, [isLoading, quests, player, gameTime, researchAnalytics, progressionContext, queryClient]);
+
+  useEffect(() => {
+    if (isLoading || quests.length === 0) return;
+    syncExpiredQuestsChunked({
+      base44,
+      quests,
+      player,
+      gameTime,
+      analytics: researchAnalytics
+    }).then(({ expiredCount }) => {
+      if (expiredCount > 0) {
+        queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
+        queryClient.invalidateQueries({ queryKey: ['player'] });
+      }
+    });
+  }, [quests, isLoading, queryClient, gameTime, player, researchAnalytics]);
 
   const handleSuccess = (reward) => {
     setSelectedQuest(null);
     if (player?.activeQuests?.length && selectedQuest) {
-      const updatedQuests = player.activeQuests.filter(
-        (quest) => (quest.questId || quest.id) !== selectedQuest.id
-      );
-      if (updatedQuests.length !== player.activeQuests.length) {
-        base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
-        queryClient.invalidateQueries({ queryKey: ['player'] });
-      }
+      completeQuestAction({ base44, player, selectedQuest, analytics: researchAnalytics })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['player'] }));
     }
     if (typeof reward === 'object') {
       const itemText = reward.items?.length ? ` Items: ${reward.items.join(', ')}.` : '';
@@ -705,39 +756,11 @@ export default function ResearchQuestManager() {
     if (!player || acceptingQuestId) return;
     setAcceptingQuestId(quest.id);
     try {
-      const updatedQuests = [...(player.activeQuests || [])];
-      if (updatedQuests.length >= 10 && !updatedQuests.some((entry) => (entry.questId || entry.id) === quest.id)) {
-        setRerollMessage('Quest log is full (10/10). Complete or remove quests before accepting more.');
-        setTimeout(() => setRerollMessage(null), 3000);
-        return;
-      }
-
-      const requiredCount = quest.quantityRequired || quest.requiredCount || 1;
-      const rewardGold = quest.reward?.gold ?? quest.rewardBase ?? 0;
-      const description = `Submit ${requiredCount} ${quest.species} for research.`;
-      const newQuest = {
-        id: quest.id,
-        questId: quest.id,
-        type: 'research',
-        name: `Research: ${quest.species}`,
-        description,
-        progress: getSubmissionCount(quest.id),
-        goal: requiredCount,
-        reward: rewardGold ? `${rewardGold} gold` : 'Research rewards',
-        species: quest.species,
-        requirements: quest.requirements || {},
-        nature: quest.nature,
-        level: quest.level,
-        ivConditions: quest.ivConditions || [],
-        acceptedAtMinutes: toTotalMinutes(normalizeGameTime(gameTime)),
-        expiresAtMinutes: toTotalMinutes(normalizeGameTime(gameTime)) + getQuestDurationMinutes({ rarity: quest?.rarity, difficultyTier: quest?.difficulty || 'Normal' }),
-      };
-
-      if (!updatedQuests.some((entry) => (entry.questId || entry.id) === quest.id)) {
-        updatedQuests.push(newQuest);
-        await base44.entities.Player.update(player.id, { activeQuests: updatedQuests });
-        queryClient.invalidateQueries({ queryKey: ['player'] });
-      }
+      await acceptQuestAction({ base44, player, quest, gameTime, getSubmissionCount });
+      queryClient.invalidateQueries({ queryKey: ['player'] });
+    } catch (error) {
+      setRerollMessage(error.message || 'Unable to accept quest.');
+      setTimeout(() => setRerollMessage(null), 3000);
     } finally {
       setAcceptingQuestId(null);
     }
@@ -810,7 +833,7 @@ export default function ResearchQuestManager() {
               rerollAllMutation.mutate();
             }}
             className="text-xs font-semibold text-indigo-200 hover:text-indigo-100"
-            disabled={rerollAllMutation.isPending || !activeQuests.length}
+            disabled={rerollAllMutation.isPending || !activeQuests.length || activeQuests.every((quest) => acceptedQuestIds.has(quest.id))}
           >
             Reroll All Research Quests
           </button>
@@ -829,11 +852,12 @@ export default function ResearchQuestManager() {
             onReroll={() => rerollQuestMutation.mutate(quest)}
             timeLeft={acceptedQuestIds.has(quest.id)
               ? getTimeLeft(getQuestExpiryMinutes(acceptedQuestMap.get(quest.id) || quest, gameTime), gameTime)
-              : 'Starts when accepted'}
+              : `${getQuestDurationLabel(quest)} once accepted`}
             rerollState={rerollState}
             rerollCost={QUEST_CONFIG.rerollCost}
             isRerolling={rerollQuestMutation.isPending}
             canAffordReroll={(player?.gold || 0) >= QUEST_CONFIG.rerollCost}
+            isRerollDisabled={acceptedQuestIds.has(quest.id)}
           />
         ))}
       </div>

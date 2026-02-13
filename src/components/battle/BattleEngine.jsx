@@ -1687,49 +1687,42 @@ export class BattleEngine {
           const drainFraction = typeof move.drainPercentage === 'number' ? move.drainPercentage : 0.125;
           const sourceName = attacker.pokemon.nickname || attacker.pokemon.species;
 
-          const applyLeechSeedDrain = (targetMon, addBattleLog) => {
-            const seededMaxHp = targetMon.stats?.maxHp || targetMon.stats?.hp || 0;
-            if (seededMaxHp <= 0) return;
-
-            const targetName = targetMon.nickname || targetMon.species;
-            const drainAmount = Math.max(1, Math.floor(seededMaxHp * drainFraction));
-            const currentHp = targetMon.currentHp ?? seededMaxHp;
-            const actualDrain = Math.min(drainAmount, Math.max(0, currentHp));
-            if (actualDrain <= 0) return;
-
-            targetMon.currentHp = Math.max(0, currentHp - actualDrain);
-            if (defender.key === 'player') {
-              battleState.playerHP = targetMon.currentHp;
-            } else {
-              battleState.enemyHP = targetMon.currentHp;
-            }
-
-            if (attacker.key === 'player') {
-              const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
-              const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.playerHP || 0)));
-              if (healed > 0) {
-                battleState.playerHP += healed;
-                attacker.pokemon.currentHp = battleState.playerHP;
-              }
-            } else {
-              const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
-              const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.enemyHP || 0)));
-              if (healed > 0) {
-                battleState.enemyHP += healed;
-                attacker.pokemon.currentHp = battleState.enemyHP;
-              }
-            }
-
-            addBattleLog(`${targetName} had its energy drained by Leech Seed! (-${actualDrain} HP)`);
-          };
-
           defender.pokemon.passiveEffects.push({
             id: 'leechSeed',
             displayName: 'Leech Seed',
             source: sourceName,
             duration: Number.POSITIVE_INFINITY,
             onTurnStart: (effectCtx) => {
-              applyLeechSeedDrain(effectCtx.target, effectCtx.addBattleLog);
+              const targetMon = effectCtx.target;
+              const seededMaxHp = targetMon.stats?.maxHp || targetMon.stats?.hp || 0;
+              if (seededMaxHp <= 0) return;
+
+              const targetName = targetMon.nickname || targetMon.species;
+              const drainAmount = Math.max(1, Math.floor(seededMaxHp * drainFraction));
+              const currentHp = targetMon.currentHp ?? seededMaxHp;
+              const actualDrain = Math.min(drainAmount, Math.max(0, currentHp));
+
+              if (actualDrain <= 0) return;
+
+              effectCtx.applyDamage(actualDrain);
+
+              if (attacker.key === 'player') {
+                const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
+                const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.playerHP || 0)));
+                if (healed > 0) {
+                  battleState.playerHP += healed;
+                  attacker.pokemon.currentHp = battleState.playerHP;
+                }
+              } else {
+                const sourceMax = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
+                const healed = Math.min(actualDrain, Math.max(0, sourceMax - (battleState.enemyHP || 0)));
+                if (healed > 0) {
+                  battleState.enemyHP += healed;
+                  attacker.pokemon.currentHp = battleState.enemyHP;
+                }
+              }
+
+              effectCtx.addBattleLog(`${targetName} had its energy drained by Leech Seed! (-${actualDrain} HP)`);
             },
             onExpire: (effectCtx) => {
               effectCtx.addBattleLog(`${effectCtx.target.nickname || effectCtx.target.species} is freed from Leech Seed.`);
@@ -1742,17 +1735,6 @@ export class BattleEngine {
             action: move.name,
             result: `${defender.pokemon.nickname || defender.pokemon.species} was seeded!`,
             synergyTriggered: false
-          });
-
-          // Apply first Leech Seed tick immediately on the turn it lands.
-          applyLeechSeedDrain(defender.pokemon, (message) => {
-            logs.push({
-              turn: battleState.turnNumber,
-              actor: attacker.pokemon.nickname || attacker.pokemon.species,
-              action: 'Leech Seed',
-              result: message,
-              synergyTriggered: false
-            });
           });
         }
       } else if (move.effect === 'setTerrain' && move.terrain) {
