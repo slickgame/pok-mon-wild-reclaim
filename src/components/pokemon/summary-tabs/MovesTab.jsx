@@ -7,10 +7,10 @@ import { base44 } from '@/api/base44Client';
 import MoveReminderModal from '@/components/moves/MoveReminderModal';
 import { getMoveData } from '@/components/utils/getMoveData';
 import MoveTagBadges from '@/components/moves/MoveTagBadges';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function MovesTab({ pokemon }) {
   const [showMoveReminder, setShowMoveReminder] = useState(false);
-  const [selectedMove, setSelectedMove] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: player } = useQuery({
@@ -116,7 +116,16 @@ export default function MovesTab({ pokemon }) {
             <div key={moveName} className="glass rounded-lg p-4">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
-                  <h4 className="font-semibold text-white">{moveName}</h4>
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <h4 className="font-semibold text-white cursor-help">{moveName}</h4>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs border border-white/10 bg-slate-900/95 p-2 text-xs text-slate-100 shadow-lg">
+                        <p>{moveData?.description || 'Move data unavailable.'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   {moveData &&
                   <div className="text-slate-50 mt-1 rounded flex gap-2 flex-wrap">
                       <Badge className="text-xs bg-slate-700">

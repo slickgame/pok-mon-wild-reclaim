@@ -4,8 +4,10 @@ import { Heart, Swords, Shield, Zap, Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import TalentTooltip from '@/components/talents/TalentTooltip';
 import RevenantIndicator from './RevenantIndicator';
+import RoleIndicator, { roleData } from '@/components/battle/RoleIndicator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getPokemonStats } from './usePokemonStats';
-import { formatTalentName, normalizeTalentGrade, resolveTalentKey } from '@/components/utils/talentUtils';
+import { formatTalentName, normalizeTalentGrade } from '@/components/utils/talentUtils';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 
 const typeColors = {
@@ -229,12 +231,21 @@ export default function PokemonCard({ pokemon, onClick, compact = false }) {
 
         {/* Roles */}
         {roleList.length > 0 && (
-          <div className="flex gap-1 mt-2">
-            {roleList.map((role, idx) => (
-              <span key={idx} className="text-[10px] text-indigo-400">
-                {role}
-              </span>
-            ))}
+          <div className="flex gap-1 mt-2 flex-wrap">
+            <TooltipProvider delayDuration={200}>
+              {roleList.map((role, idx) => (
+                <Tooltip key={idx}>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <RoleIndicator role={role} size="sm" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs border border-white/10 bg-slate-900/95 p-2 text-xs text-slate-100 shadow-lg">
+                    <p>{roleData[role]?.description || `Battle Role: ${role}`}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </TooltipProvider>
           </div>
         )}
       </div>

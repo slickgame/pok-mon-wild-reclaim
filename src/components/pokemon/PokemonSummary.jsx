@@ -12,6 +12,11 @@ import TalentsTab from './summary-tabs/TalentsTab';
 import MovesTab from './summary-tabs/MovesTab';
 import EvolutionTab from './summary-tabs/EvolutionTab';
 import ItemsTab from './summary-tabs/ItemsTab';
+import RoleIndicator, { roleData } from '@/components/battle/RoleIndicator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getPokemonData } from '@/components/data/PokemonRegistry';
+import { getNatureDescription } from './statCalculations';
+import { getAbilityMetadata } from '@/components/data/AbilityEffectRegistry';
 
 const typeColors = {
   Normal: 'from-gray-400 to-gray-500',
@@ -40,10 +45,15 @@ export default function PokemonSummary({ pokemon, onClose }) {
   const queryClient = useQueryClient();
 
   const gradientClass = typeColors[pokemon.type1] || 'from-indigo-500 to-purple-600';
+  const speciesData = getPokemonData(pokemon.species);
+  const natureDescription = pokemon.nature ? getNatureDescription(pokemon.nature) : null;
+  const passiveAbilities = pokemon.passiveAbilities || speciesData?.passiveAbilities || [];
+  const hiddenAbility = pokemon.hiddenAbility || speciesData?.hiddenAbility || null;
+
 
   const updateMutation = useMutation({
     mutationFn: (updateData) => base44.entities.Pokemon.update(pokemon.id, updateData),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pokemon'] });
     }
   });
@@ -184,28 +194,73 @@ export default function PokemonSummary({ pokemon, onClose }) {
           }
         </div>
 
-        {/* Roles */}
-        {pokemon.roles && pokemon.roles.length > 0 &&
-        <div className="flex gap-2 flex-wrap">
-            {pokemon.roles.map((role) => {
-            const roleIcons = {
-              Tank: Shield,
-              Striker: Zap,
-              Support: Heart,
-              Medic: Heart,
-              Scout: Zap,
-              Juggernaut: Shield
-            };
-            const Icon = roleIcons[role];
-            return (
-              <Badge key={role} variant="outline" className="bg-indigo-500/10 text-slate-50 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-indigo-500/30">
-                  {Icon && <Icon className="w-3 h-3 mr-1" />}
-                  {role}
-                </Badge>);
+        {/* Battle Tags */}
+        <div className="space-y-2">
+          {pokemon.roles && pokemon.roles.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              <TooltipProvider delayDuration={200}>
+                {pokemon.roles.map((role) => (
+                  <Tooltip key={role}>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <RoleIndicator role={role} size="sm" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs border border-white/10 bg-slate-900/95 p-2 text-xs text-slate-100 shadow-lg">
+                      <p>{roleData[role]?.description || `Battle Role: ${role}`}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
+            </div>
+          )}
 
-          })}
-          </div>
-        }
+          {pokemon.nature && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge className="bg-purple-500/20 border-purple-500/30 text-purple-300 cursor-help">Nature: {pokemon.nature}</Badge>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs border border-white/10 bg-slate-900/95 p-2 text-xs text-slate-100 shadow-lg">
+                  <p>{natureDescription || 'Affects stat growth patterns.'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          {(passiveAbilities.length > 0 || hiddenAbility) && (
+            <div className="flex gap-2 flex-wrap">
+              <TooltipProvider delayDuration={200}>
+                {passiveAbilities.map((ability) => {
+                  const meta = getAbilityMetadata(ability);
+                  return (
+                    <Tooltip key={`passive-${ability}`}>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="text-emerald-200 border-emerald-500/40 cursor-help">Ability: {ability}</Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs border border-white/10 bg-slate-900/95 p-2 text-xs text-slate-100 shadow-lg">
+                        <p>{meta?.longDescription || meta?.shortDescription || 'Passive battle ability.'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+                {hiddenAbility && (() => {
+                  const meta = getAbilityMetadata(hiddenAbility);
+                  return (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="text-amber-200 border-amber-500/40 cursor-help">Hidden: {hiddenAbility}</Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs border border-white/10 bg-slate-900/95 p-2 text-xs text-slate-100 shadow-lg">
+                        <p>{meta?.longDescription || meta?.shortDescription || 'Rare hidden passive ability.'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })()}
+              </TooltipProvider>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
