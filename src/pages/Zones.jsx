@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Map, Search, Compass, Eye, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,14 +16,20 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 import { 
   verdantHollowEncounters, 
-  generateWildPokemon,
-  rollItemDrops,
-  calculateWildXP 
+  generateWildPokemon
 } from '@/components/zones/wildPokemonData';
+import { VERDANT_HOLLOW_NODELETS, shouldSeedVerdantNodelets } from '@/components/zones/verdantHollowNodelets';
 
 const EXPLORE_TIME_MINUTES = 10;
 
@@ -46,13 +52,25 @@ export default function ZonesPage() {
     queryFn: () => base44.entities.Zone.list()
   });
 
-  const { data: gameTime } = useQuery({
-    queryKey: ['gameTime'],
-    queryFn: async () => {
-      const times = await base44.entities.GameTime.list();
-      return times[0] || null;
+  useEffect(() => {
+    const syncVerdantHollowNodelets = async () => {
+      const verdant = zones.find((zone) => zone.name === 'Verdant Hollow');
+      if (!verdant || !shouldSeedVerdantNodelets(verdant)) {
+        return;
+      }
+
+      try {
+        await base44.entities.Zone.update(verdant.id, { nodelets: VERDANT_HOLLOW_NODELETS });
+        queryClient.invalidateQueries({ queryKey: ['zones'] });
+      } catch (error) {
+        console.error('Failed to seed Verdant Hollow nodelets:', error);
+      }
+    };
+
+    if (zones.length > 0) {
+      syncVerdantHollowNodelets();
     }
-  });
+  }, [zones, queryClient]);
 
   const discoveredZones = player?.discoveredZones || ['Verdant Hollow'];
   const selectedZoneId = searchParams.get('zoneId');
@@ -151,8 +169,11 @@ function ZoneDetailView({ zone, onBack }) {
   const [explorationEvents, setExplorationEvents] = useState([]);
   const [currentEncounter, setCurrentEncounter] = useState(null);
   const [zoneProgress, setZoneProgress] = useState(null);
+  const [selectedNodelet, setSelectedNodelet] = useState(null);
+  const [activeNodelet, setActiveNodelet] = useState(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: player } = useQuery({
     queryKey: ['player'],
@@ -210,12 +231,627 @@ function ZoneDetailView({ zone, onBack }) {
   const eclipseNodelets = zone.nodelets?.filter(n => n.eclipseControlled) || [];
   
   const handleNodeletChallenge = (nodelet) => {
-    console.log('Challenge nodelet:', nodelet);
+    const encounter = nodelet?.revenantEncounter;
+    if (!encounter?.species) {
+      return;
+    }
+
+    const level = encounter.level || 12;
+
+    const runChallenge = async () => {
+      try {
+        const primedNodelets = (zone.nodelets || []).map((currentNodelet) =>
+          currentNodelet.id === nodelet.id
+            ? {
+                ...currentNodelet,
+                lastAction: 'Challenge Revenant',
+                lastActionAt: new Date().toISOString()
+              }
+            : currentNodelet
+        );
+
+        await base44.entities.Zone.update(zone.id, { nodelets: primedNodelets });
+        queryClient.setQueryData(['zones'], (existingZones = []) =>
+          existingZones.map((existingZone) =>
+            existingZone.id === zone.id ? { ...existingZone, nodelets: primedNodelets } : existingZone
+          )
+        );
+
+        const revenantPokemon = await base44.entities.Pokemon.create({
+          species: encounter.species,
+          level,
+          isInTeam: false,
+          isWild: true,
+          isRevenant: true,
+          stats: {
+            hp: level * 11,
+            maxHp: level * 11,
+            atk: level * 6,
+            def: level * 5,
+            spAtk: level * 6,
+            spDef: level * 5,
+            spd: level * 5
+          }
+        });
+
+        setExplorationEvents(prev => [{
+          title: '🩸 Eclipse Challenge Begun',
+          description: `Confronting Revenant ${encounter.species} at ${nodelet.name}`,
+          type: 'special',
+          rarity: 'rare'
+        }, ...prev].slice(0, 10));
+
+        setSelectedNodelet(null);
+        navigate('/Battle', {
+          state: {
+            wildPokemonId: revenantPokemon.id,
+            returnTo: `Zones?zoneId=${zone.id}&nodeletBattle=1&nodeletId=${nodelet.id}&nodeletBattleType=eclipse`,
+            nodeletBattleContext: {
+              zoneId: zone.id,
+              nodeletId: nodelet.id,
+              battleType: 'eclipse'
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Failed to start nodelet challenge:', error);
+      }
+    };
+
+    runChallenge();
+  };
+
+  const startNodeletWildEncounter = async ({ species, level = 8, nodelet, battleType = 'wild' }) => {
+    try {
+      const wildPokemon = await base44.entities.Pokemon.create({
+        species,
+        level,
+        isInTeam: false,
+        isWild: true,
+        stats: {
+          hp: level * 10,
+          maxHp: level * 10,
+          atk: level * 5,
+          def: level * 4,
+          spAtk: level * 5,
+          spDef: level * 4,
+          spd: level * 5
+        }
+      });
+
+      setExplorationEvents(prev => [{
+        title: '⚔️ Location Encounter',
+        description: `${species} appeared at ${nodelet.name}!`,
+        type: 'pokemon',
+        rarity: 'uncommon'
+      }, ...prev].slice(0, 10));
+
+      setSelectedNodelet(null);
+      navigate('/Battle', {
+        state: {
+          wildPokemonId: wildPokemon.id,
+          returnTo: `Zones?zoneId=${zone.id}&nodeletBattle=1&nodeletId=${nodelet.id}&nodeletBattleType=${battleType}`,
+          nodeletBattleContext: {
+            zoneId: zone.id,
+            nodeletId: nodelet.id,
+            battleType
+          }
+        }
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to start location encounter:', error);
+      return false;
+    }
+  };
+
+  const handleExploreNodelet = async (nodelet) => {
+    const availableSpecies = nodelet?.wildPokemon || [];
+    if (!availableSpecies.length) {
+      setExplorationEvents(prev => [{
+        title: '🌿 Quiet Location',
+        description: `${nodelet.name} has no active encounter table yet.`,
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+      return;
+    }
+
+    const species = availableSpecies[Math.floor(Math.random() * availableSpecies.length)];
+    await startNodeletWildEncounter({
+      species,
+      level: 7 + Math.floor(Math.random() * 5),
+      nodelet,
+      battleType: 'locationExplore'
+    });
   };
   
   const handleNodeletInspect = (nodelet) => {
-    console.log('Inspect nodelet:', nodelet);
+    setSelectedNodelet(nodelet);
   };
+
+  const handleEnterNodelet = (nodelet) => {
+    setActiveNodelet(nodelet);
+  };
+
+  const handleLeaveNodelet = () => {
+    setActiveNodelet(null);
+  };
+
+  const handleNodeletAction = async (nodelet, action) => {
+    if (!zone?.id || !nodelet?.id) return;
+
+    const upsertItem = async (name, quantity, overrides = {}) => {
+      const existingItem = items.find((item) => item.name === name && item.stackable !== false);
+
+      if (existingItem) {
+        await base44.entities.Item.update(existingItem.id, {
+          quantity: Math.max(0, (existingItem.quantity || 0) + quantity)
+        });
+        return;
+      }
+
+      if (quantity > 0) {
+        await base44.entities.Item.create({
+          name,
+          type: overrides.type || 'Material',
+          tier: overrides.tier || 1,
+          rarity: overrides.rarity || 'Common',
+          description: overrides.description || `Found in ${zone.name}`,
+          quantity,
+          stackable: true,
+          sellValue: overrides.sellValue || 10
+        });
+      }
+    };
+
+    const now = new Date().toISOString();
+    const nowDate = new Date();
+
+    if (action === 'Harvest') {
+      const berryPool = ['Oran Berry', 'Pecha Berry', 'Cheri Berry'];
+      const berry = berryPool[Math.floor(Math.random() * berryPool.length)];
+      const bonusYield = nodelet.replantReadyAt && new Date(nodelet.replantReadyAt) <= nowDate ? 1 : 0;
+      try {
+        await upsertItem(berry, 1, { type: 'Consumable', description: 'A berry harvested in Verdant Hollow' });
+
+        if (bonusYield > 0) {
+          await upsertItem(berryPool[Math.floor(Math.random() * berryPool.length)], bonusYield, {
+            type: 'Consumable',
+            description: 'Bonus berries from careful replanting'
+          });
+        }
+
+        if (Math.random() < 0.25) {
+          const localSpecies = nodelet.wildPokemon?.length ? nodelet.wildPokemon : ['Oddish', 'Caterpie', 'Pidgey'];
+          const encounteredSpecies = localSpecies[Math.floor(Math.random() * localSpecies.length)];
+          const started = await startNodeletWildEncounter({
+            species: encounteredSpecies,
+            level: 6 + Math.floor(Math.random() * 3),
+            nodelet,
+            battleType: 'berry'
+          });
+
+          if (started) {
+            return;
+          }
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        setExplorationEvents(prev => [{
+          title: '🫐 Berry Harvest',
+          description: `Gathered ${berry}${bonusYield ? ' (+bonus yield)' : ''} at ${nodelet.name}`,
+          type: 'material',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+      } catch (error) {
+        console.error('Failed to harvest berries:', error);
+      }
+    }
+
+    if (action === 'Replant') {
+      setExplorationEvents(prev => [{
+        title: '🌱 Patch Replanted',
+        description: 'The berry patch will be richer after a short wait.',
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+    }
+
+    if (action === 'Deliver Berries') {
+      if (!player?.id) return;
+      const berryNames = ['Oran Berry', 'Pecha Berry', 'Cheri Berry'];
+      const berryStocks = items.filter((item) => berryNames.includes(item.name) && (item.quantity || 0) > 0);
+      const totalBerries = berryStocks.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+      if (totalBerries < 3) {
+        setExplorationEvents(prev => [{
+          title: '📦 Not Enough Berries',
+          description: 'Deliver Berries requires at least 3 berries in your inventory.',
+          type: 'special',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+        return;
+      }
+
+      try {
+        let remaining = 3;
+        for (const stock of berryStocks) {
+          if (remaining <= 0) break;
+          const removeQty = Math.min(remaining, stock.quantity || 0);
+          await base44.entities.Item.update(stock.id, {
+            quantity: Math.max(0, (stock.quantity || 0) - removeQty)
+          });
+          remaining -= removeQty;
+        }
+
+        const currentGold = player?.gold || 0;
+        await base44.entities.Player.update(player.id, { gold: currentGold + 120 });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        queryClient.invalidateQueries({ queryKey: ['player'] });
+        setExplorationEvents(prev => [{
+          title: '🧺 Berry Delivery Complete',
+          description: 'Delivered fresh berries and earned 120 gold.',
+          type: 'special',
+          rarity: 'uncommon'
+        }, ...prev].slice(0, 10));
+      } catch (error) {
+        console.error('Failed to deliver berries:', error);
+      }
+    }
+
+    if (action === 'Fish') {
+      const baitOptions = ['Basic Bait', 'Quality Bait'];
+      const bait = items.find((item) => baitOptions.includes(item.name) && (item.quantity || 0) > 0);
+
+      if (!bait) {
+        setExplorationEvents(prev => [{
+          title: '🎣 Need Bait',
+          description: 'You need Basic Bait or Quality Bait to fish here.',
+          type: 'special',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+        return;
+      }
+
+      try {
+        await base44.entities.Item.update(bait.id, { quantity: Math.max(0, (bait.quantity || 0) - 1) });
+        const fishPool = nodelet.wildPokemon?.length ? nodelet.wildPokemon : ['Magikarp', 'Poliwag'];
+        const hooked = fishPool[Math.floor(Math.random() * fishPool.length)];
+        const hasSurveyBuff = nodelet.surveyBuffUntil && new Date(nodelet.surveyBuffUntil) > nowDate;
+        const loot = hasSurveyBuff || Math.random() < 0.6 ? 'Bog Reed' : 'River Stone';
+
+        if (Math.random() < (hasSurveyBuff ? 0.45 : 0.25)) {
+          const started = await startNodeletWildEncounter({
+            species: hooked,
+            level: 7 + Math.floor(Math.random() * 3),
+            nodelet,
+            battleType: 'fishing'
+          });
+
+          if (started) {
+            return;
+          }
+        }
+
+        await upsertItem(loot, 1, { type: 'Material', description: `Recovered while fishing in ${nodelet.name}` });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        setExplorationEvents(prev => [{
+          title: '🎣 Fishing Success',
+          description: `Hooked signs of ${hooked} and collected ${loot}.`,
+          type: 'special',
+          rarity: 'uncommon'
+        }, ...prev].slice(0, 10));
+      } catch (error) {
+        console.error('Failed to fish at nodelet:', error);
+      }
+    }
+
+    if (action === 'Survey Pool') {
+      setExplorationEvents(prev => [{
+        title: '🧭 Pool Surveyed',
+        description: 'Fish movement mapped. Better odds for your next casts.',
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+    }
+
+    if (action === 'Collect Reeds') {
+      try {
+        const qty = 1 + Math.floor(Math.random() * 2);
+        await upsertItem('Bog Reed', qty, { type: 'Material', description: `Harvested reeds from ${nodelet.name}` });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        setExplorationEvents(prev => [{
+          title: '🌾 Bog Reeds Collected',
+          description: `Collected ${qty} Bog Reed from the shallows.`,
+          type: 'material',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+      } catch (error) {
+        console.error('Failed to collect reeds:', error);
+      }
+    }
+
+    if (action === 'Inspect Corruption') {
+      setExplorationEvents(prev => [{
+        title: '🔍 Corruption Scanned',
+        description: 'The spring pulses with Eclipse residue. Challenge is now available.',
+        type: 'special',
+        rarity: 'uncommon'
+      }, ...prev].slice(0, 10));
+    }
+
+    if (action === 'Challenge Revenant') {
+      handleNodeletChallenge(nodelet);
+      return;
+    }
+
+    if (
+      action === 'Purify Spring' &&
+      nodelet.eclipseControlled &&
+      nodelet.lastChallengeOutcome !== 'victory'
+    ) {
+      setExplorationEvents(prev => [{
+        title: '⚠️ Spring Still Corrupted',
+        description: 'Defeat the Revenant first, then return to purify the spring.',
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+      return;
+    }
+
+    if (action === 'Set Lure') {
+      const lureSource = items.find((item) => ['Wild Honey', 'Basic Bait'].includes(item.name) && (item.quantity || 0) > 0);
+      if (!lureSource) {
+        setExplorationEvents(prev => [{
+          title: '🍯 Lure Needed',
+          description: 'Set Lure requires Wild Honey or Basic Bait.',
+          type: 'special',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+        return;
+      }
+
+      try {
+        await base44.entities.Item.update(lureSource.id, { quantity: Math.max(0, (lureSource.quantity || 0) - 1) });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        setExplorationEvents(prev => [{
+          title: '🍯 Lure Set',
+          description: 'The hives are stirring. Return soon for activity.',
+          type: 'special',
+          rarity: 'uncommon'
+        }, ...prev].slice(0, 10));
+      } catch (error) {
+        console.error('Failed to set apiary lure:', error);
+      }
+    }
+
+    if (action === 'Harvest Hive') {
+      if (!nodelet.lureReadyAt || new Date(nodelet.lureReadyAt) > nowDate) {
+        setExplorationEvents(prev => [{
+          title: '🐝 Hive Dormant',
+          description: 'Set a lure and wait a little before harvesting the hive.',
+          type: 'special',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+        return;
+      }
+
+      try {
+        await upsertItem('Wax Comb', 1, { type: 'Material', description: `Recovered from ${nodelet.name}` });
+        if (Math.random() < 0.35) {
+          await upsertItem('Royal Jelly', 1, {
+            type: 'Material',
+            rarity: 'Uncommon',
+            description: `Rare nectar from ${nodelet.name}`
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        setExplorationEvents(prev => [{
+          title: '🐝 Hive Harvest',
+          description: 'Recovered hive materials from the apiary ruins.',
+          type: 'material',
+          rarity: 'uncommon'
+        }, ...prev].slice(0, 10));
+      } catch (error) {
+        console.error('Failed to harvest hive:', error);
+      }
+    }
+
+    if (action === 'Defend Apiary') {
+      if (!nodelet.lureReadyAt || new Date(nodelet.lureReadyAt) > nowDate) {
+        setExplorationEvents(prev => [{
+          title: '🛡️ Nothing to Defend Yet',
+          description: 'Set a lure and wait for swarms before defending the apiary.',
+          type: 'special',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+        return;
+      }
+
+      const defenders = nodelet.wildPokemon?.length ? nodelet.wildPokemon : ['Combee', 'Burmy'];
+      const defenderSpecies = defenders[Math.floor(Math.random() * defenders.length)];
+      const started = await startNodeletWildEncounter({
+        species: defenderSpecies,
+        level: 10 + Math.floor(Math.random() * 3),
+        nodelet,
+        battleType: 'apiary'
+      });
+
+      if (started) {
+        return;
+      }
+    }
+
+    const updatedNodelets = (zone.nodelets || []).map((currentNodelet) => {
+      if (currentNodelet.id !== nodelet.id) return currentNodelet;
+
+      if (action === 'Purify Spring') {
+        return {
+          ...currentNodelet,
+          eclipseControlled: false,
+          isCompleted: true,
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      if (action === 'Liberate Nodelet') {
+        return {
+          ...currentNodelet,
+          eclipseControlled: false,
+          isCompleted: true,
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      if (action === 'Replant') {
+        return {
+          ...currentNodelet,
+          replantReadyAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      if (action === 'Survey Pool') {
+        return {
+          ...currentNodelet,
+          surveyBuffUntil: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      if (action === 'Set Lure') {
+        return {
+          ...currentNodelet,
+          lureSetAt: now,
+          lureReadyAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      if (action === 'Harvest') {
+        return {
+          ...currentNodelet,
+          replantReadyAt:
+            currentNodelet.replantReadyAt && new Date(currentNodelet.replantReadyAt) <= nowDate
+              ? null
+              : currentNodelet.replantReadyAt,
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      if (action === 'Harvest Hive') {
+        return {
+          ...currentNodelet,
+          lureSetAt: null,
+          lureReadyAt: null,
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      if (nodelet.actions?.includes(action)) {
+        return {
+          ...currentNodelet,
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      return currentNodelet;
+    });
+
+    try {
+      const updatedZone = await base44.entities.Zone.update(zone.id, {
+        nodelets: updatedNodelets
+      });
+
+      queryClient.setQueryData(['zones'], (existingZones = []) =>
+        existingZones.map((existingZone) =>
+          existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
+        )
+      );
+
+      const refreshedNodelet = updatedNodelets.find((currentNodelet) => currentNodelet.id === nodelet.id);
+      setSelectedNodelet(refreshedNodelet || null);
+      setActiveNodelet(refreshedNodelet || null);
+    } catch (error) {
+      console.error('Failed to update nodelet:', error);
+    }
+  };
+
+  useEffect(() => {
+    const nodeletBattle = searchParams.get('nodeletBattle');
+    const nodeletId = searchParams.get('nodeletId');
+    const battleOutcome = searchParams.get('battleOutcome');
+    const nodeletBattleType = searchParams.get('nodeletBattleType');
+
+    if (nodeletBattle !== '1' || !nodeletId || !battleOutcome || !zone?.id) {
+      return;
+    }
+
+    const updateFromBattle = async () => {
+      const targetNodelet = (zone.nodelets || []).find((nodelet) => nodelet.id === nodeletId);
+      if (!targetNodelet) return;
+
+      const now = new Date().toISOString();
+      const updatedNodelets = (zone.nodelets || []).map((nodelet) => {
+        if (nodelet.id !== nodeletId) return nodelet;
+
+        const nextNodelet = {
+          ...nodelet,
+          lastBattleOutcome: battleOutcome,
+          lastBattleAt: now
+        };
+
+        if (nodeletBattleType === 'eclipse') {
+          nextNodelet.lastChallengeOutcome = battleOutcome === 'victory' ? 'victory' : 'failed';
+        }
+
+        return nextNodelet;
+      });
+      const updatedActiveNodelet = updatedNodelets.find((nodelet) => nodelet.id === nodeletId);
+
+      try {
+        const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
+        queryClient.setQueryData(['zones'], (existingZones = []) =>
+          existingZones.map((existingZone) =>
+            existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
+          )
+        );
+        setActiveNodelet(updatedActiveNodelet || null);
+
+        if (nodeletBattleType === 'eclipse') {
+          setExplorationEvents(prev => [{
+            title: battleOutcome === 'victory' ? '✅ Revenant Defeated' : '❌ Revenant Withstood',
+            description:
+              battleOutcome === 'victory'
+                ? 'You can now Purify Spring at the Eclipse-Tainted Spring.'
+                : 'Recover and challenge the Revenant again to purify the spring.',
+            type: 'special',
+            rarity: battleOutcome === 'victory' ? 'rare' : 'common'
+          }, ...prev].slice(0, 10));
+        }
+
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('nodeletBattle');
+        nextParams.delete('nodeletId');
+        nextParams.delete('battleOutcome');
+        nextParams.delete('nodeletBattleType');
+        setSearchParams(nextParams);
+      } catch (error) {
+        console.error('Failed to apply nodelet battle outcome:', error);
+      }
+    };
+
+    updateFromBattle();
+  }, [searchParams, setSearchParams, zone, queryClient]);
 
   const handleStartExploring = () => {
     setIsExploring(true);
@@ -932,7 +1568,7 @@ function ZoneDetailView({ zone, onBack }) {
                       key={idx}
                       onClick={() => {
                         if (isDiscovered) {
-                          handleNodeletInspect(nodelet);
+                          handleEnterNodelet(nodelet);
                         }
                       }}
                       disabled={!isDiscovered}
@@ -973,8 +1609,178 @@ function ZoneDetailView({ zone, onBack }) {
               No places discovered yet.
             </div>
           )}
+
+          {activeNodelet && (
+            <div className="glass rounded-xl p-4 border border-indigo-500/30">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="text-base font-semibold text-white">{activeNodelet.name}</h3>
+                  <p className="text-xs text-slate-400">{activeNodelet.type} Location</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                    onClick={() => handleExploreNodelet(activeNodelet)}
+                  >
+                    Explore Location
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-700 text-slate-200"
+                    onClick={() => handleNodeletInspect(activeNodelet)}
+                  >
+                    Details
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-700 text-slate-200"
+                    onClick={handleLeaveNodelet}
+                  >
+                    Leave
+                  </Button>
+                </div>
+              </div>
+
+              {activeNodelet.description && (
+                <p className="text-sm text-slate-300 mb-3">{activeNodelet.description}</p>
+              )}
+
+              {activeNodelet.gameplayFeatures?.length > 0 && (
+                <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300 mb-3">
+                  {activeNodelet.gameplayFeatures.map((feature) => (
+                    <li key={feature}>{feature}</li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {activeNodelet.actions?.map((actionLabel) => {
+                  const currentProgress = zoneProgress?.discoveryProgress || 0;
+                  const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
+                  const isLocked = currentProgress < unlockAt;
+
+                  return (
+                    <Button
+                      key={`active-${actionLabel}`}
+                      size="sm"
+                      variant="outline"
+                      disabled={isLocked}
+                      className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
+                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      onClick={() => handleNodeletAction(activeNodelet, actionLabel)}
+                    >
+                      {isLocked ? `${actionLabel} 🔒` : actionLabel}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      <Dialog
+        open={Boolean(selectedNodelet)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNodelet(null);
+        }}
+      >
+        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl">
+          {selectedNodelet && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-white flex items-center gap-2">
+                  <Map className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
+                </DialogTitle>
+                <DialogDescription className="text-slate-300">
+                  {selectedNodelet.description || 'A location within Verdant Hollow.'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 text-sm">
+                {selectedNodelet.gameplayFeatures?.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Gameplay Features</h4>
+                    <ul className="list-disc pl-5 space-y-1 text-slate-300">
+                      {selectedNodelet.gameplayFeatures.map((feature) => (
+                        <li key={feature}>{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InfoPills title="NPCs" values={selectedNodelet.npcs} />
+                  <InfoPills title="Items" values={selectedNodelet.items} />
+                  <InfoPills title="Wild Pokémon" values={selectedNodelet.wildPokemon} />
+                  <InfoPills title="Enemy NPCs" values={selectedNodelet.enemyNPCs} />
+                </div>
+
+                {selectedNodelet.actions?.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Available Actions</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedNodelet.actions.map((action) => (
+                        <Badge key={action} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
+                          {action}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedNodelet.isComingSoon && (
+                  <p className="text-amber-300 text-xs bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+                    Coming Soon: Honey lure encounter mechanics and delayed ambush resolution.
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {selectedNodelet.actions?.map((actionLabel) => {
+                    const currentProgress = zoneProgress?.discoveryProgress || 0;
+                    const unlockAt = selectedNodelet.unlockDiscoveryProgress || 0;
+                    const isLocked = currentProgress < unlockAt;
+
+                    return (
+                      <Button
+                        key={actionLabel}
+                        size="sm"
+                        variant="outline"
+                        disabled={isLocked}
+                        className={`border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20 ${
+                          isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        onClick={() => handleNodeletAction(selectedNodelet, actionLabel)}
+                      >
+                        {isLocked ? `${actionLabel} 🔒` : actionLabel}
+                      </Button>
+                    );
+                  })}
+
+                  {(zoneProgress?.discoveryProgress || 0) < (selectedNodelet.unlockDiscoveryProgress || 0) && (
+                    <Badge className="bg-amber-500/20 text-amber-200 border-amber-500/30">
+                      Unlocks at {selectedNodelet.unlockDiscoveryProgress}% discovery
+                    </Badge>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-700 text-slate-200"
+                    onClick={() => setSelectedNodelet(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {activeSection === 'camp' && (
         <div className="glass rounded-xl p-6 space-y-4">
@@ -1106,3 +1912,19 @@ function ZoneDetailView({ zone, onBack }) {
   );
 }
 
+function InfoPills({ title, values = [] }) {
+  if (!values.length) return null;
+
+  return (
+    <div>
+      <h4 className="text-white font-semibold mb-2">{title}</h4>
+      <div className="flex flex-wrap gap-2">
+        {values.map((value) => (
+          <Badge key={`${title}-${value}`} className="bg-slate-800/80 text-slate-200 border-slate-600">
+            {value}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
