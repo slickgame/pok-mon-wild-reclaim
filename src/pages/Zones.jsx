@@ -951,6 +951,7 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const handleExplore = async () => {
+    await advanceTime(10);
     const currentProgress = zoneProgress?.discoveryProgress || 0;
     const progressGain = Math.floor(Math.random() * 11) + 5; // 5-15
     
@@ -1142,7 +1143,8 @@ function ZoneDetailView({ zone, onBack }) {
           roles: wildData.roles,
           signatureMove: wildData.signatureMove,
           isInTeam: false,
-          isWild: true
+          isWild: true,
+          isWildInstance: true
         });
 
         logEntry.details = `Started battle with ${encounter.pokemon}`;
