@@ -420,12 +420,21 @@ function ZoneDetailView({ zone, onBack }) {
       return;
     }
 
-    await startNodeletWildEncounter({
+    const started = await startNodeletWildEncounter({
       species: encounter.species,
       level: encounter.level,
       nodelet,
       battleType: 'locationExplore'
     });
+
+    if (!started) {
+      setExplorationEvents(prev => [{
+        title: '⚠️ Encounter Failed',
+        description: `Could not start an encounter at ${nodelet.name}.`,
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+    }
   };
   
   const handleNodeletInspect = (nodelet) => {
@@ -434,10 +443,12 @@ function ZoneDetailView({ zone, onBack }) {
 
   const handleEnterNodelet = (nodelet) => {
     setActiveNodelet(nodelet);
+    setActiveSection('nodelet');
   };
 
   const handleLeaveNodelet = () => {
     setActiveNodelet(null);
+    setActiveSection('places');
   };
 
   const handleNodeletAction = async (nodelet, action) => {
@@ -1635,33 +1646,6 @@ function ZoneDetailView({ zone, onBack }) {
   const getUnclaimedObjectiveRewards = (nodelet) =>
     (Array.isArray(nodelet?.objectiveHistory) ? nodelet.objectiveHistory : []).filter((entry) => !entry.claimedAt);
 
-  const getObjectiveState = (nodelet) => {
-    const now = getCurrentGameTimestamp();
-    return (nodelet?.objectives || []).map((objective) => {
-      const progress = nodelet?.objectiveProgress?.[objective.id] || 0;
-      const completedAt = nodelet?.objectiveCompletedAt?.[objective.id];
-      const nextAvailableAt = completedAt
-        ? (typeof completedAt === 'number' ? completedAt : new Date(completedAt).getTime()) + (objective.repeatMinutes || 0) * 60 * 1000
-        : null;
-      const cooldownMs = nextAvailableAt ? Math.max(0, nextAvailableAt - now) : 0;
-      const inCooldown = Boolean(nextAvailableAt && cooldownMs > 0);
-
-      return {
-        ...objective,
-        progress,
-        isComplete: progress >= (objective.goal || 1),
-        inCooldown,
-        cooldownMs,
-      };
-    });
-  };
-
-  const formatCooldown = (ms) => {
-    const totalMinutes = Math.ceil(ms / 60000);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-  };
 
   const currentTimeTotal = toTotalMinutes(normalizeGameTime(gameTime));
 
@@ -1741,6 +1725,7 @@ function ZoneDetailView({ zone, onBack }) {
   const sectionOptions = [
     { id: 'explore', label: 'Explore' },
     { id: 'places', label: 'Places' },
+    { id: 'nodelet', label: activeNodelet ? activeNodelet.name : 'Location', hidden: !activeNodelet },
     { id: 'camp', label: 'Camp' },
     { id: 'items', label: 'Items' },
     { id: 'pokemon', label: 'Pokémon' },
@@ -1768,7 +1753,7 @@ function ZoneDetailView({ zone, onBack }) {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
-        {sectionOptions.map((section) => (
+        {sectionOptions.filter((section) => !section.hidden).map((section) => (
           <Button
             key={section.id}
             variant={activeSection === section.id ? 'default' : 'outline'}
@@ -1942,7 +1927,7 @@ function ZoneDetailView({ zone, onBack }) {
 
           {activeNodelet && (
             <div className="glass rounded-xl p-4 border border-indigo-500/30">
-              <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-base font-semibold text-white">{activeNodelet.name}</h3>
                   <p className="text-xs text-slate-400">{activeNodelet.type} Location</p>
@@ -1951,17 +1936,9 @@ function ZoneDetailView({ zone, onBack }) {
                   <Button
                     size="sm"
                     className="bg-indigo-600 hover:bg-indigo-700"
-                    onClick={() => handleExploreNodelet(activeNodelet)}
+                    onClick={() => setActiveSection('nodelet')}
                   >
-                    Explore Location
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-slate-700 text-slate-200"
-                    onClick={() => handleNodeletInspect(activeNodelet)}
-                  >
-                    Details
+                    Open Location
                   </Button>
                   <Button
                     size="sm"
@@ -1973,142 +1950,104 @@ function ZoneDetailView({ zone, onBack }) {
                   </Button>
                 </div>
               </div>
-
-              {activeNodelet.description && (
-                <p className="text-sm text-slate-300 mb-3">{activeNodelet.description}</p>
-              )}
-
-              {activeNodelet.gameplayFeatures?.length > 0 && (
-                <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300 mb-3">
-                  {activeNodelet.gameplayFeatures.map((feature) => (
-                    <li key={feature}>{feature}</li>
-                  ))}
-                </ul>
-              )}
-
-              {Array.isArray(activeNodelet.npcHooks) && activeNodelet.npcHooks.length > 0 && (
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 mb-3">
-                  <h4 className="text-xs font-semibold text-amber-200 mb-2">Contract Hooks</h4>
-                  <ul className="list-disc pl-5 space-y-1 text-xs text-amber-100/90">
-                    {activeNodelet.npcHooks.map((hook) => (
-                      <li key={hook}>{hook}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2 mb-3">
-                {activeNodelet.replantReadyAt && (
-                  <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/30">
-                    {toNodeletTimestamp(activeNodelet.replantReadyAt) <= getCurrentGameTimestamp() ? '🌱 Replant Bonus Ready' : '🌱 Replant Growing'}
-                  </Badge>
-                )}
-                {activeNodelet.surveyBuffUntil && (
-                  <Badge className="bg-cyan-500/20 text-cyan-200 border-cyan-500/30">
-                    {toNodeletTimestamp(activeNodelet.surveyBuffUntil) > getCurrentGameTimestamp() ? '🧭 Survey Buff Active' : '🧭 Survey Buff Expired'}
-                  </Badge>
-                )}
-                {typeof activeNodelet.harvestStreak === 'number' && activeNodelet.harvestStreak > 0 && (
-                  <Badge className="bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-500/30">
-                    🧺 Harvest Streak x{activeNodelet.harvestStreak}
-                  </Badge>
-                )}
-                {activeNodelet.lureReadyAt && (
-                  <Badge className="bg-amber-500/20 text-amber-200 border-amber-500/30">
-                    {toNodeletTimestamp(activeNodelet.lureReadyAt) <= getCurrentGameTimestamp() ? '🍯 Lure Ready' : '🍯 Lure Set'}
-                  </Badge>
-                )}
-              </div>
-
-              {getObjectiveState(activeNodelet).length > 0 && (
-                <div className="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3 mb-3">
-                  <h4 className="text-xs font-semibold text-slate-200 mb-2">Location Objectives</h4>
-                  <div className="space-y-2">
-                    {getObjectiveState(activeNodelet).map((objective) => (
-                      <div key={objective.id} className="flex items-center justify-between text-xs">
-                        <div>
-                          <p className="text-slate-200">{objective.label}</p>
-                          <p className="text-slate-400">
-                            {objective.inCooldown
-                              ? `Resets in ${formatCooldown(objective.cooldownMs)}`
-                              : `Progress: ${objective.progress}/${objective.goal || 1}`}
-                          </p>
-                        </div>
-                        <Badge className={objective.inCooldown ? 'bg-slate-700/70 text-slate-300' : 'bg-indigo-500/20 text-indigo-200 border-indigo-500/30'}>
-                          {objective.inCooldown ? 'Cooldown' : 'Active'}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-
-              {activeNodelet.id === 'vh-brambleberry-thicket' && (() => {
-                const contractState = getBrambleberryContractState(activeNodelet);
-                return (
-                  <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 mb-3">
-                    <h4 className="text-xs font-semibold text-fuchsia-200 mb-2">Brambleberry Contract Board</h4>
-                    <div className="space-y-1 text-xs text-fuchsia-100/90">
-                      <p>Tier I (Merra Contract): {contractState.tier1Completed ? `Complete (${contractState.tier1Runs} run${contractState.tier1Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
-                      <p>Tier II (Streak Contract): {contractState.tier2Completed ? `Complete (${contractState.tier2Runs} run${contractState.tier2Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {Array.isArray(activeNodelet.objectiveHistory) && activeNodelet.objectiveHistory.length > 0 && (
-                <div className="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3 mb-3">
-                  <h4 className="text-xs font-semibold text-slate-200 mb-2">Objective Journal & Recent Rewards</h4>
-                  <div className="space-y-2">
-                    {activeNodelet.objectiveHistory.slice(0, 3).map((entry, idx) => (
-                      <div key={`${entry.id}-${idx}`} className="text-xs text-slate-300">
-                        <p>{entry.label} {entry.claimedAt ? '✅' : '🕓'}</p>
-                        <p className="text-slate-500">
-                          {entry.reward?.gold ? `+${entry.reward.gold}g` : ''}
-                          {Array.isArray(entry.reward?.items) && entry.reward.items.length > 0
-                            ? `${entry.reward?.gold ? ' • ' : ''}${entry.reward.items.map((item) => `${item.quantity || 1}x ${item.name}`).join(', ')}`
-                            : ''}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                {getUnclaimedObjectiveRewards(activeNodelet).length > 0 && (
-                  <Button
-                    size="sm"
-                    className="bg-amber-600 hover:bg-amber-700 text-white"
-                    onClick={() => handleClaimNodeletRewards(activeNodelet)}
-                  >
-                    Claim Rewards ({getUnclaimedObjectiveRewards(activeNodelet).length})
-                  </Button>
-                )}
-                {activeNodelet.actions?.map((actionLabel) => {
-                  const currentProgress = zoneProgress?.discoveryProgress || 0;
-                  const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
-                  const isLocked = currentProgress < unlockAt;
-
-                  return (
-                    <Button
-                      key={`active-${actionLabel}`}
-                      size="sm"
-                      variant="outline"
-                      disabled={isLocked}
-                      className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
-                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      onClick={() => handleNodeletAction(activeNodelet, actionLabel)}
-                    >
-                      {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                    </Button>
-                  );
-                })}
-              </div>
             </div>
           )}
+        </div>
+      )}
+
+      {activeSection === 'nodelet' && activeNodelet && (
+        <div className="space-y-4">
+          <div className="glass rounded-xl p-4 border border-indigo-500/30">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-base font-semibold text-white">{activeNodelet.name}</h3>
+                <p className="text-xs text-slate-400">{zone.name} · {activeNodelet.type} Location</p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="border-slate-700 text-slate-200" onClick={() => setActiveSection('places')}>
+                  Back to Places
+                </Button>
+                <Button size="sm" variant="outline" className="border-slate-700 text-slate-200" onClick={handleLeaveNodelet}>
+                  Leave
+                </Button>
+              </div>
+            </div>
+
+            {activeNodelet.description && (
+              <p className="text-sm text-slate-300 mb-3">{activeNodelet.description}</p>
+            )}
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => handleExploreNodelet(activeNodelet)}>
+                Explore Location
+              </Button>
+              {activeNodelet.actions?.map((actionLabel) => {
+                const currentProgress = zoneProgress?.discoveryProgress || 0;
+                const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
+                const isLocked = currentProgress < unlockAt;
+
+                return (
+                  <Button
+                    key={`nodelet-${actionLabel}`}
+                    size="sm"
+                    variant="outline"
+                    disabled={isLocked}
+                    className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
+                      isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    onClick={() => handleNodeletAction(activeNodelet, actionLabel)}
+                  >
+                    {isLocked ? `${actionLabel} 🔒` : actionLabel}
+                  </Button>
+                );
+              })}
+              <Button size="sm" variant="outline" className="border-slate-700 text-slate-200" onClick={() => handleNodeletInspect(activeNodelet)}>
+                Details
+              </Button>
+            </div>
+
+            {Array.isArray(activeNodelet.npcs) && activeNodelet.npcs.length > 0 && (
+              <div className="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3 mb-3">
+                <h4 className="text-xs font-semibold text-slate-200 mb-2">NPCs Here</h4>
+                <div className="flex flex-wrap gap-2">
+                  {activeNodelet.npcs.map((npc) => (
+                    <Badge key={npc} className="bg-slate-700/70 text-slate-200">{npc}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {getUnclaimedObjectiveRewards(activeNodelet).length > 0 && (
+              <Button
+                size="sm"
+                className="bg-amber-600 hover:bg-amber-700 text-white mb-3"
+                onClick={() => handleClaimNodeletRewards(activeNodelet)}
+              >
+                Claim Rewards ({getUnclaimedObjectiveRewards(activeNodelet).length})
+              </Button>
+            )}
+
+            {activeNodelet.id === 'vh-brambleberry-thicket' && (() => {
+              const contractState = getBrambleberryContractState(activeNodelet);
+              return (
+                <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 mb-3">
+                  <h4 className="text-xs font-semibold text-fuchsia-200 mb-2">Brambleberry Contract Board</h4>
+                  <div className="space-y-1 text-xs text-fuchsia-100/90">
+                    <p>Tier I (Merra Contract): {contractState.tier1Completed ? `Complete (${contractState.tier1Runs} run${contractState.tier1Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
+                    <p>Tier II (Streak Contract): {contractState.tier2Completed ? `Complete (${contractState.tier2Runs} run${contractState.tier2Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {activeNodelet.gameplayFeatures?.length > 0 && (
+              <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300">
+                {activeNodelet.gameplayFeatures.map((feature) => (
+                  <li key={feature}>{feature}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
@@ -2153,15 +2092,6 @@ function ZoneDetailView({ zone, onBack }) {
                   <div>
                     <h4 className="text-white font-semibold mb-2">Available Actions</h4>
                     <div className="flex flex-wrap gap-2">
-                {getUnclaimedObjectiveRewards(activeNodelet).length > 0 && (
-                  <Button
-                    size="sm"
-                    className="bg-amber-600 hover:bg-amber-700 text-white"
-                    onClick={() => handleClaimNodeletRewards(activeNodelet)}
-                  >
-                    Claim Rewards ({getUnclaimedObjectiveRewards(activeNodelet).length})
-                  </Button>
-                )}
                       {selectedNodelet.actions.map((action) => (
                         <Badge key={action} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
                           {action}
