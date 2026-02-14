@@ -831,8 +831,43 @@ const BASE_MOVE_DATA = {
     effect: 'confuseAfter',
     lockTurns: [2, 3]
   },
+  'Berry Burst': {
+    type: 'Grass',
+    category: 'Special',
+    power: 55,
+    accuracy: 100,
+    pp: 15,
+    description: 'Hurls nutrient-rich fruit energy and restores some HP.',
+    tags: ['Drain', 'Healing', 'Signature', 'Grass'],
+    effect: 'drain',
+    drainPercentage: 0.3
+  },
+  'Sunlit Flourish': {
+    type: 'Grass',
+    category: 'Status',
+    power: 0,
+    accuracy: 100,
+    pp: 10,
+    description: "Boosts the user's Sp. Atk and Sp. Def with radiant petals.",
+    tags: ['Buff', 'Support', 'Signature', 'Grass'],
+    effect: 'selfBoost',
+    statBoosts: { spAtk: 1, spDef: 1 }
+  },
   
   // Venusaur's signature move
+  'Trop Kick': {
+    type: 'Grass',
+    category: 'Physical',
+    power: 70,
+    accuracy: 100,
+    pp: 15,
+    description: "A royal kick that always lowers the target's Attack.",
+    tags: ['Signature', 'Debuff', 'Physical', 'Grass'],
+    effect: {
+      targetStatChange: { atk: -1 }
+    }
+  },
+
   'Verdant Sanctuary': {
     type: 'Grass',
     category: 'Status',
@@ -1857,6 +1892,9 @@ const MOVE_TAGS = {
   Aromatherapy: ['Healing', 'StatusCure'],
   'Giga Drain': ['Healing', 'Drain', 'Special'],
   'Petal Dance': ['Multi-Turn', 'Special'],
+  'Berry Burst': ['Drain', 'Healing', 'Special'],
+  'Sunlit Flourish': ['Buff', 'Status', 'Support'],
+  'Trop Kick': ['Debuff', 'Physical', 'Signature'],
   'Razor Leaf': ['Crit', 'Physical'],
   'Solar Beam': ['Charge', 'Special'],
   'Grassy Terrain': ['Terrain', 'Healing', 'Status'],

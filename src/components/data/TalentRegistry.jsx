@@ -1589,5 +1589,266 @@ export const TalentRegistry = {
       Rare: { description: "Electric moves bypass buffs and partially pierce shields." },
       Epic: { description: "Electric moves fully bypass buffs and barriers." }
     }
+  },
+
+  berryAroma: {
+    id: "berryAroma",
+    name: "Berry Aroma",
+    description: "Berry-based healing effects restore additional HP.",
+    tags: ["Healing", "Berry"],
+    tagsAffected: ["Healing", "Berry"],
+    trigger: "onTurnStart",
+    grades: {
+      Basic: { description: "Healing from berries and drain moves +10%." },
+      Rare: { description: "Healing from berries and drain moves +15%." },
+      Epic: { description: "Healing from berries and drain moves +25%." }
+    }
+  },
+  sunSip: {
+    id: "sunSip",
+    name: "Sun Sip",
+    description: "Recovers a little HP each turn in sunny weather.",
+    tags: ["Weather", "Healing"],
+    tagsAffected: ["Weather", "Healing"],
+    trigger: "onTurnStart",
+    grades: {
+      Basic: { description: "Recover 3% max HP in sun." },
+      Rare: { description: "Recover 5% max HP in sun." },
+      Epic: { description: "Recover 8% max HP in sun." }
+    }
+  },
+  seedReserve: {
+    id: "seedReserve",
+    name: "Seed Reserve",
+    description: "Boosts survivability when below half HP.",
+    tags: ["Defense", "Survival"],
+    tagsAffected: ["Defense", "Survival"],
+    trigger: "onDamaged",
+    grades: {
+      Basic: { description: "When below 50% HP, gain +1 Def once per battle." },
+      Rare: { description: "When below 50% HP, gain +1 Def/+1 Sp. Def once per battle." },
+      Epic: { description: "When below 50% HP, gain +2 Def/+1 Sp. Def once per battle." }
+    }
+  },
+  petalGuard: {
+    id: "petalGuard",
+    name: "Petal Guard",
+    description: "Grants resistance to status moves.",
+    tags: ["Status", "Defense"],
+    tagsAffected: ["Status", "Defense"],
+    trigger: "onMoveInit",
+    grades: {
+      Basic: { description: "10% chance to ignore status moves." },
+      Rare: { description: "18% chance to ignore status moves." },
+      Epic: { description: "28% chance to ignore status moves." }
+    }
+  },
+  orchardRhythm: {
+    id: "orchardRhythm",
+    name: "Orchard Rhythm",
+    description: "Using a support move grants minor Speed momentum.",
+    tags: ["Support", "Speed"],
+    tagsAffected: ["Support", "Speed"],
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "After support move, 20% chance for +1 Speed." },
+      Rare: { description: "After support move, 35% chance for +1 Speed." },
+      Epic: { description: "After support move, 50% chance for +1 Speed." }
+    }
+  },
+  sweetCanopy: {
+    id: "sweetCanopy",
+    name: "Sweet Canopy",
+    description: "Reduces incoming special damage.",
+    tags: ["Defense", "Special"],
+    tagsAffected: ["Defense", "Special"],
+    trigger: "onDamaged",
+    grades: {
+      Basic: { description: "Reduce incoming special damage by 5%." },
+      Rare: { description: "Reduce incoming special damage by 8%." },
+      Epic: { description: "Reduce incoming special damage by 12%." }
+    }
+  },
+  fruitfulBloom: {
+    id: "fruitfulBloom",
+    name: "Fruitful Bloom",
+    description: "Healing moves are more effective at low HP.",
+    tags: ["Healing", "Support"],
+    tagsAffected: ["Healing", "Support"],
+    trigger: "onTurnStart",
+    grades: {
+      Basic: { description: "Healing moves gain +10% potency under 50% HP." },
+      Rare: { description: "Healing moves gain +18% potency under 50% HP." },
+      Epic: { description: "Healing moves gain +25% potency under 50% HP." }
+    }
+  },
+  solarNectar: {
+    id: "solarNectar",
+    name: "Solar Nectar",
+    description: "Sunlight boosts Grass move pressure.",
+    tags: ["Weather", "Grass"],
+    tagsAffected: ["Weather", "Grass"],
+    trigger: "onMoveUse",
+    grades: {
+      Basic: { description: "In sun, Grass move power +8%." },
+      Rare: { description: "In sun, Grass move power +12%." },
+      Epic: { description: "In sun, Grass move power +18%." }
+    }
+  },
+  harvestPulse: {
+    id: "harvestPulse",
+    name: "Harvest Pulse",
+    description: "Occasionally restores a spent berry effect during battle.",
+    tags: ["Berry", "Utility"],
+    tagsAffected: ["Berry", "Utility"],
+    trigger: "onTurnStart",
+    grades: {
+      Basic: { description: "10% chance to refresh berry state once." },
+      Rare: { description: "15% chance to refresh berry state once." },
+      Epic: { description: "25% chance to refresh berry state once." }
+    }
+  },
+  verdantGift: {
+    id: "verdantGift",
+    name: "Verdant Gift",
+    description: "Provides ally-friendly stat support in sunny weather.",
+    tags: ["Support", "Weather"],
+    tagsAffected: ["Support", "Weather"],
+    trigger: "onTurnStart",
+    grades: {
+      Basic: { description: "In sun, grants a small support buff once per battle." },
+      Rare: { description: "In sun, grants a medium support buff once per battle." },
+      Epic: { description: "In sun, grants a strong support buff once per battle." }
+    }
+  },
+  sweetRush: {
+    id: 'sweetRush',
+    name: 'Sweet Rush',
+    description: 'Gains momentum while healthy.',
+    tags: ['Speed', 'Tempo'],
+    tagsAffected: ['Speed', 'Tempo'],
+    trigger: 'onTurnStart',
+    grades: {
+      Basic: { description: 'At high HP, 10% chance to gain +1 Speed.' },
+      Rare: { description: 'At high HP, 18% chance to gain +1 Speed.' },
+      Epic: { description: 'At high HP, 28% chance to gain +1 Speed.' }
+    }
+  },
+  queenlyPoise: {
+    id: 'queenlyPoise',
+    name: 'Queenly Poise',
+    description: 'Counters aggression after taking damage.',
+    tags: ['Defense', 'Debuff'],
+    tagsAffected: ['Defense', 'Debuff'],
+    trigger: 'onDamaged',
+    grades: {
+      Basic: { description: '20% chance to lower attacker Attack by 1.' },
+      Rare: { description: '30% chance to lower attacker Attack by 1.' },
+      Epic: { description: '40% chance to lower attacker Attack by 1 and Speed by 1.' }
+    }
+  },
+  tropicGuard: {
+    id: 'tropicGuard',
+    name: 'Tropic Guard',
+    description: 'Softens incoming special attacks.',
+    tags: ['Defense', 'Special'],
+    tagsAffected: ['Defense', 'Special'],
+    trigger: 'onDamaged',
+    grades: {
+      Basic: { description: 'Reduce incoming special damage by 5%.' },
+      Rare: { description: 'Reduce incoming special damage by 10%.' },
+      Epic: { description: 'Reduce incoming special damage by 15%.' }
+    }
+  },
+  velvetAroma: {
+    id: 'velvetAroma',
+    name: 'Velvet Aroma',
+    description: 'Improves healing and support moves.',
+    tags: ['Support', 'Healing'],
+    tagsAffected: ['Support', 'Healing'],
+    trigger: 'onMoveUse',
+    grades: {
+      Basic: { description: 'Healing/support moves gain +8% potency.' },
+      Rare: { description: 'Healing/support moves gain +14% potency.' },
+      Epic: { description: 'Healing/support moves gain +20% potency.' }
+    }
+  },
+  stompTempo: {
+    id: 'stompTempo',
+    name: 'Stomp Tempo',
+    description: 'Physical footwork ramps pressure.',
+    tags: ['Physical', 'Tempo'],
+    tagsAffected: ['Physical', 'Tempo'],
+    trigger: 'onMoveUse',
+    grades: {
+      Basic: { description: 'Physical moves gain +6% power.' },
+      Rare: { description: 'Physical moves gain +10% power.' },
+      Epic: { description: 'Physical moves gain +15% power.' }
+    }
+  },
+  crownStep: {
+    id: 'crownStep',
+    name: 'Crown Step',
+    description: 'Signature kicks apply extra pressure.',
+    tags: ['Signature', 'Debuff'],
+    tagsAffected: ['Signature', 'Debuff'],
+    trigger: 'onMoveUse',
+    grades: {
+      Basic: { description: 'Trop Kick has 15% chance to also lower Speed.' },
+      Rare: { description: 'Trop Kick has 25% chance to also lower Speed.' },
+      Epic: { description: 'Trop Kick has 40% chance to also lower Speed.' }
+    }
+  },
+  petalWard: {
+    id: 'petalWard',
+    name: 'Petal Ward',
+    description: 'Can cleanse status at turn start.',
+    tags: ['Status', 'Recovery'],
+    tagsAffected: ['Status', 'Recovery'],
+    trigger: 'onTurnStart',
+    grades: {
+      Basic: { description: '10% chance to clear own status.' },
+      Rare: { description: '18% chance to clear own status.' },
+      Epic: { description: '28% chance to clear own status.' }
+    }
+  },
+  sunlitStride: {
+    id: 'sunlitStride',
+    name: 'Sunlit Stride',
+    description: 'Sunlight enhances mobility and offense.',
+    tags: ['Weather', 'Speed'],
+    tagsAffected: ['Weather', 'Speed'],
+    trigger: 'onTurnStart',
+    grades: {
+      Basic: { description: 'In sun, 15% chance for +1 Speed.' },
+      Rare: { description: 'In sun, 25% chance for +1 Speed.' },
+      Epic: { description: 'In sun, 35% chance for +1 Speed and +1 Atk.' }
+    }
+  },
+  royalHarvest: {
+    id: 'royalHarvest',
+    name: 'Royal Harvest',
+    description: 'Regrows berry utility in long fights.',
+    tags: ['Berry', 'Utility'],
+    tagsAffected: ['Berry', 'Utility'],
+    trigger: 'onTurnStart',
+    grades: {
+      Basic: { description: '8% chance to refresh a consumed berry.' },
+      Rare: { description: '14% chance to refresh a consumed berry.' },
+      Epic: { description: '22% chance to refresh a consumed berry.' }
+    }
+  },
+  majesticFlourish: {
+    id: 'majesticFlourish',
+    name: 'Majestic Flourish',
+    description: 'One-time royal stat surge.',
+    tags: ['Support', 'Buff'],
+    tagsAffected: ['Support', 'Buff'],
+    trigger: 'onTurnStart',
+    grades: {
+      Basic: { description: 'Once per battle, gain +1 Attack.' },
+      Rare: { description: 'Once per battle, gain +1 Attack and +1 Defense.' },
+      Epic: { description: 'Once per battle, gain +1 Attack, +1 Defense, and +1 Speed.' }
+    }
   }
 };
