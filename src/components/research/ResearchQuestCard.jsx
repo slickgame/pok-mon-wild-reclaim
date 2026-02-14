@@ -12,12 +12,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import '@/components/research/questCard.css';
 
-const rarityIndicators = {
-  common: { color: 'bg-slate-400', glow: 'shadow-[0_0_10px_rgba(148,163,184,0.3)]', label: '●' },
-  uncommon: { color: 'bg-green-400', glow: 'shadow-[0_0_10px_rgba(74,222,128,0.4)]', label: '●●' },
-  rare: { color: 'bg-purple-400', glow: 'shadow-[0_0_15px_rgba(192,132,252,0.5)]', label: '●●●' }
-};
-
 const tierColors = {
   Common: 'bg-slate-500/20 text-slate-300 border-slate-500/50',
   Uncommon: 'bg-green-500/20 text-green-300 border-green-500/50',
@@ -92,8 +86,7 @@ export default function ResearchQuestCard({
   rerollCost,
   isRerolling,
   canAffordReroll,
-  isRerollDisabled = false,
-  onQuickView
+  isRerollDisabled = false
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
@@ -101,8 +94,6 @@ export default function ResearchQuestCard({
   const requirements = quest.requirements || {};
   const difficultyTier = quest.difficulty
     || (quest.rarity ? `${quest.rarity[0].toUpperCase()}${quest.rarity.slice(1)}` : 'Normal');
-  const rarityKey = quest.rarity?.toLowerCase() || 'common';
-  const rarityInfo = rarityIndicators[rarityKey] || rarityIndicators.common;
   const rewardGold = quest.reward?.gold ?? quest.rewardBase;
   const rewardItems = quest.reward?.items || [];
   const rewardCategoryLabel = quest.reward?.rewardCategoryLabel;
@@ -151,54 +142,51 @@ export default function ResearchQuestCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`glass rounded-xl p-4 sm:p-6 hover:border-indigo-500/50 transition-all quest-card ${tierGlow[difficultyTier] || ''} relative overflow-hidden`}
+      className={`glass rounded-xl p-6 hover:border-indigo-500/50 transition-all quest-card ${tierGlow[difficultyTier] || ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className={`absolute top-0 left-0 w-full h-1 ${rarityInfo.color} ${rarityInfo.glow}`} />
-      
-      <div className="flex items-start justify-between mb-4 gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400 flex-shrink-0" />
-              <span className="truncate">Research Request</span>
-            </h3>
-            <span className={`text-xs ${rarityInfo.color.replace('bg-', 'text-')} ${rarityInfo.glow} font-bold flex-shrink-0`}>
-              {rarityInfo.label}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={`${tierColors[difficultyTier] || tierColors.Normal} text-xs`}>
-              {difficultyTier}
-            </Badge>
-            {onQuickView && (
-              <button
-                type="button"
-                onClick={() => onQuickView(quest)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-              >
-                <Info className="w-3 h-3" />
-                Quick View
-              </button>
-            )}
-          </div>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-indigo-400" />
+            Research Request
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-slate-200"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs whitespace-pre-line border border-white/10 bg-slate-900/95 p-3 text-xs text-slate-100 shadow-lg">
+                  {formatQuestCard(quest)}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </h3>
+          <Badge className={`mt-2 ${tierColors[difficultyTier] || tierColors.Normal}`}>
+            {difficultyTier}
+          </Badge>
           <div className="mt-1 text-xs text-slate-400">
-            {submissionCount}/{requiredCount} submitted
+            Progress: {submissionCount}/{requiredCount} submitted
           </div>
         </div>
         {timeLeft && (
-          <div className="text-xs text-slate-400 text-right flex-shrink-0">
+          <div className="text-xs text-slate-400 text-right">
             <p className="uppercase tracking-wide text-[10px] text-slate-500">Time Left</p>
-            <p className="text-slate-200 text-xs sm:text-sm">{timeLeft}</p>
+            <p className="text-slate-200">{timeLeft}</p>
           </div>
         )}
       </div>
 
       <div className="space-y-3 mb-4">
-        <div className="bg-slate-800/50 rounded-lg p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-slate-400 mb-2">Required Pokémon:</p>
-          <p className="text-lg sm:text-xl font-bold text-white truncate">{quest.species}</p>
+        <div className="bg-slate-800/50 rounded-lg p-4">
+          <p className="text-sm text-slate-400 mb-2">Required Pokémon:</p>
+          <p className="text-xl font-bold text-white">{quest.species}</p>
           {compactRequirementChips.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {compactRequirementChips.slice(0, 3).map((chip) => (
@@ -251,10 +239,10 @@ export default function ResearchQuestCard({
           )}
         </div>
 
-        <div className="flex items-center justify-between text-xs sm:text-sm">
+        <div className="flex items-center justify-between text-sm">
           <span className="text-slate-400">Reward:</span>
           <span className="text-yellow-400 font-semibold flex items-center gap-1">
-            <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
+            <Zap className="w-4 h-4" />
             {rewardGold} gold
           </span>
         </div>
@@ -293,7 +281,7 @@ export default function ResearchQuestCard({
         {onAccept && (
           <Button
             onClick={() => onAccept(quest)}
-            className="w-full bg-emerald-500/80 hover:bg-emerald-500 text-sm sm:text-base"
+            className="w-full bg-emerald-500/80 hover:bg-emerald-500"
             disabled={isAccepted || isAccepting}
           >
             {isAccepted ? 'Accepted' : 'Accept Quest'}
@@ -301,7 +289,7 @@ export default function ResearchQuestCard({
         )}
         <Button
           onClick={() => onSubmit(quest)}
-          className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-sm sm:text-base"
+          className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600"
         >
           Submit Pokémon
         </Button>
@@ -311,16 +299,14 @@ export default function ResearchQuestCard({
             onClick={() => onReroll(quest)}
             variant="outline"
             disabled={isRerollDisabled || isRerolling || (!rerollState?.freeLeft && !canAffordReroll)}
-            className="w-full border-indigo-500/50 text-indigo-200 hover:bg-indigo-500/10 text-xs sm:text-sm"
+            className="w-full border-indigo-500/50 text-indigo-200 hover:bg-indigo-500/10"
           >
-            <RefreshCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-            <span className="truncate">
-              {isRerollDisabled
-                ? 'Cannot reroll'
-                : rerollState?.freeLeft
-                  ? `Free (${rerollState.freeLeft} left)`
-                  : `${rerollCost}g`}
-            </span>
+            <RefreshCcw className="w-4 h-4 mr-2" />
+            {isRerollDisabled
+              ? 'Accepted quests cannot be rerolled'
+              : rerollState?.freeLeft
+                ? `Free Reroll (${rerollState.freeLeft} left)`
+                : `Reroll (${rerollCost} gold)`}
           </Button>
         )}
       </div>
