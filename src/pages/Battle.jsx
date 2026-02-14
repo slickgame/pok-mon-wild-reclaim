@@ -1439,6 +1439,7 @@ export default function BattlePage() {
                   await base44.entities.Pokemon.update(wildPokemonId, {
                     isInTeam: captureModalState.addedToParty,
                     isWildInstance: false,
+                    isWild: false,
                     nickname: nickname || undefined,
                     nature: randomNature,
                     ivs: randomIVs
