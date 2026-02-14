@@ -636,14 +636,9 @@ export default function ResearchQuestManager() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [rerollMessage, setRerollMessage] = useState(null);
   const [acceptingQuestId, setAcceptingQuestId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [difficultyFilter, setDifficultyFilter] = useState('all');
-  const [speciesFilter, setSpeciesFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('created');
-  const [sortOrder, setSortOrder] = useState('desc');
   const queryClient = useQueryClient();
 
-  const { data: activeQuests = [], isLoading } = useQuery({
+  const { data: quests = [], isLoading } = useQuery({
     queryKey: ['researchQuests'],
     queryFn: async () => {
       const list = await base44.entities.ResearchQuest.filter({ active: true });
@@ -655,8 +650,6 @@ export default function ResearchQuestManager() {
     queryKey: ['researchQuestHistory'],
     queryFn: () => base44.entities.ResearchQuest.filter({ active: false })
   });
-
-  const allQuests = useMemo(() => [...activeQuests, ...questHistory], [activeQuests, questHistory]);
 
   const { data: player } = useQuery({
     queryKey: ['player'],
@@ -692,62 +685,6 @@ export default function ResearchQuestManager() {
       : 1;
     return { storyChapter, mapleTrust, avgPartyLevel };
   }, [player, teamPokemon]);
-
-  const availableSpecies = useMemo(() => {
-    const species = new Set(allQuests.map(q => q.species).filter(Boolean));
-    return Array.from(species).sort();
-  }, [allQuests]);
-
-  const availableDifficulties = useMemo(() => {
-    const difficulties = new Set(allQuests.map(q => q.difficulty).filter(Boolean));
-    return Array.from(difficulties).sort();
-  }, [allQuests]);
-
-  const filteredAndSortedQuests = useMemo(() => {
-    let filtered = [...allQuests];
-
-    // Status filter
-    if (statusFilter === 'active') {
-      filtered = filtered.filter(q => q.active);
-    } else if (statusFilter === 'completed') {
-      filtered = filtered.filter(q => q.status === 'completed');
-    } else if (statusFilter === 'expired') {
-      filtered = filtered.filter(q => q.status === 'expired');
-    }
-
-    // Difficulty filter
-    if (difficultyFilter !== 'all') {
-      filtered = filtered.filter(q => q.difficulty === difficultyFilter);
-    }
-
-    // Species filter
-    if (speciesFilter !== 'all') {
-      filtered = filtered.filter(q => q.species === speciesFilter);
-    }
-
-    // Sorting
-    filtered.sort((a, b) => {
-      let compareValue = 0;
-      
-      if (sortBy === 'created') {
-        const aTime = a.createdAtMinutes || 0;
-        const bTime = b.createdAtMinutes || 0;
-        compareValue = aTime - bTime;
-      } else if (sortBy === 'expiry') {
-        const aExpiry = getQuestExpiryMinutes(a, gameTime);
-        const bExpiry = getQuestExpiryMinutes(b, gameTime);
-        compareValue = (aExpiry || 0) - (bExpiry || 0);
-      } else if (sortBy === 'difficulty') {
-        const aScore = a.difficultyScore || 0;
-        const bScore = b.difficultyScore || 0;
-        compareValue = aScore - bScore;
-      }
-
-      return sortOrder === 'asc' ? compareValue : -compareValue;
-    });
-
-    return filtered;
-  }, [allQuests, statusFilter, difficultyFilter, speciesFilter, sortBy, sortOrder, gameTime]);
 
   const generateQuestsMutation = useMutation({
     mutationFn: async (count) => createGeneratedQuests({
@@ -789,7 +726,7 @@ export default function ResearchQuestManager() {
   const rerollAllMutation = useMutation({
     mutationFn: async () => rerollAllQuestsAction({
       base44,
-      quests: currentActiveQuests,
+      quests,
       gameTime,
       analytics: researchAnalytics,
       progression: progressionContext
@@ -811,15 +748,15 @@ export default function ResearchQuestManager() {
 
   // Initialize quests if none exist
   useEffect(() => {
-    if (!isLoading && activeQuests.length < 3) {
-      const neededQuests = 3 - activeQuests.length;
+    if (!isLoading && quests.length < 3) {
+      const neededQuests = 3 - quests.length;
       generateQuestsMutation.mutate(neededQuests);
     }
-  }, [activeQuests.length, isLoading]);
+  }, [quests.length, isLoading]);
 
   useEffect(() => {
-    if (isLoading || activeQuests.length === 0) return;
-    const missing = activeQuests.filter((quest) => !(
+    if (isLoading || quests.length === 0) return;
+    const missing = quests.filter((quest) => !(
       quest?.nature
       || quest?.level
       || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
@@ -857,16 +794,16 @@ export default function ResearchQuestManager() {
     })).then(() => {
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
     });
-  }, [activeQuests, isLoading, queryClient]);
+  }, [quests, isLoading, queryClient]);
 
 
   useEffect(() => {
-    if (isLoading || !player?.id || activeQuests.length === 0) return;
+    if (isLoading || !player?.id || quests.length === 0) return;
 
     const migrationKey = 'researchQuestLegacyResetV1';
     if (localStorage.getItem(migrationKey) === 'done') return;
 
-    const looksLegacyOnly = activeQuests.every((quest) => {
+    const looksLegacyOnly = quests.every((quest) => {
       const hasComplex = Boolean(
         quest?.level
         || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
@@ -895,7 +832,7 @@ export default function ResearchQuestManager() {
 
     localStorage.setItem(migrationKey, 'running');
 
-    Promise.all(activeQuests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
+    Promise.all(quests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
       active: false,
       status: 'expired',
       expiredAt: new Date().toISOString(),
@@ -932,13 +869,13 @@ export default function ResearchQuestManager() {
     }).catch(() => {
       localStorage.removeItem(migrationKey);
     });
-  }, [isLoading, activeQuests, player, gameTime, researchAnalytics, progressionContext, queryClient]);
+  }, [isLoading, quests, player, gameTime, researchAnalytics, progressionContext, queryClient]);
 
   useEffect(() => {
-    if (isLoading || activeQuests.length === 0) return;
+    if (isLoading || quests.length === 0) return;
     syncExpiredQuestsChunked({
       base44,
-      quests: activeQuests,
+      quests,
       player,
       gameTime,
       analytics: researchAnalytics
@@ -948,7 +885,7 @@ export default function ResearchQuestManager() {
         queryClient.invalidateQueries({ queryKey: ['player'] });
       }
     });
-  }, [activeQuests, isLoading, queryClient, gameTime, player, researchAnalytics]);
+  }, [quests, isLoading, queryClient, gameTime, player, researchAnalytics]);
 
   const handleSuccess = (reward) => {
     setSelectedQuest(null);
@@ -982,15 +919,15 @@ export default function ResearchQuestManager() {
     return { rerollCount, freeLeft, resetsIn: getNextResetLabel(gameTime) };
   }, [player, gameTime]);
 
-  const currentActiveQuests = useMemo(
+  const activeQuests = useMemo(
     () => {
       const currentTotal = toTotalMinutes(normalizeGameTime(gameTime));
-      return activeQuests.filter((quest) => {
+      return quests.filter((quest) => {
         const expiry = getQuestExpiryMinutes(quest, gameTime);
         return !Number.isFinite(expiry) || expiry > currentTotal;
       });
     },
-    [activeQuests, gameTime]
+    [quests, gameTime]
   );
 
   const acceptedQuestIds = useMemo(() => {
@@ -1084,90 +1021,15 @@ export default function ResearchQuestManager() {
               rerollAllMutation.mutate();
             }}
             className="text-xs font-semibold text-indigo-200 hover:text-indigo-100"
-            disabled={rerollAllMutation.isPending || !currentActiveQuests.length || currentActiveQuests.every((quest) => acceptedQuestIds.has(quest.id))}
+            disabled={rerollAllMutation.isPending || !activeQuests.length || activeQuests.every((quest) => acceptedQuestIds.has(quest.id))}
           >
             Reroll All Research Quests
           </button>
         </div>
       </div>
 
-      <div className="mb-6 p-4 bg-slate-800/40 rounded-lg border border-slate-700/50">
-        <h3 className="text-sm font-semibold text-white mb-4">Filter & Sort</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="expired">Expired</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Difficulty</label>
-            <select
-              value={difficultyFilter}
-              onChange={(e) => setDifficultyFilter(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="all">All</option>
-              {availableDifficulties.map(diff => (
-                <option key={diff} value={diff}>{diff}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Species</label>
-            <select
-              value={speciesFilter}
-              onChange={(e) => setSpeciesFilter(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="all">All</option>
-              {availableSpecies.map(species => (
-                <option key={species} value={species}>{species}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Sort By</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="created">Created Date</option>
-              <option value="expiry">Expiry Date</option>
-              <option value="difficulty">Difficulty</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Order</label>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="desc">Newest First</option>
-              <option value="asc">Oldest First</option>
-            </select>
-          </div>
-        </div>
-        <div className="mt-3 text-xs text-slate-400">
-          Showing {filteredAndSortedQuests.length} quest{filteredAndSortedQuests.length !== 1 ? 's' : ''}
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredAndSortedQuests.filter(q => q.active).map(quest => (
+        {activeQuests.map(quest => (
           <ResearchQuestCard
             key={quest.id}
             quest={quest}
@@ -1186,30 +1048,9 @@ export default function ResearchQuestManager() {
             isRerollDisabled={acceptedQuestIds.has(quest.id)}
           />
         ))}
-
-        {filteredAndSortedQuests.filter(q => !q.active).map(quest => (
-          <div key={quest.id} className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/50">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h4 className="text-lg font-semibold text-slate-200">{quest.species}</h4>
-                <p className="text-xs text-slate-500 uppercase tracking-wide">{quest.difficulty} Tier</p>
-              </div>
-              <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                quest.status === 'completed' ? 'bg-green-500/20 text-green-300' : 'bg-slate-500/20 text-slate-400'
-              }`}>
-                {quest.status || 'Archived'}
-              </span>
-            </div>
-            {quest.completedAt && (
-              <p className="text-xs text-slate-500">
-                Completed: {new Date(quest.completedAt).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-        ))}
       </div>
 
-      {recentHistory.length > 0 && statusFilter === 'all' && (
+      {recentHistory.length > 0 && (
         <div className="mt-8">
           <h4 className="text-sm font-semibold text-slate-200 mb-2">Legendary Log & Recent Completions</h4>
           <div className="space-y-2">
