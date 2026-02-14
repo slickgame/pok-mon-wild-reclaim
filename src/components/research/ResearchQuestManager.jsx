@@ -7,6 +7,7 @@ import { getPokemonData } from '@/components/data/PokemonRegistry';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 import ResearchQuestCard from './ResearchQuestCard';
 import ResearchSubmitModal from './ResearchSubmitModal';
+import QuestDetailsModal from './QuestDetailsModal';
 import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
 import { TIME_CONSTANTS, getAbsoluteDayIndex, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
 
@@ -633,6 +634,7 @@ const normalizeQuestRequirements = (quest) => {
 
 export default function ResearchQuestManager() {
   const [selectedQuest, setSelectedQuest] = useState(null);
+  const [quickViewQuest, setQuickViewQuest] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [rerollMessage, setRerollMessage] = useState(null);
   const [acceptingQuestId, setAcceptingQuestId] = useState(null);
@@ -1166,12 +1168,13 @@ export default function ResearchQuestManager() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {filteredAndSortedQuests.filter(q => q.active).map(quest => (
           <ResearchQuestCard
             key={quest.id}
             quest={quest}
             onSubmit={setSelectedQuest}
+            onQuickView={setQuickViewQuest}
             onAccept={handleAcceptQuest}
             isAccepted={acceptedQuestIds.has(quest.id)}
             isAccepting={acceptingQuestId === quest.id}
@@ -1231,6 +1234,16 @@ export default function ResearchQuestManager() {
             quest={selectedQuest}
             onClose={() => setSelectedQuest(null)}
             onSuccess={handleSuccess}
+          />
+        )}
+        {quickViewQuest && (
+          <QuestDetailsModal
+            quest={quickViewQuest}
+            onClose={() => setQuickViewQuest(null)}
+            timeLeft={acceptedQuestIds.has(quickViewQuest.id)
+              ? getTimeLeft(getQuestExpiryMinutes(acceptedQuestMap.get(quickViewQuest.id) || quickViewQuest, gameTime), gameTime)
+              : `${getQuestDurationLabel(quickViewQuest)} once accepted`}
+            onSubmit={setSelectedQuest}
           />
         )}
       </AnimatePresence>
