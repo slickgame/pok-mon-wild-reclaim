@@ -814,28 +814,9 @@ export default function BattlePage() {
   const fleeBattle = async () => {
     if (!battleState || !battleState.isWildBattle) return;
 
-    const fleeRoll = Math.random() * 100;
-    const fleeThreshold = 35 + (locationHazardEscapePenalty || 0);
-    if (fleeRoll <= fleeThreshold) {
-      setBattleState((prev) => prev ? {
-        ...prev,
-        battleLog: [...prev.battleLog, {
-          turn: prev.turnNumber,
-          actor: 'System',
-          action: 'Flee failed',
-          result: locationHazardEscapePenalty > 0
-            ? 'Sticky terrain slows your escape!'
-            : 'Could not get away!',
-          synergyTriggered: false
-        }],
-        currentTurn: 'enemy'
-      } : prev);
-      return;
-    }
-    
     await cleanupEncounterPokemon();
-    
-    // Navigate back to zone using React Router
+
+    // Navigate back to zone using React Router (wild flee always succeeds)
     if (returnTo) {
       navigate(`/${returnTo}`);
     } else {

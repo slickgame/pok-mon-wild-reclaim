@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map as MapIcon, Search, Compass, Eye, Sparkles, ChevronRight } from 'lucide-react';
+import { Map, Search, Compass, Eye, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -475,6 +475,39 @@ function ZoneDetailView({ zone, onBack }) {
     }
   };
   
+  const handleNodeletNpcInteract = (nodelet, npcName) => {
+    const resolvedNodelet = resolveNodeletConfig(nodelet);
+
+    if (!resolvedNodelet || !npcName) return;
+
+    if (npcName.toLowerCase().includes('merra')) {
+      setExplorationEvents((prev) => [{
+        title: "🧾 Merra's Request",
+        description: 'Merra asks for berry bundles. Try Deliver Berries when you have enough stock.',
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+      return;
+    }
+
+    if (npcName.toLowerCase().includes('iris')) {
+      setExplorationEvents((prev) => [{
+        title: "🌿 Iris's Tip",
+        description: 'Iris suggests harvesting now and replanting for a bonus yield cycle.',
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+      return;
+    }
+
+    setExplorationEvents((prev) => [{
+      title: '💬 NPC Interaction',
+      description: `You chat with ${npcName} at ${resolvedNodelet.name}.`,
+      type: 'special',
+      rarity: 'common'
+    }, ...prev].slice(0, 10));
+  };
+
   const handleNodeletInspect = (nodelet) => {
     setSelectedNodelet(resolveNodeletConfig(nodelet));
   };
@@ -971,7 +1004,7 @@ function ZoneDetailView({ zone, onBack }) {
       );
 
       const refreshedNodelet = updatedNodelets.find((currentNodelet) => currentNodelet.id === nodelet.id);
-      setSelectedNodelet(refreshedNodelet || null);
+      setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
       setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
 
       const pendingRewards = getUnclaimedObjectiveRewards(refreshedNodelet || nodelet);
@@ -1044,7 +1077,7 @@ function ZoneDetailView({ zone, onBack }) {
 
       const refreshedNodelet = updatedNodelets.find((entry) => entry.id === nodelet.id);
       setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
-      setSelectedNodelet(refreshedNodelet || null);
+      setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
 
       setExplorationEvents((prev) => [{
         title: '🎁 Rewards Claimed',
@@ -2045,12 +2078,28 @@ function ZoneDetailView({ zone, onBack }) {
               </Button>
             </div>
 
+            {explorationEvents[0] && (
+              <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3 mb-3">
+                <p className="text-xs font-semibold text-indigo-200">Latest Activity</p>
+                <p className="text-sm text-indigo-100">{explorationEvents[0].title}</p>
+                <p className="text-xs text-indigo-200/90">{explorationEvents[0].description}</p>
+              </div>
+            )}
+
             {Array.isArray(activeNodelet.npcs) && activeNodelet.npcs.length > 0 && (
               <div className="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3 mb-3">
                 <h4 className="text-xs font-semibold text-slate-200 mb-2">NPCs Here</h4>
                 <div className="flex flex-wrap gap-2">
                   {activeNodelet.npcs.map((npc) => (
-                    <Badge key={npc} className="bg-slate-700/70 text-slate-200">{npc}</Badge>
+                    <Button
+                      key={npc}
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-600 text-slate-200"
+                      onClick={() => handleNodeletNpcInteract(activeNodelet, npc)}
+                    >
+                      {npc}
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -2101,7 +2150,7 @@ function ZoneDetailView({ zone, onBack }) {
             <>
               <DialogHeader>
                 <DialogTitle className="text-white flex items-center gap-2">
-                  <MapIcon className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
+                  <Map className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
                 </DialogTitle>
                 <DialogDescription className="text-slate-300">
                   {selectedNodelet.description || 'A location within Verdant Hollow.'}
@@ -2126,6 +2175,30 @@ function ZoneDetailView({ zone, onBack }) {
                   <InfoPills title="Wild Pokémon" values={selectedNodelet.wildPokemon} />
                   <InfoPills title="Enemy NPCs" values={selectedNodelet.enemyNPCs} />
                 </div>
+
+                {Array.isArray(selectedNodelet.npcs) && selectedNodelet.npcs.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Talk to NPCs</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedNodelet.npcs.map((npcName) => (
+                        <Button
+                          key={`dialog-npc-${npcName}`}
+                          size="sm"
+                          variant="outline"
+                          className="border-slate-600 text-slate-200"
+                          onClick={() => {
+                            setActiveNodelet(resolveNodeletConfig(selectedNodelet));
+                            setActiveSection('nodelet');
+                            setSelectedNodelet(null);
+                            handleNodeletNpcInteract(selectedNodelet, npcName);
+                          }}
+                        >
+                          {npcName}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {selectedNodelet.actions?.length > 0 && (
                   <div>
@@ -2161,7 +2234,12 @@ function ZoneDetailView({ zone, onBack }) {
                         className={`border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20 ${
                           isLocked ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
-                        onClick={() => handleNodeletAction(selectedNodelet, actionLabel)}
+                        onClick={() => {
+                          setActiveNodelet(resolveNodeletConfig(selectedNodelet));
+                          setActiveSection('nodelet');
+                          setSelectedNodelet(null);
+                          handleNodeletAction(selectedNodelet, actionLabel);
+                        }}
                       >
                         {isLocked ? `${actionLabel} 🔒` : actionLabel}
                       </Button>
