@@ -163,6 +163,7 @@ export function formatQuestCard(quest) {
   if (!quest) return '';
   const questNature = getQuestField(quest, 'nature');
   const questLevel = getQuestField(quest, 'level');
+  const requiredCount = getQuestField(quest, 'quantityRequired') || quest.requiredCount || 1;
   const ivConditions = getQuestField(quest, 'ivConditions') || [];
   const talentConditions = getQuestField(quest, 'talentConditions') || [];
   const shinyRequired = quest.shinyRequired || quest.requirements?.shinyRequired;
@@ -193,6 +194,7 @@ export function formatQuestCard(quest) {
   return [
     `Quest ID: ${quest.id || 'Research Quest'}`,
     `Target: ${quest.species}`,
+    requiredCount > 1 ? `Quantity: Submit ${requiredCount}` : null,
     questNature ? `Nature: ${questNature}` : null,
     questLevel ? `Level ≥ ${questLevel}` : null,
     ivText ? `IVs: ${ivText}` : null,

@@ -106,7 +106,7 @@ export default function ZonesPage() {
       <PageHeader 
         title="Zone Exploration" 
         subtitle="Discover new areas and catch wild Pokémon"
-        icon={Map}
+        icon={MapIcon}
         action={
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -154,7 +154,7 @@ export default function ZonesPage() {
         </motion.div>
       ) : (
         <div className="glass rounded-xl p-12 text-center">
-          <Map className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+          <MapIcon className="w-16 h-16 mx-auto mb-4 text-slate-600" />
           <h3 className="text-xl font-semibold text-white mb-2">No Zones Found</h3>
           <p className="text-slate-400">Try a different search term</p>
         </div>
@@ -1255,6 +1255,7 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const handleExplore = async () => {
+    await advanceTime(10);
     const currentProgress = zoneProgress?.discoveryProgress || 0;
     const progressGain = Math.floor(Math.random() * 11) + 5; // 5-15
     
@@ -1446,7 +1447,8 @@ function ZoneDetailView({ zone, onBack }) {
           roles: wildData.roles,
           signatureMove: wildData.signatureMove,
           isInTeam: false,
-          isWild: true
+          isWild: true,
+          isWildInstance: true
         });
 
         logEntry.details = `Started battle with ${encounter.pokemon}`;
@@ -1924,7 +1926,7 @@ function ZoneDetailView({ zone, onBack }) {
           {eclipseNodelets.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <Map className="w-4 h-4 text-red-400" /> Eclipse Control Points
+                <MapIcon className="w-4 h-4 text-red-400" /> Eclipse Control Points
               </h3>
               <div className="space-y-3">
                 {eclipseNodelets.map((nodelet) => (
@@ -1943,7 +1945,7 @@ function ZoneDetailView({ zone, onBack }) {
           {zone.nodelets && zone.nodelets.filter(n => !n.eclipseControlled).length > 0 ? (
             <div className="glass rounded-xl p-4">
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <Map className="w-4 h-4 text-amber-400" /> Points of Interest
+                <MapIcon className="w-4 h-4 text-amber-400" /> Points of Interest
               </h3>
               <div className="space-y-2">
                 {zone.nodelets.filter(n => !n.eclipseControlled).map((nodelet, idx) => {
