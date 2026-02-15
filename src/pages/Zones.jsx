@@ -1893,7 +1893,7 @@ function ZoneDetailView({ zone, onBack }) {
           {eclipseNodelets.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <Map className="w-4 h-4 text-red-400" /> Eclipse Control Points
+                <MapIcon className="w-4 h-4 text-red-400" /> Eclipse Control Points
               </h3>
               <div className="space-y-3">
                 {eclipseNodelets.map((nodelet) => (
