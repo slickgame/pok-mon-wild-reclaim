@@ -16,6 +16,8 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
+import ZoneBestiary from '@/components/zones/ZoneBestiary';
+import ZoneLogbook from '@/components/zones/ZoneLogbook';
 import {
   Dialog,
   DialogContent,
@@ -1798,6 +1800,8 @@ function ZoneDetailView({ zone, onBack }) {
     { id: 'explore', label: 'Explore' },
     { id: 'places', label: 'Places' },
     { id: 'nodelet', label: activeNodelet ? activeNodelet.name : 'Location', hidden: !activeNodelet },
+    { id: 'bestiary', label: 'Bestiary' },
+    { id: 'logbook', label: 'Logbook' },
     { id: 'camp', label: 'Camp' },
     { id: 'items', label: 'Items' },
     { id: 'pokemon', label: 'Pokémon' },
@@ -2349,6 +2353,20 @@ function ZoneDetailView({ zone, onBack }) {
             <p className="text-slate-400">No Pokémon in your party yet.</p>
           )}
         </div>
+      )}
+
+      {activeSection === 'bestiary' && (
+        <ZoneBestiary
+          zone={zone}
+          discoveredPokemon={zoneProgress?.discoveredPokemon || []}
+        />
+      )}
+
+      {activeSection === 'logbook' && (
+        <ZoneLogbook
+          zone={zone}
+          zoneProgress={zoneProgress}
+        />
       )}
 
       {activeSection === 'quests' && (
