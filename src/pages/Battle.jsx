@@ -410,6 +410,7 @@ export default function BattlePage() {
         }]
       };
       setBattleState(newBattleState);
+      setActionMenu('main'); // Reset action menu
       
       // Check if party has room
       const addedToParty = playerPokemon.length < 6;
@@ -464,6 +465,7 @@ export default function BattlePage() {
       }
 
       setBattleState(newBattleState);
+      setActionMenu('main'); // Reset action menu on failed capture
     }
 
     } catch (error) {
@@ -478,6 +480,7 @@ export default function BattlePage() {
           synergyTriggered: false
         }]
       });
+      setActionMenu('main'); // Reset action menu on error
     } finally {
       setCapturingPokemon(false);
       // Track pokeball usage
