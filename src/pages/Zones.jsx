@@ -1912,7 +1912,7 @@ function ZoneDetailView({ zone, onBack }) {
           {zone.nodelets && zone.nodelets.filter(n => !n.eclipseControlled).length > 0 ? (
             <div className="glass rounded-xl p-4">
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <Map className="w-4 h-4 text-amber-400" /> Points of Interest
+                <MapIcon className="w-4 h-4 text-amber-400" /> Points of Interest
               </h3>
               <div className="space-y-2">
                 {zone.nodelets.filter(n => !n.eclipseControlled).map((nodelet, idx) => {
