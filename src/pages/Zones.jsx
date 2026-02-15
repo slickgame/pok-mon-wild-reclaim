@@ -106,7 +106,7 @@ export default function ZonesPage() {
       <PageHeader 
         title="Zone Exploration" 
         subtitle="Discover new areas and catch wild Pokémon"
-        icon={Map}
+        icon={MapIcon}
         action={
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
