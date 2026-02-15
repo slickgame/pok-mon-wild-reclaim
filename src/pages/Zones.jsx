@@ -227,6 +227,42 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const gradient = biomeColors[zone.biomeType] || 'from-indigo-500 to-purple-600';
+
+  const nodeletTemplateMap = useMemo(
+    () => new Map(VERDANT_HOLLOW_NODELETS.map((nodelet) => [nodelet.id, nodelet])),
+    []
+  );
+
+  const resolveNodeletConfig = (nodelet) => {
+    if (!nodelet) return nodelet;
+    const template = nodeletTemplateMap.get(nodelet.id);
+    if (!template) return nodelet;
+
+    const preferArray = (primary, fallback) => (
+      Array.isArray(primary) && primary.length > 0
+        ? primary
+        : Array.isArray(fallback)
+          ? fallback
+          : primary || []
+    );
+
+    return {
+      ...template,
+      ...nodelet,
+      actions: preferArray(nodelet.actions, template.actions),
+      wildPokemon: preferArray(nodelet.wildPokemon, template.wildPokemon),
+      npcs: preferArray(nodelet.npcs, template.npcs),
+      items: preferArray(nodelet.items, template.items),
+      enemyNPCs: preferArray(nodelet.enemyNPCs, template.enemyNPCs),
+      gameplayFeatures: preferArray(nodelet.gameplayFeatures, template.gameplayFeatures),
+      npcHooks: preferArray(nodelet.npcHooks, template.npcHooks),
+      objectives: preferArray(nodelet.objectives, template.objectives),
+      encounterTables: {
+        ...(template.encounterTables || {}),
+        ...(nodelet.encounterTables || {})
+      }
+    };
+  };
   
   const liberatedNodelets = player?.liberatedNodelets || [];
   const eclipseNodelets = zone.nodelets?.filter(n => n.eclipseControlled) || [];
@@ -375,6 +411,7 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const maybeTriggerEnemyNPCEncounter = async (nodelet, chance = 0.2) => {
+    nodelet = resolveNodeletConfig(nodelet);
     const contractState = getBrambleberryContractState(nodelet);
     const scaledChance = nodelet?.id === 'vh-brambleberry-thicket'
       ? chance + (contractState.tier1Completed ? 0.06 : 0) + (contractState.tier2Completed ? 0.08 : 0)
@@ -406,6 +443,7 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const handleExploreNodelet = async (nodelet) => {
+    nodelet = resolveNodeletConfig(nodelet);
     const enemyTriggered = await maybeTriggerEnemyNPCEncounter(nodelet, 0.18);
     if (enemyTriggered) return;
 
@@ -438,11 +476,11 @@ function ZoneDetailView({ zone, onBack }) {
   };
   
   const handleNodeletInspect = (nodelet) => {
-    setSelectedNodelet(nodelet);
+    setSelectedNodelet(resolveNodeletConfig(nodelet));
   };
 
   const handleEnterNodelet = (nodelet) => {
-    setActiveNodelet(nodelet);
+    setActiveNodelet(resolveNodeletConfig(nodelet));
     setActiveSection('nodelet');
   };
 
@@ -452,6 +490,7 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const handleNodeletAction = async (nodelet, action) => {
+    nodelet = resolveNodeletConfig(nodelet);
     if (!zone?.id || !nodelet?.id) return;
 
     const upsertItem = async (name, quantity, overrides = {}) => {
@@ -933,7 +972,7 @@ function ZoneDetailView({ zone, onBack }) {
 
       const refreshedNodelet = updatedNodelets.find((currentNodelet) => currentNodelet.id === nodelet.id);
       setSelectedNodelet(refreshedNodelet || null);
-      setActiveNodelet(refreshedNodelet || null);
+      setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
 
       const pendingRewards = getUnclaimedObjectiveRewards(refreshedNodelet || nodelet);
       if (pendingRewards.length > 0) {
@@ -1004,7 +1043,7 @@ function ZoneDetailView({ zone, onBack }) {
       );
 
       const refreshedNodelet = updatedNodelets.find((entry) => entry.id === nodelet.id);
-      setActiveNodelet(refreshedNodelet || null);
+      setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
       setSelectedNodelet(refreshedNodelet || null);
 
       setExplorationEvents((prev) => [{
@@ -1057,7 +1096,7 @@ function ZoneDetailView({ zone, onBack }) {
             existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
           )
         );
-        setActiveNodelet(updatedActiveNodelet || null);
+        setActiveNodelet(resolveNodeletConfig(updatedActiveNodelet) || null);
 
         if (nodeletBattleType === 'eclipse') {
           setExplorationEvents(prev => [{
