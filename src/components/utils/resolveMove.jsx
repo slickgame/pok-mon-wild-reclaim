@@ -1,5 +1,5 @@
 import { MOVE_DATA } from '@/components/pokemon/moveData';
-import { PokemonRegistry } from '@/components/data/PokemonRegistry';
+import { getPokemonData } from '@/components/data/PokemonRegistry';
 
 /**
  * Universal move resolver
@@ -13,7 +13,7 @@ export function resolveMove(moveName, pokemon) {
 
   // Check pokemon's species learnset first
   if (pokemon?.species) {
-    const speciesData = PokemonRegistry[pokemon.species.toLowerCase()];
+    const speciesData = getPokemonData(pokemon.species);
     if (speciesData?.learnset && Array.isArray(speciesData.learnset)) {
       const moveFromLearnset = speciesData.learnset.find(
         m => (m.name || m.move) === moveName

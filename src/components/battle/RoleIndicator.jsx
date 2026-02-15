@@ -1,8 +1,8 @@
 import React from 'react';
-import { Shield, Heart, Eye, Swords, Zap, Users } from 'lucide-react';
+import { Shield, Heart, Eye, Swords, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-const roleData = {
+export const roleData = {
   Juggernaut: {
     icon: Shield,
     color: 'bg-slate-700/30 text-slate-200 border-slate-600',
