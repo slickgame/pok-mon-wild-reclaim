@@ -2154,7 +2154,7 @@ function ZoneDetailView({ zone, onBack }) {
             <>
               <DialogHeader>
                 <DialogTitle className="text-white flex items-center gap-2">
-                  <Map className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
+                  <MapIcon className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
                 </DialogTitle>
                 <DialogDescription className="text-slate-300">
                   {selectedNodelet.description || 'A location within Verdant Hollow.'}
