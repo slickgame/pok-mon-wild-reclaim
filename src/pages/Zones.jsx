@@ -192,6 +192,13 @@ function ZoneDetailView({ zone, onBack }) {
     }
   });
 
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      return await base44.auth.me();
+    }
+  });
+
   const { data: progress, refetch: refetchProgress } = useQuery({
     queryKey: ['zoneProgress', zone.id],
     queryFn: async () => {
