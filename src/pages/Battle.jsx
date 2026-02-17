@@ -210,7 +210,8 @@ export default function BattlePage() {
       enemyStatus: { conditions: [], buffs: [] },
       battlefield: createDefaultBattlefield(),
       synergyChains: 0,
-      isWildBattle: !wildMon.isTrainerNPC
+      isWildBattle: !wildMon.isTrainerNPC,
+      movePP: playerMon.movePP || {}
     });
   };
 
