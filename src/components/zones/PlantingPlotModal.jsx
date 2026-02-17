@@ -61,9 +61,12 @@ export default function PlantingPlotModal({
         await base44.entities.Item.delete(selectedSeed.id);
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['items'] });
-      await queryClient.invalidateQueries({ queryKey: ['berryPlots', zone.id, player.email] });
-      await queryClient.refetchQueries({ queryKey: ['berryPlots', zone.id, player.email] });
+      // Invalidate and wait for refetch
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['berryPlots'] });
+      
+      // Wait a moment for the data to refresh
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       if (onPlant) onPlant();
       setSelectedSeed(null);
