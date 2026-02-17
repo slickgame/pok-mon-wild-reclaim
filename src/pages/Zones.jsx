@@ -561,33 +561,33 @@ function ZoneDetailView({ zone, onBack }) {
     setActiveSection('places');
   };
 
+  const upsertItem = async (name, quantity, overrides = {}) => {
+    const existingItem = items.find((item) => item.name === name && item.stackable !== false);
+
+    if (existingItem) {
+      await base44.entities.Item.update(existingItem.id, {
+        quantity: Math.max(0, (existingItem.quantity || 0) + quantity)
+      });
+      return;
+    }
+
+    if (quantity > 0) {
+      await base44.entities.Item.create({
+        name,
+        type: overrides.type || 'Material',
+        tier: overrides.tier || 1,
+        rarity: overrides.rarity || 'Common',
+        description: overrides.description || `Found in ${zone.name}`,
+        quantity,
+        stackable: true,
+        sellValue: overrides.sellValue || 10
+      });
+    }
+  };
+
   const handleNodeletAction = async (nodelet, action) => {
     nodelet = resolveNodeletConfig(nodelet);
     if (!zone?.id || !nodelet?.id) return;
-
-    const upsertItem = async (name, quantity, overrides = {}) => {
-      const existingItem = items.find((item) => item.name === name && item.stackable !== false);
-
-      if (existingItem) {
-        await base44.entities.Item.update(existingItem.id, {
-          quantity: Math.max(0, (existingItem.quantity || 0) + quantity)
-        });
-        return;
-      }
-
-      if (quantity > 0) {
-        await base44.entities.Item.create({
-          name,
-          type: overrides.type || 'Material',
-          tier: overrides.tier || 1,
-          rarity: overrides.rarity || 'Common',
-          description: overrides.description || `Found in ${zone.name}`,
-          quantity,
-          stackable: true,
-          sellValue: overrides.sellValue || 10
-        });
-      }
-    };
 
     const now = new Date().toISOString();
     const nowGameTs = getCurrentGameTimestamp();
@@ -1007,7 +1007,7 @@ function ZoneDetailView({ zone, onBack }) {
         };
       }
 
-      if (action === 'Harvest') {
+    if (action === 'Harvest') {
         return {
           ...currentNodelet,
           harvestStreak: (currentNodelet.harvestStreak || 0) + 1,
@@ -2202,62 +2202,6 @@ function ZoneDetailView({ zone, onBack }) {
               </ul>
             )}
           </div>
-
-          <PlantingPlotModal
-            isOpen={showPlantingModal}
-            onClose={() => setShowPlantingModal(false)}
-            plots={berryPlots}
-            seeds={items.filter(item => item.name?.includes('Berry Seed'))}
-            player={player}
-            zone={zone}
-            gameTime={gameTime}
-            onPlant={() => {
-              setExplorationEvents(prev => [{
-                title: '🌱 Seed Planted',
-                description: 'Your berry plot is growing. Check back later to harvest!',
-                type: 'special',
-                rarity: 'common'
-              }, ...prev].slice(0, 10));
-            }}
-            onBuyPlot={() => {
-              setExplorationEvents(prev => [{
-                title: '🏗️ Plot Purchased',
-                description: 'Expanded your berry farm with a new plot!',
-                type: 'special',
-                rarity: 'uncommon'
-              }, ...prev].slice(0, 10));
-            }}
-          />
-
-          <IrisShopModal
-            isOpen={showIrisShop}
-            onClose={() => setShowIrisShop(false)}
-            player={player}
-            onPurchase={(itemName) => {
-              setExplorationEvents(prev => [{
-                title: '🛒 Purchase Complete',
-                description: `Bought ${itemName} from Iris.`,
-                type: 'special',
-                rarity: 'common'
-              }, ...prev].slice(0, 10));
-            }}
-          />
-
-          <MerraQuestsModal
-            isOpen={showMerraQuests}
-            onClose={() => setShowMerraQuests(false)}
-            player={player}
-            berryPlots={berryPlots}
-            items={items}
-            onQuestComplete={(questName) => {
-              setExplorationEvents(prev => [{
-                title: '🏆 Quest Complete',
-                description: `Completed Merra's quest: ${questName}`,
-                type: 'special',
-                rarity: 'rare'
-              }, ...prev].slice(0, 10));
-            }}
-          />
         </div>
       )}
 
@@ -2529,6 +2473,62 @@ function ZoneDetailView({ zone, onBack }) {
           )}
         </div>
       )}
+
+      <PlantingPlotModal
+        isOpen={showPlantingModal}
+        onClose={() => setShowPlantingModal(false)}
+        plots={berryPlots}
+        seeds={items.filter(item => item.name?.includes('Berry Seed'))}
+        player={player}
+        zone={zone}
+        gameTime={gameTime}
+        onPlant={() => {
+          setExplorationEvents(prev => [{
+            title: '🌱 Seed Planted',
+            description: 'Your berry plot is growing. Check back later to harvest!',
+            type: 'special',
+            rarity: 'common'
+          }, ...prev].slice(0, 10));
+        }}
+        onBuyPlot={() => {
+          setExplorationEvents(prev => [{
+            title: '🏗️ Plot Purchased',
+            description: 'Expanded your berry farm with a new plot!',
+            type: 'special',
+            rarity: 'uncommon'
+          }, ...prev].slice(0, 10));
+        }}
+      />
+
+      <IrisShopModal
+        isOpen={showIrisShop}
+        onClose={() => setShowIrisShop(false)}
+        player={player}
+        onPurchase={(itemName) => {
+          setExplorationEvents(prev => [{
+            title: '🛒 Purchase Complete',
+            description: `Bought ${itemName} from Iris.`,
+            type: 'special',
+            rarity: 'common'
+          }, ...prev].slice(0, 10));
+        }}
+      />
+
+      <MerraQuestsModal
+        isOpen={showMerraQuests}
+        onClose={() => setShowMerraQuests(false)}
+        player={player}
+        berryPlots={berryPlots}
+        items={items}
+        onQuestComplete={(questName) => {
+          setExplorationEvents(prev => [{
+            title: '🏆 Quest Complete',
+            description: `Completed Merra's quest: ${questName}`,
+            type: 'special',
+            rarity: 'rare'
+          }, ...prev].slice(0, 10));
+        }}
+      />
     </div>
   );
 }
