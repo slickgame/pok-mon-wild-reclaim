@@ -17,6 +17,11 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
   const hasSynergy = move.synergyConditions && move.synergyConditions.length > 0;
   const matchingTalents = getMatchingTalents(move, pokemon?.talents || []);
 
+  const maxPP = move?.pp || 10;
+  const currentPP = pokemon?.movePP?.[move?.name] !== undefined ? pokemon.movePP[move.name] : maxPP;
+  const isOutOfPP = currentPP <= 0;
+  const isDisabled = disabled || isOutOfPP;
+
   return (
     <motion.div
       whileHover={{ scale: disabled ? 1 : 1.02 }}
