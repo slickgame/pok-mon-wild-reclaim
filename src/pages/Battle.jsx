@@ -535,8 +535,8 @@ export default function BattlePage() {
     const enemyAvailableMoves = getEnemyBattleMoves(battleState.enemyPokemon);
     const enemyMove = engine.chooseEnemyMove(enemyAvailableMoves, battleState.playerPokemon, battleState) || enemyAvailableMoves[0];
 
-    // Create a copy of battle state for engine to modify
-    const stateCopy = { ...battleState };
+    // Create a copy of battle state for engine to modify (use updated PP pokemon)
+    const stateCopy = { ...battleState, playerPokemon: updatedPlayerPokemon };
 
     // Execute turn
     const turnLogs = engine.executeTurn(move, enemyMove, stateCopy);
