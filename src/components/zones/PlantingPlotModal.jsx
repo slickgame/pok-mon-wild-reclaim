@@ -102,13 +102,26 @@ export default function PlantingPlotModal({
 
   const getPlotStatus = (plotNumber) => {
     const plot = plots.find(p => p.plotNumber === plotNumber && !p.isHarvested);
-    if (!plot) return { status: 'empty', plot: null };
+    if (!plot) return { status: 'empty', plot: null, timeLeft: null };
 
     const nowGameTs = getCurrentGameTimestamp(gameTime);
+    const timeLeft = Math.max(0, plot.readyAt - nowGameTs);
+    
     if (nowGameTs >= plot.readyAt) {
-      return { status: 'ready', plot };
+      return { status: 'ready', plot, timeLeft: 0 };
     }
-    return { status: 'growing', plot };
+    return { status: 'growing', plot, timeLeft };
+  };
+
+  const formatTimeLeft = (milliseconds) => {
+    const totalMinutes = Math.floor(milliseconds / (60 * 1000));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   };
 
   return (
@@ -164,7 +177,9 @@ export default function PlantingPlotModal({
                         </p>
                         <div className="flex items-center gap-1 mt-1">
                           <Clock className="w-3 h-3 text-amber-400" />
-                          <span className="text-xs text-slate-400">Growing...</span>
+                          <span className="text-xs text-amber-300">
+                            {formatTimeLeft(plotStatus.timeLeft)}
+                          </span>
                         </div>
                       </div>
                     )}
