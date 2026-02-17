@@ -62,12 +62,11 @@ export default function PlantingPlotModal({
       }
 
       // Force immediate refetch of berry plots
+      await queryClient.refetchQueries({ queryKey: ['berryPlots', zone.id, player.email] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
-      queryClient.invalidateQueries({ queryKey: ['berryPlots'] });
       
       if (onPlant) onPlant();
       
-      // Don't close modal or clear selections - let user see the result
       setSelectedSeed(null);
       setSelectedPlot(null);
     } catch (error) {
