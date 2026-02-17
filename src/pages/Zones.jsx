@@ -227,7 +227,8 @@ function ZoneDetailView({ zone, onBack }) {
         zoneId: zone.id 
       });
     },
-    enabled: !!player?.email && !!zone?.id
+    enabled: !!player?.email && !!zone?.id,
+    refetchInterval: 5000
   });
 
   React.useEffect(() => {
