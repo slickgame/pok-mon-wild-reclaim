@@ -18,9 +18,9 @@ const BERRY_GROW_TIMES = {
 export default function PlantingPlotModal({ 
   isOpen, 
   onClose, 
-  plots = [], 
   seeds = [], 
   player, 
+  playerEmail,
   zone, 
   gameTime,
   onPlant,
@@ -32,15 +32,15 @@ export default function PlantingPlotModal({
 
   // Fetch berry plots directly in the modal
   const { data: livePlots = [] } = useQuery({
-    queryKey: ['berryPlots', zone?.id, player?.email],
+    queryKey: ['berryPlots', zone?.id, playerEmail],
     queryFn: async () => {
-      if (!player?.email || !zone?.id) return [];
+      if (!playerEmail || !zone?.id) return [];
       return await base44.entities.BerryPlot.filter({ 
-        playerEmail: player.email,
+        playerEmail: playerEmail,
         zoneId: zone.id 
       });
     },
-    enabled: isOpen && !!player?.email && !!zone?.id,
+    enabled: isOpen && !!playerEmail && !!zone?.id,
     refetchInterval: 2000
   });
 
@@ -57,7 +57,7 @@ export default function PlantingPlotModal({
     try {
       // Create plot record
       await base44.entities.BerryPlot.create({
-        playerEmail: player.email || 'unknown',
+        playerEmail: playerEmail,
         zoneId: zone.id,
         plotNumber: selectedPlot,
         berryType: selectedSeed.name,
@@ -76,7 +76,7 @@ export default function PlantingPlotModal({
       }
 
       // Force immediate refetch of berry plots
-      await queryClient.refetchQueries({ queryKey: ['berryPlots', zone.id, player.email] });
+      await queryClient.refetchQueries({ queryKey: ['berryPlots', zone.id, playerEmail] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
       
       if (onPlant) onPlant();

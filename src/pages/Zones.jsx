@@ -219,15 +219,15 @@ function ZoneDetailView({ zone, onBack }) {
   });
 
   const { data: berryPlots = [] } = useQuery({
-    queryKey: ['berryPlots', zone.id, player?.email],
+    queryKey: ['berryPlots', zone.id, user?.email],
     queryFn: async () => {
-      if (!player?.email || !zone?.id) return [];
+      if (!user?.email || !zone?.id) return [];
       return await base44.entities.BerryPlot.filter({ 
-        playerEmail: player.email,
+        playerEmail: user.email,
         zoneId: zone.id 
       });
     },
-    enabled: !!player?.email && !!zone?.id,
+    enabled: !!user?.email && !!zone?.id,
     refetchInterval: 5000
   });
 
@@ -2517,9 +2517,9 @@ function ZoneDetailView({ zone, onBack }) {
       <PlantingPlotModal
         isOpen={showPlantingModal}
         onClose={() => setShowPlantingModal(false)}
-        plots={berryPlots}
         seeds={items.filter(item => item.name?.includes('Berry Seed'))}
         player={player}
+        playerEmail={user?.email}
         zone={zone}
         gameTime={gameTime}
         onPlant={() => {
