@@ -195,5 +195,10 @@ export function shouldSeedVerdantNodelets(zone) {
     current.length > 0 &&
     current.every((nodelet) => LEGACY_PLACE_NAMES.has(nodelet?.name));
 
-  return !hasAnyModernId && hasOnlyLegacyNames;
+  // Force update if any nodelet has "Replant" in actions
+  const hasReplantAction = current.some((nodelet) => 
+    Array.isArray(nodelet?.actions) && nodelet.actions.includes('Replant')
+  );
+
+  return !hasAnyModernId && hasOnlyLegacyNames || hasReplantAction;
 }

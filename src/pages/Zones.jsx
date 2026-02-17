@@ -2124,6 +2124,23 @@ function ZoneDetailView({ zone, onBack }) {
                 const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
                 const isLocked = currentProgress < unlockAt;
 
+                if (actionLabel === 'Plant') {
+                  return (
+                    <Button
+                      key={`nodelet-${actionLabel}`}
+                      size="sm"
+                      variant="outline"
+                      disabled={isLocked}
+                      className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
+                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      onClick={() => setShowPlantingModal(true)}
+                    >
+                      {isLocked ? `${actionLabel} 🔒` : actionLabel}
+                    </Button>
+                  );
+                }
+
                 return (
                   <Button
                     key={`nodelet-${actionLabel}`}
