@@ -61,14 +61,13 @@ export default function PlantingPlotModal({
         await base44.entities.Item.delete(selectedSeed.id);
       }
 
-      // Invalidate and wait for refetch
+      // Force immediate refetch of berry plots
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['berryPlots'] });
       
-      // Wait a moment for the data to refresh
-      await new Promise(resolve => setTimeout(resolve, 500));
-
       if (onPlant) onPlant();
+      
+      // Don't close modal or clear selections - let user see the result
       setSelectedSeed(null);
       setSelectedPlot(null);
     } catch (error) {
