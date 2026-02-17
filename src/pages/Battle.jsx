@@ -518,8 +518,18 @@ export default function BattlePage() {
   const useMove = async (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
 
+    // Deduct PP for the used move
+    const moveName = move?.name;
+    const currentPP = battleState.playerPokemon.movePP || {};
+    const maxPP = move?.pp || 10;
+    const currentMovePP = currentPP[moveName] !== undefined ? currentPP[moveName] : maxPP;
+    if (currentMovePP <= 0) return; // No PP left
+    const newPP = { ...currentPP, [moveName]: Math.max(0, currentMovePP - 1) };
+    const updatedPlayerPokemon = { ...battleState.playerPokemon, movePP: newPP };
+    setBattleState(prev => ({ ...prev, playerPokemon: updatedPlayerPokemon }));
+
     // Initialize battle engine
-    const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
+    const engine = new BattleEngine(updatedPlayerPokemon, battleState.enemyPokemon);
 
     // Enemy uses smart AI to choose best move from its own learned moves
     const enemyAvailableMoves = getEnemyBattleMoves(battleState.enemyPokemon);
