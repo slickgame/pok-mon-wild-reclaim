@@ -827,8 +827,12 @@ export default function BattlePage() {
         result: 'You lost the battle.',
         synergyTriggered: false
       });
-      // Mark active Pokemon as fainted
+      // Mark active Pokemon as fainted and persist HP=0 and PP
       setFaintedIds(prev => [...prev, newBattleState.playerPokemon.id]);
+      base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
+        currentHp: 0,
+        movePP: newBattleState.playerPokemon.movePP || {}
+      }).catch(err => console.error('Failed to persist faint state:', err));
     } else {
       newBattleState.currentTurn = 'player';
     }
