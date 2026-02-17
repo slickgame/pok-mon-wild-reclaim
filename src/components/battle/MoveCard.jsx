@@ -66,7 +66,7 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
             <span>{move.power}</span>
           </div>
         )}
-        <div>PP: {move.pp}</div>
+        <div className={isOutOfPP ? 'text-red-400 font-bold' : ''}>PP: {currentPP}/{maxPP}</div>
         {move.accuracy < 100 && <div>Acc: {move.accuracy}%</div>}
         {move.priority !== 0 && (
           <div className={move.priority > 0 ? 'text-emerald-400' : 'text-red-400'}>
