@@ -656,13 +656,21 @@ export default function BattlePage() {
         });
       }
 
-      // Update all Pokemon with XP
-      await Promise.all(pokemonToUpdate.map(p => 
-        base44.entities.Pokemon.update(p.id, {
+      // Save post-battle HP for active pokemon
+      const postBattleHP = newBattleState.playerHP;
+
+      // Update all Pokemon with XP and persist HP/PP for active pokemon
+      await Promise.all(pokemonToUpdate.map(p => {
+        const isActive = p.id === newBattleState.playerPokemon.id;
+        return base44.entities.Pokemon.update(p.id, {
           experience: p.experience,
-          level: p.level
-        })
-      ));
+          level: p.level,
+          ...(isActive ? {
+            currentHp: postBattleHP,
+            movePP: newBattleState.playerPokemon.movePP || {}
+          } : {})
+        });
+      }));
 
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
 
