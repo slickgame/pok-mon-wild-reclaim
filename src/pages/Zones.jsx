@@ -2308,6 +2308,28 @@ function ZoneDetailView({ zone, onBack }) {
                     const unlockAt = selectedNodelet.unlockDiscoveryProgress || 0;
                     const isLocked = currentProgress < unlockAt;
 
+                    if (actionLabel === 'Plant') {
+                      return (
+                        <Button
+                          key={actionLabel}
+                          size="sm"
+                          variant="outline"
+                          disabled={isLocked}
+                          className={`border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20 ${
+                            isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          onClick={() => {
+                            setActiveNodelet(resolveNodeletConfig(selectedNodelet));
+                            setActiveSection('nodelet');
+                            setSelectedNodelet(null);
+                            setShowPlantingModal(true);
+                          }}
+                        >
+                          {isLocked ? `${actionLabel} 🔒` : actionLabel}
+                        </Button>
+                      );
+                    }
+
                     return (
                       <Button
                         key={actionLabel}
