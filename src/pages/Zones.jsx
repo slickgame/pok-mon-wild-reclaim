@@ -18,6 +18,9 @@ import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
 import ZoneBestiary from '@/components/zones/ZoneBestiary';
 import ZoneLogbook from '@/components/zones/ZoneLogbook';
+import PlantingPlotModal from '@/components/zones/PlantingPlotModal';
+import IrisShopModal from '@/components/zones/IrisShopModal';
+import MerraQuestsModal from '@/components/zones/MerraQuestsModal';
 import {
   Dialog,
   DialogContent,
@@ -174,6 +177,9 @@ function ZoneDetailView({ zone, onBack }) {
   const [zoneProgress, setZoneProgress] = useState(null);
   const [selectedNodelet, setSelectedNodelet] = useState(null);
   const [activeNodelet, setActiveNodelet] = useState(null);
+  const [showPlantingModal, setShowPlantingModal] = useState(false);
+  const [showIrisShop, setShowIrisShop] = useState(false);
+  const [showMerraQuests, setShowMerraQuests] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -210,6 +216,18 @@ function ZoneDetailView({ zone, onBack }) {
   const { data: allPokemon = [] } = useQuery({
     queryKey: ['allPokemon'],
     queryFn: () => base44.entities.Pokemon.list()
+  });
+
+  const { data: berryPlots = [] } = useQuery({
+    queryKey: ['berryPlots', zone.id, player?.email],
+    queryFn: async () => {
+      if (!player?.email || !zone?.id) return [];
+      return await base44.entities.BerryPlot.filter({ 
+        playerEmail: player.email,
+        zoneId: zone.id 
+      });
+    },
+    enabled: !!player?.email && !!zone?.id
   });
 
   React.useEffect(() => {
@@ -446,8 +464,37 @@ function ZoneDetailView({ zone, onBack }) {
 
   const handleExploreNodelet = async (nodelet) => {
     nodelet = resolveNodeletConfig(nodelet);
-    const enemyTriggered = await maybeTriggerEnemyNPCEncounter(nodelet, 0.18);
-    if (enemyTriggered) return;
+    
+    const roll = Math.random();
+    
+    if (nodelet.id === 'vh-brambleberry-thicket') {
+      if (roll < 0.15) {
+        const seeds = ['Oran Berry Seed', 'Pecha Berry Seed', 'Cheri Berry Seed'];
+        const foundSeed = seeds[Math.floor(Math.random() * seeds.length)];
+        try {
+          await upsertItem(foundSeed, 1, { 
+            type: 'Material', 
+            rarity: 'Common',
+            description: 'A berry seed found in the thicket'
+          });
+          queryClient.invalidateQueries({ queryKey: ['items'] });
+          setExplorationEvents(prev => [{
+            title: '🌱 Seed Found',
+            description: `Discovered ${foundSeed} hidden in the brambles!`,
+            type: 'material',
+            rarity: 'uncommon'
+          }, ...prev].slice(0, 10));
+          return;
+        } catch (error) {
+          console.error('Failed to add seed:', error);
+        }
+      }
+
+      if (roll < 0.35) {
+        const enemyTriggered = await maybeTriggerEnemyNPCEncounter(nodelet, 0.25);
+        if (enemyTriggered) return;
+      }
+    }
 
     const encounter = getNodeletEncounter(nodelet, 'Explore');
     if (!encounter?.species) {
@@ -483,22 +530,12 @@ function ZoneDetailView({ zone, onBack }) {
     if (!resolvedNodelet || !npcName) return;
 
     if (npcName.toLowerCase().includes('merra')) {
-      setExplorationEvents((prev) => [{
-        title: "🧾 Merra's Request",
-        description: 'Merra asks for berry bundles. Try Deliver Berries when you have enough stock.',
-        type: 'special',
-        rarity: 'common'
-      }, ...prev].slice(0, 10));
+      setShowMerraQuests(true);
       return;
     }
 
     if (npcName.toLowerCase().includes('iris')) {
-      setExplorationEvents((prev) => [{
-        title: "🌿 Iris's Tip",
-        description: 'Iris suggests harvesting now and replanting for a bonus yield cycle.',
-        type: 'special',
-        rarity: 'common'
-      }, ...prev].slice(0, 10));
+      setShowIrisShop(true);
       return;
     }
 
@@ -556,26 +593,60 @@ function ZoneDetailView({ zone, onBack }) {
     const nowGameTs = getCurrentGameTimestamp();
 
     if (action === 'Harvest') {
-      const berryPool = ['Oran Berry', 'Pecha Berry', 'Cheri Berry'];
-      const berry = berryPool[Math.floor(Math.random() * berryPool.length)];
-      const bonusYield = nodelet.replantReadyAt && toNodeletTimestamp(nodelet.replantReadyAt) <= nowGameTs ? 1 : 0;
+      const BERRY_YIELDS = {
+        'Oran Berry Seed': [2, 4],
+        'Pecha Berry Seed': [2, 5],
+        'Cheri Berry Seed': [3, 6],
+        'Sitrus Berry Seed': [1, 3],
+        'Lum Berry Seed': [1, 2]
+      };
+
+      const readyPlots = berryPlots.filter(plot => 
+        !plot.isHarvested && 
+        plot.readyAt <= nowGameTs
+      );
+
+      if (readyPlots.length === 0) {
+        setExplorationEvents(prev => [{
+          title: '🌱 No Berries Ready',
+          description: 'Plant seeds and wait for them to grow before harvesting.',
+          type: 'special',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+        return;
+      }
+
       try {
-        await upsertItem(berry, 1, { type: 'Consumable', description: 'A berry harvested in Verdant Hollow' });
-
-        if (bonusYield > 0) {
-          await upsertItem(berryPool[Math.floor(Math.random() * berryPool.length)], bonusYield, {
-            type: 'Consumable',
-            description: 'Bonus berries from careful replanting'
-          });
-        }
-
         const poacherChance = nodelet.id === 'vh-brambleberry-thicket' ? 0.22 : 0.12;
         const poacherTriggered = await maybeTriggerEnemyNPCEncounter(nodelet, poacherChance);
+        
         if (poacherTriggered) {
           return;
         }
 
-        const harvestEncounterChance = (nodelet.harvestStreak || 0) >= 2 ? 0.38 : 0.25;
+        let totalHarvested = 0;
+        const harvestedTypes = {};
+
+        for (const plot of readyPlots) {
+          const [min, max] = BERRY_YIELDS[plot.berryType] || [1, 3];
+          const quantity = Math.floor(Math.random() * (max - min + 1)) + min;
+          const berryName = plot.berryType.replace(' Seed', '');
+          
+          await upsertItem(berryName, quantity, { 
+            type: 'Consumable', 
+            description: 'A medicinal berry from Brambleberry Thicket' 
+          });
+          
+          harvestedTypes[berryName] = (harvestedTypes[berryName] || 0) + quantity;
+          totalHarvested += quantity;
+
+          await base44.entities.BerryPlot.update(plot.id, { isHarvested: true });
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['berryPlots'] });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+
+        const harvestEncounterChance = readyPlots.length >= 3 ? 0.45 : 0.25;
         if (Math.random() < harvestEncounterChance) {
           const encounter = getNodeletEncounter(nodelet, 'Harvest');
           const encounteredSpecies = encounter?.species;
@@ -591,10 +662,13 @@ function ZoneDetailView({ zone, onBack }) {
           }
         }
 
-        queryClient.invalidateQueries({ queryKey: ['items'] });
+        const harvestedSummary = Object.entries(harvestedTypes)
+          .map(([name, qty]) => `${qty}× ${name}`)
+          .join(', ');
+
         setExplorationEvents(prev => [{
           title: '🫐 Berry Harvest',
-          description: `Gathered ${berry}${bonusYield ? ' (+bonus yield)' : ''} at ${nodelet.name}`,
+          description: `Harvested ${harvestedSummary} from ${readyPlots.length} plot${readyPlots.length > 1 ? 's' : ''}`,
           type: 'material',
           rarity: 'common'
         }, ...prev].slice(0, 10));
@@ -603,14 +677,12 @@ function ZoneDetailView({ zone, onBack }) {
       }
     }
 
-    if (action === 'Replant') {
-      setExplorationEvents(prev => [{
-        title: '🌱 Patch Replanted',
-        description: 'The berry patch will be richer after a short wait.',
-        type: 'special',
-        rarity: 'common'
-      }, ...prev].slice(0, 10));
+    if (action === 'Plant') {
+      setShowPlantingModal(true);
+      return;
     }
+
+
 
     if (action === 'Deliver Berries') {
       if (!player?.id) return;
@@ -908,17 +980,7 @@ function ZoneDetailView({ zone, onBack }) {
         };
       }
 
-      if (action === 'Replant') {
-        return {
-          ...currentNodelet,
-          replantReadyAt: nowGameTs + 30 * 60 * 1000,
-          objectiveProgress,
-          objectiveCompletedAt,
-          objectiveHistory,
-          lastAction: action,
-          lastActionAt: now
-        };
-      }
+
 
       if (action === 'Survey Pool') {
         return {
@@ -2140,6 +2202,62 @@ function ZoneDetailView({ zone, onBack }) {
               </ul>
             )}
           </div>
+
+          <PlantingPlotModal
+            isOpen={showPlantingModal}
+            onClose={() => setShowPlantingModal(false)}
+            plots={berryPlots}
+            seeds={items.filter(item => item.name?.includes('Berry Seed'))}
+            player={player}
+            zone={zone}
+            gameTime={gameTime}
+            onPlant={() => {
+              setExplorationEvents(prev => [{
+                title: '🌱 Seed Planted',
+                description: 'Your berry plot is growing. Check back later to harvest!',
+                type: 'special',
+                rarity: 'common'
+              }, ...prev].slice(0, 10));
+            }}
+            onBuyPlot={() => {
+              setExplorationEvents(prev => [{
+                title: '🏗️ Plot Purchased',
+                description: 'Expanded your berry farm with a new plot!',
+                type: 'special',
+                rarity: 'uncommon'
+              }, ...prev].slice(0, 10));
+            }}
+          />
+
+          <IrisShopModal
+            isOpen={showIrisShop}
+            onClose={() => setShowIrisShop(false)}
+            player={player}
+            onPurchase={(itemName) => {
+              setExplorationEvents(prev => [{
+                title: '🛒 Purchase Complete',
+                description: `Bought ${itemName} from Iris.`,
+                type: 'special',
+                rarity: 'common'
+              }, ...prev].slice(0, 10));
+            }}
+          />
+
+          <MerraQuestsModal
+            isOpen={showMerraQuests}
+            onClose={() => setShowMerraQuests(false)}
+            player={player}
+            berryPlots={berryPlots}
+            items={items}
+            onQuestComplete={(questName) => {
+              setExplorationEvents(prev => [{
+                title: '🏆 Quest Complete',
+                description: `Completed Merra's quest: ${questName}`,
+                type: 'special',
+                rarity: 'rare'
+              }, ...prev].slice(0, 10));
+            }}
+          />
         </div>
       )}
 
