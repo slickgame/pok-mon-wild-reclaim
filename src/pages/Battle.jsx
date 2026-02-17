@@ -1657,6 +1657,10 @@ export default function BattlePage() {
                     {battleState.playerPokemon.abilities && battleState.playerPokemon.abilities.length > 0 ? (
                      battleState.playerPokemon.abilities.map((moveName, idx) => {
                        const moveData = getMoveData(moveName, battleState.playerPokemon);
+                       const maxPP = moveData?.pp || 10;
+                       const currentPP = battleState.playerPokemon.movePP?.[moveName] !== undefined
+                         ? battleState.playerPokemon.movePP[moveName]
+                         : maxPP;
                        return (
                          <MoveCard
                            key={idx}
@@ -1666,7 +1670,7 @@ export default function BattlePage() {
                              useMove(m);
                              setActionMenu('main');
                            }}
-                           disabled={!isPlayerTurn}
+                           disabled={!isPlayerTurn || currentPP <= 0}
                          />
                        );
                      })
