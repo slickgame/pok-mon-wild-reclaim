@@ -660,18 +660,32 @@ export default function BattlePage() {
       // Save post-battle HP for active pokemon
       const postBattleHP = newBattleState.playerHP;
 
+      // Clean movePP: remove undefined values and ensure it's serializable
+      const rawMovePP = newBattleState.playerPokemon.movePP || {};
+      const cleanMovePP = Object.fromEntries(
+        Object.entries(rawMovePP).filter(([, v]) => v !== undefined && v !== null)
+      );
+
       // Update all Pokemon with XP and persist HP/PP for active pokemon
-      await Promise.all(pokemonToUpdate.map(p => {
-        const isActive = p.id === newBattleState.playerPokemon.id;
-        return base44.entities.Pokemon.update(p.id, {
-          experience: p.experience,
-          level: p.level,
-          ...(isActive ? {
-            currentHp: postBattleHP,
-            movePP: newBattleState.playerPokemon.movePP || {}
-          } : {})
+      if (pokemonToUpdate.length > 0) {
+        await Promise.all(pokemonToUpdate.map(p => {
+          const isActive = p.id === newBattleState.playerPokemon.id;
+          return base44.entities.Pokemon.update(p.id, {
+            experience: p.experience,
+            level: p.level,
+            ...(isActive ? {
+              currentHp: postBattleHP,
+              movePP: cleanMovePP
+            } : {})
+          });
+        }));
+      } else {
+        // No XP updates, but still persist HP/PP for active pokemon
+        await base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
+          currentHp: postBattleHP,
+          movePP: cleanMovePP
         });
-      }));
+      }
 
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
 
