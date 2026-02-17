@@ -1276,41 +1276,33 @@ function ZoneDetailView({ zone, onBack }) {
     queryClient.invalidateQueries({ queryKey: ['player'] });
   };
 
-  const healParty = async (healPercent) => {
+  const healParty = async (healPercent, fullRestorePP = false) => {
     const teamPokemon = allPokemon.filter((pokemon) => pokemon.isInTeam);
     await Promise.all(teamPokemon.map((pokemon) => {
       const maxHp = pokemon.stats?.hp ?? pokemon.maxHp ?? pokemon.currentHp ?? 0;
       const currentHp = pokemon.currentHp ?? maxHp;
-      if (currentHp <= 0) {
-        return Promise.resolve();
+      const isFainted = currentHp <= 0;
+      if (isFainted && !fullRestorePP) {
+        return Promise.resolve(); // Don't heal fainted pokemon on rest
       }
-      const healAmount = Math.floor(maxHp * healPercent);
-      const nextHp = Math.min(maxHp, currentHp + healAmount);
-      return base44.entities.Pokemon.update(pokemon.id, {
-        currentHp: nextHp
-      });
+      const newHp = fullRestorePP ? maxHp : Math.min(maxHp, currentHp + Math.floor(maxHp * healPercent));
+      const updates = { currentHp: newHp };
+      if (fullRestorePP) {
+        updates.movePP = {}; // Empty object = full PP (missing keys = max PP)
+      }
+      return base44.entities.Pokemon.update(pokemon.id, updates);
     }));
     queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+    queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
   };
 
   const handleCampRest = async () => {
-    await healParty(0.1);
+    await healParty(0.1, false);
     await advanceTime(60);
   };
 
   const handleCampSleep = async () => {
-    const teamPokemon = allPokemon.filter((pokemon) => pokemon.isInTeam);
-    await Promise.all(teamPokemon.map((pokemon) => {
-      const maxHp = pokemon.stats?.hp ?? pokemon.maxHp ?? pokemon.currentHp ?? 0;
-      const currentHp = pokemon.currentHp ?? maxHp;
-      if (currentHp <= 0) {
-        return Promise.resolve();
-      }
-      return base44.entities.Pokemon.update(pokemon.id, {
-        currentHp: maxHp
-      });
-    }));
-    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
+    await healParty(1.0, true); // Full HP + full PP restore
     await advanceTime(480);
   };
 
