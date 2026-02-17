@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sprout, Clock, Gem, Plus } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 const BERRY_GROW_TIMES = {
   'Oran Berry Seed': 30,
@@ -29,6 +29,20 @@ export default function PlantingPlotModal({
   const [selectedSeed, setSelectedSeed] = useState(null);
   const [selectedPlot, setSelectedPlot] = useState(null);
   const queryClient = useQueryClient();
+
+  // Fetch berry plots directly in the modal
+  const { data: livePlots = [] } = useQuery({
+    queryKey: ['berryPlots', zone?.id, player?.email],
+    queryFn: async () => {
+      if (!player?.email || !zone?.id) return [];
+      return await base44.entities.BerryPlot.filter({ 
+        playerEmail: player.email,
+        zoneId: zone.id 
+      });
+    },
+    enabled: isOpen && !!player?.email && !!zone?.id,
+    refetchInterval: 2000
+  });
 
   const totalPlots = 3 + (player?.purchasedBerryPlots || 0);
   const nextPlotCost = Math.pow(5, (player?.purchasedBerryPlots || 0)) * 1000;
@@ -103,7 +117,7 @@ export default function PlantingPlotModal({
   };
 
   const getPlotStatus = (plotNumber) => {
-    const plot = plots.find(p => p.plotNumber === plotNumber && !p.isHarvested);
+    const plot = livePlots.find(p => p.plotNumber === plotNumber && !p.isHarvested);
     if (!plot) return { status: 'empty', plot: null, timeLeft: null };
 
     const nowGameTs = getCurrentGameTimestamp(gameTime);
