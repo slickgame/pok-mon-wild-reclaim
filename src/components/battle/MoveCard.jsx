@@ -24,10 +24,10 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
 
   return (
     <motion.div
-      whileHover={{ scale: disabled ? 1 : 1.02 }}
-      whileTap={{ scale: disabled ? 1 : 0.98 }}
+      whileHover={{ scale: isDisabled ? 1 : 1.02 }}
+      whileTap={{ scale: isDisabled ? 1 : 0.98 }}
       className={`glass rounded-lg p-3 relative ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+        isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
       }`}
       onMouseEnter={() => setShowDetails(true)}
       onMouseLeave={() => setShowDetails(false)}
