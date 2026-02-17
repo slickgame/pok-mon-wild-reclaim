@@ -116,7 +116,7 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
       <Button
         size="sm"
         onClick={() => onUse(move)}
-        disabled={disabled}
+        disabled={isDisabled}
         className={`w-full ${
           move.isSignature
             ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600'
