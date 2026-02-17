@@ -190,11 +190,16 @@ export default function BattlePage() {
     
     const initialEnemyTeam = trainerRoster.length > 0 ? trainerRoster : [wildMon];
 
+    // Use persisted HP if available, otherwise use max HP
+    const startingPlayerHP = (playerMon.currentHp !== undefined && playerMon.currentHp !== null && playerMon.currentHp > 0)
+      ? playerMon.currentHp
+      : playerStats.maxHp;
+
     setBattleState({
-      playerPokemon: playerMon,
+      playerPokemon: { ...playerMon, movePP: playerMon.movePP || {} },
       enemyPokemon: wildMon,
       enemyTeam: initialEnemyTeam,
-      playerHP: playerStats.maxHp,
+      playerHP: startingPlayerHP,
       enemyHP: wildStats.maxHp,
       turnNumber: 1,
       currentTurn: 'player',
