@@ -1477,7 +1477,7 @@ function ZoneDetailView({ zone, onBack }) {
       console.error('Failed to save progress:', error);
     }
 
-    // Advance world time after the exploration event resolves.
+    // Advance 10 minutes of in-game time for exploring
     await advanceTime(EXPLORE_TIME_MINUTES);
   };
 
