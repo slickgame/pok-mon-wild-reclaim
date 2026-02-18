@@ -269,6 +269,18 @@ export default function StoragePage() {
         />
       )}
 
+      {/* Pokémon Summary Dialog */}
+      <Dialog open={!!summaryPokemon} onOpenChange={(open) => { if (!open) setSummaryPokemon(null); }}>
+        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl max-h-[90vh] overflow-y-auto">
+          {summaryPokemon && (
+            <PokemonSummary
+              pokemon={summaryPokemon}
+              onClose={() => setSummaryPokemon(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Party Swap Modal */}
       {swapModalOpen && selectedPokemon && (
         <PartySwapModal
