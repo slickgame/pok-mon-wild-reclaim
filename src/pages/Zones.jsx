@@ -2347,47 +2347,7 @@ function ZoneDetailView({ zone, onBack }) {
       )}
 
       {activeSection === 'pokemon' && (
-        <div className="glass rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-white mb-3">Active Party</h3>
-          {orderedParty.length > 0 ? (
-            <div className="space-y-2">
-              {orderedParty.map((pokemon, index) => (
-                <div key={pokemon.id} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
-                  <div>
-                    <p className="text-white font-medium text-sm">{pokemon.species}</p>
-                    <p className="text-xs text-slate-400">Lv. {pokemon.level ?? 1}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-300">
-                    <span>HP {pokemon.currentHp ?? pokemon.stats?.hp ?? 0}/{pokemon.stats?.hp ?? pokemon.maxHp ?? 0}</span>
-                    <span className="text-slate-500">#{index + 1}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => movePartyMember(index, -1)}
-                      disabled={index === 0}
-                      className="border-slate-700 text-slate-200"
-                    >
-                      ↑
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => movePartyMember(index, 1)}
-                      disabled={index === orderedParty.length - 1}
-                      className="border-slate-700 text-slate-200"
-                    >
-                      ↓
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-400">No Pokémon in your party yet.</p>
-          )}
-        </div>
+        <ZonePartyPanel player={player} allPokemon={allPokemon} />
       )}
 
       {activeSection === 'bestiary' && (
