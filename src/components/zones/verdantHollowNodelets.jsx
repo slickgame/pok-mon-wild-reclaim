@@ -4,11 +4,11 @@ export const VERDANT_HOLLOW_NODELETS = [
     name: 'Brambleberry Thicket',
     type: 'Resource',
     description:
-      'A sun-dappled patch dense with berry brambles where gatherers learn to harvest, sort, and replant medicinal fruit.',
+      'A sun-dappled patch dense with berry brambles where gatherers learn to harvest, sort, and plant medicinal fruit.',
     gameplayFeatures: [
       'Berry gathering route with repeatable harvest nodes',
       'Healing economy starter loop (harvest, keep, or sell)',
-      'Optional replanting objective for bonus yields',
+      'Optional planting objective for bonus yields',
       'Tiered berry contracts for Iris and Merra',
       'Poacher ambush risk during high-yield actions'
     ],
