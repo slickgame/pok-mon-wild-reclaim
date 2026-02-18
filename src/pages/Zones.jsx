@@ -19,6 +19,7 @@ import EncounterResult from '@/components/zones/EncounterResult';
 import ZoneBestiary from '@/components/zones/ZoneBestiary';
 import ZoneLogbook from '@/components/zones/ZoneLogbook';
 import PlantingPlotModal from '@/components/zones/PlantingPlotModal';
+import BerryFarmPanel from '@/components/zones/BerryFarmPanel';
 import IrisShopModal from '@/components/zones/IrisShopModal';
 import MerraQuestsModal from '@/components/zones/MerraQuestsModal';
 import {
