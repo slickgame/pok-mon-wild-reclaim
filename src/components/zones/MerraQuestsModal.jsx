@@ -65,7 +65,7 @@ export default function MerraQuestsModal({ isOpen, onClose, player, berryPlots, 
 
   const completedQuests = player?.completedBerryQuests || [];
 
-  const berryInventory = items.filter(item => BERRY_NAMES.includes(item.name) && (item.quantity == null || item.quantity > 0));
+  const berryInventory = items.filter(item => BERRY_NAMES.includes(item.name) && (item.quantity == null || item.quantity >= 1));
 
   const getQuestProgress = (quest) => {
     if (quest.requirement.type === 'harvests') return berryPlots.filter(p => p.isHarvested).length;
