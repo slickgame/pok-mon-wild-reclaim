@@ -2142,42 +2142,33 @@ function ZoneDetailView({ zone, onBack }) {
                 Explore Location
               </Button>
               {activeNodelet.actions?.map((actionLabel) => {
-                const currentProgress = zoneProgress?.discoveryProgress || 0;
-                const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
-                const isLocked = currentProgress < unlockAt;
+                            const currentProgress = zoneProgress?.discoveryProgress || 0;
+                            const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
+                            const isLocked = currentProgress < unlockAt;
 
-                if (actionLabel === 'Plant') {
-                  return (
-                    <Button
-                      key={`nodelet-${actionLabel}`}
-                      size="sm"
-                      variant="outline"
-                      disabled={isLocked}
-                      className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
-                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      onClick={() => setShowPlantingModal(true)}
-                    >
-                      {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                    </Button>
-                  );
-                }
+                            const handleClick = () => {
+                              if (actionLabel === 'Plant') {
+                                setShowPlantingModal(true);
+                              } else {
+                                handleNodeletAction(activeNodelet, actionLabel);
+                              }
+                            };
 
-                return (
-                  <Button
-                    key={`nodelet-${actionLabel}`}
-                    size="sm"
-                    variant="outline"
-                    disabled={isLocked}
-                    className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
-                      isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                    onClick={() => handleNodeletAction(activeNodelet, actionLabel)}
-                  >
-                    {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                  </Button>
-                );
-              })}
+                            return (
+                              <Button
+                                key={`nodelet-${actionLabel}`}
+                                size="sm"
+                                variant="outline"
+                                disabled={isLocked}
+                                className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
+                                  isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                                onClick={handleClick}
+                              >
+                                {isLocked ? `${actionLabel} 🔒` : actionLabel}
+                              </Button>
+                            );
+                          })}
               <Button size="sm" variant="outline" className="border-slate-700 text-slate-200" onClick={() => handleNodeletInspect(activeNodelet)}>
                 Details
               </Button>
