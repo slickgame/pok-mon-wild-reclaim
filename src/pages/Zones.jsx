@@ -2296,18 +2296,7 @@ function ZoneDetailView({ zone, onBack }) {
                   </div>
                 )}
 
-                {selectedNodelet.actions?.length > 0 && (
-                  <div>
-                    <h4 className="text-white font-semibold mb-2">Available Actions</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedNodelet.actions.map((action) => (
-                        <Badge key={action} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
-                          {action}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Actions shown as interactive buttons below — no duplicate badge list needed */}
 
                 {selectedNodelet.isComingSoon && (
                   <p className="text-amber-300 text-xs bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
