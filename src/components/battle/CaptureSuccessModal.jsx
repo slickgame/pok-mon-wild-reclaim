@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Star, Edit3, Check, X } from 'lucide-react';
+import { Trophy, Star, Edit3, Check, X, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { updateCatchStreak, getStreakData } from '@/components/systems/shiny/shinySystem';
 
 export default function CaptureSuccessModal({ 
   pokemon, 
