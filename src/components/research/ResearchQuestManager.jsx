@@ -778,12 +778,17 @@ export default function ResearchQuestManager() {
     }
   });
 
-  // Initialize quests if none exist
+  // Initialize quests if none exist — guarded so we don't fire multiple simultaneous creates
+  const generatingRef = React.useRef(false);
   useEffect(() => {
-    if (!isLoading && quests.length < 3) {
-      const neededQuests = 3 - quests.length;
-      generateQuestsMutation.mutate(neededQuests);
-    }
+    if (isLoading) return;
+    if (quests.length >= 3) return;
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    const neededQuests = 3 - quests.length;
+    generateQuestsMutation.mutate(neededQuests, {
+      onSettled: () => { generatingRef.current = false; }
+    });
   }, [quests.length, isLoading]);
 
   useEffect(() => {
