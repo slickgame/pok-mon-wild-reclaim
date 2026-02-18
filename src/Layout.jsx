@@ -44,12 +44,12 @@ export default function Layout({ children, currentPageName }) {
     });
 
   const { data: player } = useQuery({
-    queryKey: ['playerSidebarSummary'],
+    queryKey: ['player'],
     queryFn: async () => {
       const players = await base44.entities.Player.list();
       return players[0] || null;
     },
-    refetchInterval: 30000,
+    staleTime: 5000,
   });
 
   const playerName = player?.name || 'Traveler';
