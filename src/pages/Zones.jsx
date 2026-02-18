@@ -2486,6 +2486,7 @@ function ZoneDetailView({ zone, onBack }) {
         player={player}
         berryPlots={berryPlots}
         items={items}
+        gameTime={gameTime}
         onQuestComplete={(questName) => {
           setExplorationEvents(prev => [{
             title: '🏆 Quest Complete',
