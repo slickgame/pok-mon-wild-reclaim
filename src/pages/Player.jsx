@@ -5,6 +5,7 @@ import { User, Coins, HeartHandshake, ListChecks, CheckCircle2 } from 'lucide-re
 import PageHeader from '@/components/common/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import EquipmentPanel from '@/components/player/EquipmentPanel';
 
 export default function PlayerPage() {
   const { data: player, isLoading } = useQuery({
