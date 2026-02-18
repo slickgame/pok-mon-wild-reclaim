@@ -778,18 +778,19 @@ export default function ResearchQuestManager() {
     }
   });
 
-  // Initialize quests if none exist — guarded so we don't fire multiple simultaneous creates
+  // Initialize quests if none exist — wait for player+gameTime to be ready
   const generatingRef = React.useRef(false);
   useEffect(() => {
     if (isLoading) return;
+    if (!player || !gameTime) return;
     if (quests.length >= 3) return;
     if (generatingRef.current) return;
     generatingRef.current = true;
     const neededQuests = 3 - quests.length;
-    generateQuestsMutation.mutate(neededQuests, {
-      onSettled: () => { generatingRef.current = false; }
-    });
-  }, [quests.length, isLoading]);
+    createGeneratedQuests({ base44, count: neededQuests, player, gameTime, analytics: researchAnalytics, progression: progressionContext })
+      .then(() => queryClient.invalidateQueries({ queryKey: ['researchQuests'] }))
+      .finally(() => { generatingRef.current = false; });
+  }, [quests.length, isLoading, player, gameTime]);
 
   useEffect(() => {
     if (isLoading || quests.length === 0) return;
