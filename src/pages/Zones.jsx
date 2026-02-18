@@ -1016,9 +1016,9 @@ function ZoneDetailView({ zone, onBack }) {
 
       if (action === 'HarvestHive') {
 
+
         // backward-compat typo guard
-      }
-      if (action === 'Harvest Hive') {
+      }if (action === 'Harvest Hive') {
         return {
           ...currentNodelet,
           lureSetAt: null,
@@ -2176,14 +2176,14 @@ function ZoneDetailView({ zone, onBack }) {
 
             {activeNodelet.id === 'vh-brambleberry-thicket' && (() => {
             const contractState = getBrambleberryContractState(activeNodelet);
-            return (
-              <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 mb-3">
-                  <h4 className="text-xs font-semibold text-fuchsia-200 mb-2">Brambleberry Contract Board</h4>
-                  <div className="space-y-1 text-xs text-fuchsia-100/90">
-                    <p>Tier I (Merra Contract): {contractState.tier1Completed ? `Complete (${contractState.tier1Runs} run${contractState.tier1Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
-                    <p>Tier II (Streak Contract): {contractState.tier2Completed ? `Complete (${contractState.tier2Runs} run${contractState.tier2Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
-                  </div>
-                </div>);
+            return null;
+
+
+
+
+
+
+
 
           })()}
 
