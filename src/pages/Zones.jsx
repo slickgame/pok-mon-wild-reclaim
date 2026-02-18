@@ -1242,22 +1242,21 @@ function ZoneDetailView({ zone, onBack }) {
       lastUpdated: new Date().toISOString()
     };
 
-    const updatedTime = { ...(currentGameTime || {}), ...payload };
+    // Cancel any in-flight refetches before updating cache
+    await queryClient.cancelQueries({ queryKey: ['gameTime'] });
 
-    // Set optimistic cache and cancel any pending background refetches so they
-    // don't overwrite our fresh value
-    queryClient.cancelQueries({ queryKey: ['gameTime'] });
+    const updatedTime = { ...(currentGameTime || {}), ...payload };
     queryClient.setQueryData(['gameTime'], updatedTime);
 
     try {
+      let savedTime;
       if (currentGameTime?.id) {
-        await base44.entities.GameTime.update(currentGameTime.id, payload);
+        savedTime = await base44.entities.GameTime.update(currentGameTime.id, payload);
       } else {
-        await base44.entities.GameTime.create(payload);
+        savedTime = await base44.entities.GameTime.create(payload);
       }
-      // After DB write succeeds, update cache with the persisted value so
-      // subsequent refetches see the latest server state
-      queryClient.setQueryData(['gameTime'], updatedTime);
+      // Write the server-confirmed value back so future refetches won't show stale data
+      queryClient.setQueryData(['gameTime'], { ...(savedTime || updatedTime), ...payload });
     } catch (e) {
       console.error('Failed to persist GameTime:', e);
       queryClient.setQueryData(['gameTime'], currentGameTime);
