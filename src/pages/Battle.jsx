@@ -1567,6 +1567,13 @@ export default function BattlePage() {
             />
           )}
 
+          {/* Catch Streak display during wild battle */}
+          {battleState?.isWildBattle && !isBattleEnded && battleState?.enemyPokemon?.species && (
+            <div className="mt-2">
+              <CatchStreakBadge species={battleState.enemyPokemon.species} />
+            </div>
+          )}
+
           {/* Battle Results Modal */}
           {isBattleEnded && !moveLearnState && !evolutionState && !captureModalState && !battleSummary && (
             <BattleOutcomeModal
