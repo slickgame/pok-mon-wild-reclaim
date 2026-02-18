@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Backpack, Search, Package, Beaker, Target, Sparkles, Key, Swords, X } from 'lucide-react';
+import { Backpack, Search, Package, Beaker, Target, Sparkles, Key, Swords, X, Sprout } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
