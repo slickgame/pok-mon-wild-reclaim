@@ -71,6 +71,11 @@ export default function PlayerPage() {
         </div>
       </div>
 
+      {/* Equipment */}
+      <div className="glass rounded-xl p-5 mb-6 border border-indigo-500/20">
+        <EquipmentPanel player={player} />
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="glass rounded-xl p-4 xl:col-span-1">
           <h3 className="text-white font-semibold mb-3">Relationships</h3>
