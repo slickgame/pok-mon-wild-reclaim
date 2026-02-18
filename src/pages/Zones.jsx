@@ -222,7 +222,8 @@ function ZoneDetailView({ zone, onBack }) {
 
   const { data: items = [] } = useQuery({
     queryKey: ['items'],
-    queryFn: () => base44.entities.Item.list()
+    queryFn: () => base44.entities.Item.list(),
+    refetchInterval: 5000
   });
 
   const { data: allPokemon = [] } = useQuery({
