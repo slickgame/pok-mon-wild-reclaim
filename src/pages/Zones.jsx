@@ -1252,17 +1252,11 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const advanceTime = async (minutesToAdd) => {
-    // Always fetch fresh GameTime from DB to avoid stale closure issues
-    let freshGameTime = null;
-    try {
-      const times = await base44.entities.GameTime.list();
-      freshGameTime = times[0] || null;
-    } catch (e) {
-      console.error('Failed to fetch GameTime:', e);
-      freshGameTime = gameTime;
-    }
+    // Read the latest cached gameTime (already kept fresh by refetchInterval)
+    // then compute next state and persist — never re-fetch to avoid race conditions
+    const currentGameTime = queryClient.getQueryData(['gameTime']) || gameTime;
 
-    const normalized = normalizeGameTime(freshGameTime);
+    const normalized = normalizeGameTime(currentGameTime);
     const next = advanceGameTime(normalized, minutesToAdd);
 
     const payload = {
@@ -1273,21 +1267,26 @@ function ZoneDetailView({ zone, onBack }) {
       day: next.day,
       month: next.month,
       year: next.year,
-      currentSeason: next.currentSeason || freshGameTime?.currentSeason || 'Spring',
+      currentSeason: next.currentSeason || currentGameTime?.currentSeason || 'Spring',
       lastUpdated: new Date().toISOString()
     };
 
-    if (freshGameTime?.id) {
-      await base44.entities.GameTime.update(freshGameTime.id, payload);
-    } else {
-      await base44.entities.GameTime.create(payload);
-    }
-
-    // Immediately push updated data into the query cache so Layout re-renders now
-    const updatedTime = { ...(freshGameTime || {}), ...payload };
+    // Optimistically update the cache FIRST so the UI reflects the change immediately
+    const updatedTime = { ...(currentGameTime || {}), ...payload };
     queryClient.setQueryData(['gameTime'], updatedTime);
-    // Also refetch to confirm server state
-    queryClient.invalidateQueries({ queryKey: ['gameTime'] });
+
+    // Then persist to DB (fire-and-forget style — cache is already updated)
+    try {
+      if (currentGameTime?.id) {
+        await base44.entities.GameTime.update(currentGameTime.id, payload);
+      } else {
+        await base44.entities.GameTime.create(payload);
+      }
+    } catch (e) {
+      console.error('Failed to persist GameTime:', e);
+      // Revert cache on failure
+      queryClient.setQueryData(['gameTime'], currentGameTime);
+    }
   };
 
   const healParty = async (healPercent, fullRestorePP = false) => {
