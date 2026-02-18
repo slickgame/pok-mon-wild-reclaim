@@ -2343,26 +2343,7 @@ function ZoneDetailView({ zone, onBack }) {
       )}
 
       {activeSection === 'items' && (
-        <div className="glass rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-white mb-3">Inventory</h3>
-          {items.length > 0 ? (
-            <div className="space-y-2">
-              {items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3">
-                  <div>
-                    <p className="text-white font-medium text-sm">{item.name}</p>
-                    <p className="text-xs text-slate-400">{item.type}</p>
-                  </div>
-                  <Badge className="bg-slate-700/50 text-slate-300 text-xs">
-                    x{item.quantity ?? 1}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-400">No items in your bag yet.</p>
-          )}
-        </div>
+        <ZoneInventoryPanel items={items} />
       )}
 
       {activeSection === 'pokemon' && (
