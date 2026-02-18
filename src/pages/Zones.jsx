@@ -28,8 +28,8 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog';
-import { getSubmissionCount } from '@/systems/quests/questProgressTracker';
-import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/systems/time/gameTimeSystem';
+import { getSubmissionCount } from '@/components/systems/quests/questProgressTracker';
+import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/components/systems/time/gameTimeSystem';
 import { 
   verdantHollowEncounters, 
   generateWildPokemon,
