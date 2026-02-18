@@ -472,8 +472,12 @@ function ZoneDetailView({ zone, onBack }) {
 
   const handleExploreNodelet = async (nodelet) => {
     nodelet = resolveNodeletConfig(nodelet);
-    // Exploring a location takes 10 in-game minutes
-    await advanceTime(EXPLORE_TIME_MINUTES);
+    // Exploring a location takes 10 in-game minutes - advance time first
+    try {
+      await advanceTime(EXPLORE_TIME_MINUTES);
+    } catch (e) {
+      console.error('advanceTime failed during nodelet explore:', e);
+    }
     
     const roll = Math.random();
     
