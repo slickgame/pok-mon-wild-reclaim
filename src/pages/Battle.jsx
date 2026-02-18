@@ -682,11 +682,14 @@ export default function BattlePage() {
           });
         }));
       } else {
-        // No XP updates, but still persist HP/PP for active pokemon
-        await base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
-          currentHp: postBattleHP,
-          movePP: cleanMovePP
-        });
+        // No XP updates, but still persist HP/PP for active pokemon if it has a valid id
+        const activeId = newBattleState.playerPokemon?.id;
+        if (activeId) {
+          await base44.entities.Pokemon.update(activeId, {
+            currentHp: postBattleHP,
+            movePP: cleanMovePP
+          });
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
