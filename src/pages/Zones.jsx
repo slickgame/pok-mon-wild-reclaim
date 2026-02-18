@@ -696,8 +696,8 @@ function ZoneDetailView({ zone, onBack }) {
       }
     }
 
-    if (action === 'Plant') {
-      setShowPlantingModal(true);
+    if (action === 'Plant' || action === 'Replant') {
+      // Handled inline by BerryFarmPanel
       return;
     }
 
