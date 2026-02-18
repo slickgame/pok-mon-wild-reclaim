@@ -13,9 +13,9 @@ const BERRY_GROW_TIMES = {
   'Lum Berry Seed': 60
 };
 
-export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, seeds = [], onPlant, onBuyPlot }) {
+export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, seeds = [], onPlant, onBuyPlot, onHarvest }) {
   const [selectedSeed, setSelectedSeed] = useState(null);
-  const [selectedPlot, setSelectedPlot] = useState(null);
+  const [harvesting, setHarvesting] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: livePlots = [] } = useQuery({
@@ -51,27 +51,37 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
-  const handlePlant = async () => {
-    if (!selectedSeed || selectedPlot === null) return;
-    const growTime = BERRY_GROW_TIMES[selectedSeed.name] || 30;
-    const now = getGameTs();
-    try {
-      await base44.entities.BerryPlot.create({
-        playerEmail, zoneId: zone.id, plotNumber: selectedPlot,
-        berryType: selectedSeed.name, plantedAt: now, readyAt: now + growTime * 60000, isHarvested: false
-      });
-      if (selectedSeed.quantity > 1) {
-        await base44.entities.Item.update(selectedSeed.id, { quantity: selectedSeed.quantity - 1 });
-      } else {
-        await base44.entities.Item.delete(selectedSeed.id);
+  const handlePlotClick = async (idx, plotStatus) => {
+    if (plotStatus.status === 'ready' && !harvesting) {
+      // Harvest this single plot
+      setHarvesting(true);
+      try {
+        await onHarvest(plotStatus.plot);
+        await queryClient.refetchQueries({ queryKey: ['berryPlots', zone?.id, playerEmail] });
+      } finally {
+        setHarvesting(false);
       }
-      queryClient.invalidateQueries({ queryKey: ['berryPlots', zone?.id, playerEmail] });
-      queryClient.invalidateQueries({ queryKey: ['items'] });
-      setSelectedSeed(null);
-      setSelectedPlot(null);
-      if (onPlant) onPlant();
-    } catch (e) {
-      console.error('Failed to plant seed:', e);
+    } else if (plotStatus.status === 'empty' && selectedSeed) {
+      // Plant
+      const growTime = BERRY_GROW_TIMES[selectedSeed.name] || 30;
+      const now = getGameTs();
+      try {
+        await base44.entities.BerryPlot.create({
+          playerEmail, zoneId: zone.id, plotNumber: idx,
+          berryType: selectedSeed.name, plantedAt: now, readyAt: now + growTime * 60000, isHarvested: false
+        });
+        if (selectedSeed.quantity > 1) {
+          await base44.entities.Item.update(selectedSeed.id, { quantity: selectedSeed.quantity - 1 });
+        } else {
+          await base44.entities.Item.delete(selectedSeed.id);
+        }
+        queryClient.invalidateQueries({ queryKey: ['berryPlots', zone?.id, playerEmail] });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        setSelectedSeed(null);
+        if (onPlant) onPlant();
+      } catch (e) {
+        console.error('Failed to plant seed:', e);
+      }
     }
   };
 
@@ -95,32 +105,41 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
         <Sprout className="w-4 h-4" /> Berry Farm
       </h4>
 
-      {/* Plots grid */}
       <div className="grid grid-cols-3 gap-2">
         {[...Array(totalPlots)].map((_, idx) => {
           const ps = getPlotStatus(idx);
-          const isSelectable = ps.status === 'empty' && !!selectedSeed;
+          const isClickable =
+            (ps.status === 'empty' && !!selectedSeed) ||
+            (ps.status === 'ready' && !harvesting);
+
           return (
             <button
               key={idx}
-              onClick={() => isSelectable && setSelectedPlot(idx)}
-              disabled={!isSelectable}
+              onClick={() => handlePlotClick(idx, ps)}
+              disabled={!isClickable}
+              title={
+                ps.status === 'ready'
+                  ? 'Click to harvest!'
+                  : ps.status === 'empty' && selectedSeed
+                  ? 'Click to plant'
+                  : ps.status === 'growing'
+                  ? 'Growing…'
+                  : 'Select a seed first'
+              }
               className={`h-24 rounded-lg border-2 flex flex-col items-center justify-center transition-all text-center ${
                 ps.status === 'empty'
-                  ? selectedPlot === idx
-                    ? 'border-emerald-500 bg-emerald-500/20'
-                    : isSelectable
-                      ? 'border-emerald-700/60 bg-slate-800/50 hover:border-emerald-500/60 cursor-pointer'
-                      : 'border-slate-700 bg-slate-800/50 cursor-default'
+                  ? isClickable
+                    ? 'border-emerald-700/60 bg-slate-800/50 hover:border-emerald-400 cursor-pointer'
+                    : 'border-slate-700 bg-slate-800/50 cursor-default'
                   : ps.status === 'growing'
-                    ? 'border-amber-500/40 bg-amber-500/10 cursor-default'
-                    : 'border-emerald-500/50 bg-emerald-500/10 cursor-default'
+                  ? 'border-amber-500/40 bg-amber-500/10 cursor-default'
+                  : 'border-emerald-400 bg-emerald-500/15 hover:bg-emerald-500/25 cursor-pointer animate-pulse'
               }`}
             >
               {ps.status === 'empty' && (
                 <>
                   <Plus className="w-5 h-5 text-slate-500 mb-1" />
-                  <span className="text-xs text-slate-500">Empty</span>
+                  <span className="text-xs text-slate-500">{isClickable ? 'Plant here' : 'Empty'}</span>
                 </>
               )}
               {ps.status === 'growing' && ps.plot && (
@@ -141,7 +160,9 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
                   <p className="text-xs text-white font-medium leading-tight">
                     {ps.plot.berryType.replace(' Seed', '')}
                   </p>
-                  <Badge className="bg-emerald-500/20 text-emerald-300 text-xs mt-1 py-0">Ready!</Badge>
+                  <Badge className="bg-emerald-500/30 text-emerald-300 text-xs mt-1 py-0">
+                    {harvesting ? '…' : 'Harvest!'}
+                  </Badge>
                 </>
               )}
             </button>
@@ -149,7 +170,6 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
         })}
       </div>
 
-      {/* Buy plot */}
       <Button
         onClick={handleBuyPlot}
         disabled={(player?.gold || 0) < nextPlotCost}
@@ -160,10 +180,11 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
         Buy Plot ({nextPlotCost}g)
       </Button>
 
-      {/* Seed selector */}
       {seeds.length > 0 ? (
         <div>
-          <p className="text-xs text-slate-400 mb-2">Select a seed, then click an empty plot to plant:</p>
+          <p className="text-xs text-slate-400 mb-2">
+            {selectedSeed ? `Selected: ${selectedSeed.name} — click an empty plot to plant` : 'Select a seed to plant:'}
+          </p>
           <div className="flex flex-wrap gap-2">
             {seeds.map(seed => (
               <button
@@ -185,13 +206,6 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
         </div>
       ) : (
         <p className="text-xs text-slate-500">No seeds in inventory. Talk to Iris to buy seeds.</p>
-      )}
-
-      {selectedSeed && selectedPlot !== null && (
-        <Button onClick={handlePlant} className="w-full bg-emerald-600 hover:bg-emerald-700" size="sm">
-          <Sprout className="w-3.5 h-3.5 mr-1.5" />
-          Plant {selectedSeed.name.replace(' Seed', '')} in Plot {selectedPlot + 1}
-        </Button>
       )}
     </div>
   );
