@@ -39,8 +39,8 @@ export default function Layout({ children, currentPageName }) {
             const times = await base44.entities.GameTime.list();
             return times[0] || null;
           },
-          refetchInterval: 15000,
-          staleTime: 12000, // Don't refetch too aggressively — advanceTime sets data directly
+          refetchInterval: false,
+          staleTime: Infinity,
     });
 
   const { data: player } = useQuery({
