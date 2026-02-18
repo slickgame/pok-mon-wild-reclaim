@@ -832,11 +832,13 @@ export default function ResearchQuestManager() {
   useEffect(() => {
     if (isLoading || !player?.id || quests.length === 0) return;
 
-    const migrationKey = 'researchQuestLegacyResetV1';
+    const migrationKey = 'researchQuestLegacyResetV2';
     if (localStorage.getItem(migrationKey) === 'done') return;
 
+    // A quest is "legacy" if it has no IV conditions, no talent conditions, no quantity > 1, no level
+    // i.e. it's just species + optional nature — the old format before new requirement types
     const looksLegacyOnly = quests.every((quest) => {
-      const hasComplex = Boolean(
+      const hasRichRequirement = Boolean(
         quest?.level
         || (quest?.quantityRequired || quest?.requiredCount || 1) > 1
         || (quest?.ivConditions?.length || 0) > 0
@@ -849,12 +851,8 @@ export default function ResearchQuestManager() {
         || (quest?.requirements?.quantityRequired || 1) > 1
         || (quest?.requirements?.ivConditions?.length || 0) > 0
         || (quest?.requirements?.talentConditions?.length || 0) > 0
-        || quest?.requirements?.shinyRequired
-        || quest?.requirements?.alphaRequired
-        || quest?.requirements?.bondedRequired
-        || quest?.requirements?.hiddenAbilityRequired
       );
-      return !hasComplex;
+      return !hasRichRequirement;
     });
 
     if (!looksLegacyOnly) {
