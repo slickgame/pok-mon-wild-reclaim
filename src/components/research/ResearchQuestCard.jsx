@@ -224,7 +224,7 @@ export default function ResearchQuestCard({
                 </p>
               ))}
               {quest.shinyRequired && (
-                <p><span className="text-slate-400">Shiny:</span> Required</p>
+                <p className="text-yellow-300 font-semibold">✨ Shiny Required — this is a rare find!</p>
               )}
               {quest.alphaRequired && (
                 <p><span className="text-slate-400">Alpha:</span> Required</p>
