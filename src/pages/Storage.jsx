@@ -242,6 +242,7 @@ export default function StoragePage() {
                       }
                       moveToStorageMutation.mutate(pokemon.id);
                     }}
+                    onClick={() => setSummaryPokemon(pokemon)}
                     isInParty={true}
                   />
                 ))}
