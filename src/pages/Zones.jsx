@@ -2244,6 +2244,50 @@ function ZoneDetailView({ zone, onBack }) {
                     rarity: 'uncommon'
                   }, ...prev].slice(0, 10));
                 }}
+                onHarvest={async (plot) => {
+                  const BERRY_YIELDS = {
+                    'Oran Berry Seed': [2, 4], 'Pecha Berry Seed': [2, 5],
+                    'Cheri Berry Seed': [3, 6], 'Sitrus Berry Seed': [1, 3], 'Lum Berry Seed': [1, 2]
+                  };
+                  const nowGameTs = getCurrentGameTimestamp();
+
+                  // Single-plot poacher check
+                  const poacherTriggered = await maybeTriggerEnemyNPCEncounter(
+                    resolveNodeletConfig(activeNodelet), 0.22
+                  );
+                  if (poacherTriggered) return;
+
+                  const [min, max] = BERRY_YIELDS[plot.berryType] || [1, 3];
+                  const quantity = Math.floor(Math.random() * (max - min + 1)) + min;
+                  const berryName = plot.berryType.replace(' Seed', '');
+                  await upsertItem(berryName, quantity, { type: 'Consumable', description: 'A medicinal berry from Brambleberry Thicket' });
+                  await base44.entities.BerryPlot.update(plot.id, { isHarvested: true });
+                  queryClient.invalidateQueries({ queryKey: ['berryPlots'] });
+                  queryClient.invalidateQueries({ queryKey: ['items'] });
+
+                  // Single-plot wild encounter check
+                  const harvestEncounterChance = 0.25;
+                  if (Math.random() < harvestEncounterChance) {
+                    const nodelet = resolveNodeletConfig(activeNodelet);
+                    const encounter = getNodeletEncounter(nodelet, 'Harvest');
+                    if (encounter?.species) {
+                      await startNodeletWildEncounter({
+                        species: encounter.species,
+                        level: encounter.level || 7,
+                        nodelet,
+                        battleType: 'berry'
+                      });
+                      return;
+                    }
+                  }
+
+                  setExplorationEvents(prev => [{
+                    title: '🫐 Berry Harvested',
+                    description: `Harvested ${quantity}× ${berryName}!`,
+                    type: 'material',
+                    rarity: 'common'
+                  }, ...prev].slice(0, 10));
+                }}
               />
             )}
 
