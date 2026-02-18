@@ -1,14 +1,15 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Box, Star, ArrowLeftRight, Info, ChevronUp, ChevronDown } from 'lucide-react';
+import { Users, Box, Star, Info, ChevronUp, ChevronDown } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import PartyPokemonCard from '@/components/party/PartyPokemonCard';
+import PokemonSummary from '@/components/pokemon/PokemonSummary';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 export default function PartyManager() {
   const [filter, setFilter] = useState('all');
