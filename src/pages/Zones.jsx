@@ -2219,6 +2219,32 @@ function ZoneDetailView({ zone, onBack }) {
               );
             })()}
 
+            {activeNodelet.id === 'vh-brambleberry-thicket' && (
+              <BerryFarmPanel
+                player={player}
+                playerEmail={user?.email}
+                zone={zone}
+                gameTime={gameTime}
+                seeds={items.filter(item => item.name?.includes('Berry Seed'))}
+                onPlant={() => {
+                  setExplorationEvents(prev => [{
+                    title: '🌱 Seed Planted',
+                    description: 'Your berry plot is growing. Check back later to harvest!',
+                    type: 'special',
+                    rarity: 'common'
+                  }, ...prev].slice(0, 10));
+                }}
+                onBuyPlot={() => {
+                  setExplorationEvents(prev => [{
+                    title: '🏗️ Plot Purchased',
+                    description: 'Expanded your berry farm with a new plot!',
+                    type: 'special',
+                    rarity: 'uncommon'
+                  }, ...prev].slice(0, 10));
+                }}
+              />
+            )}
+
             {activeNodelet.gameplayFeatures?.length > 0 && (
               <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300">
                 {activeNodelet.gameplayFeatures.map((feature) => (
