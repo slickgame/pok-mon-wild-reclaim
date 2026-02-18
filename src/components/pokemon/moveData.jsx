@@ -1879,6 +1879,18 @@ const BASE_MOVE_DATA = {
     tags: ['Physical', 'Flying']
   },
 
+  'Razor Leaf': {
+    type: 'Grass',
+    category: 'Physical',
+    power: 55,
+    accuracy: 95,
+    pp: 25,
+    description: 'Sharp-edged leaves are launched to slash the opposing Pokémon. Critical hits land more easily.',
+    critRatio: 2,
+    aoe: true,
+    tags: ['Crit', 'Physical', 'Grass'],
+  },
+
   // Add more moves as needed
 };
 
