@@ -244,10 +244,16 @@ export default function InventoryPage() {
     }
   });
 
+  const isBerry = (item) =>
+    (item.name?.includes('Berry') && !item.name?.includes('Seed')) || item.type === 'Consumable';
+  const isSeed = (item) => item.name?.includes('Berry Seed');
+
   const filteredItems = Object.values(stackedItems).filter(item => {
-    const matchesType = filter === 'all' || item.type === filter;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesSearch;
+    if (filter === 'berry') return (isBerry(item) || isSeed(item)) && matchesSearch;
+    if (filter === 'all') return matchesSearch;
+    // For non-berry tabs, exclude berries from showing in Material tab etc.
+    return item.type === filter && !isBerry(item) && !isSeed(item) && matchesSearch;
   });
 
   const groupedItems = filteredItems.reduce((acc, item) => {
