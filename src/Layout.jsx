@@ -36,10 +36,11 @@ export default function Layout({ children, currentPageName }) {
   const { data: gameTime } = useQuery({
       queryKey: ['gameTime'],
       queryFn: async () => {
-        const times = await base44.entities.GameTime.list();
-        return times[0] || null;
-      },
-      refetchInterval: 5000, // Refresh every 5 seconds so sidebar stays current
+            const times = await base44.entities.GameTime.list();
+            return times[0] || null;
+          },
+          refetchInterval: 15000,
+          staleTime: 12000, // Don't refetch too aggressively — advanceTime sets data directly
     });
 
   const { data: player } = useQuery({
