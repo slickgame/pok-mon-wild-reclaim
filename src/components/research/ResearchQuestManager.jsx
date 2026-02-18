@@ -228,10 +228,11 @@ function calculateDifficultyScore({ nature, level, quantityRequired, ivCondition
       }
     });
   }
-  if (arguments[0]?.specialFlags) {
-    const specialCount = Object.values(arguments[0].specialFlags).filter(Boolean).length;
-    score += specialCount * 2;
-  }
+  // Shiny is significantly harder than other specials
+  if (arguments[0]?.specialFlags?.shinyRequired) score += 6;
+  if (arguments[0]?.specialFlags?.alphaRequired) score += 3;
+  if (arguments[0]?.specialFlags?.bondedRequired) score += 2;
+  if (arguments[0]?.specialFlags?.hiddenAbilityRequired) score += 2;
   return score;
 }
 
