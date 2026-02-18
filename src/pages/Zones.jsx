@@ -31,6 +31,8 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog';
+import { getBaseStats } from '@/components/pokemon/baseStats';
+import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getSubmissionCount } from '@/components/systems/quests/questProgressTracker';
 import { advanceGameTime, getTimeLeftLabel, normalizeGameTime, toTotalMinutes } from '@/components/systems/time/gameTimeSystem';
 import { 
