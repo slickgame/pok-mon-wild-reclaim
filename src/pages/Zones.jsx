@@ -1488,8 +1488,12 @@ function ZoneDetailView({ zone, onBack }) {
     }
 
     // Advance 10 minutes of in-game time for exploring
-    await advanceTime(EXPLORE_TIME_MINUTES);
-  };
+    try {
+      await advanceTime(EXPLORE_TIME_MINUTES);
+    } catch (e) {
+      console.error('advanceTime failed during main explore:', e);
+    }
+    };
 
   const handleContinueExploring = () => {
     setCurrentEncounter(null);
