@@ -102,6 +102,15 @@ export default function StorageCard({
 
       {/* Action Buttons */}
       <div className="space-y-2">
+        {onClick && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onClick}
+            className="w-full text-xs border-indigo-500/50 text-indigo-300 hover:bg-indigo-500/20">
+            View Details
+          </Button>
+        )}
         <Button
           size="sm"
           variant="outline"
