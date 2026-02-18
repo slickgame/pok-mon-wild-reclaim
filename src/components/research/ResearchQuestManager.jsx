@@ -860,6 +860,8 @@ export default function ResearchQuestManager() {
       return;
     }
 
+    // Also clear the old migration key so a clean reset runs
+    localStorage.removeItem('researchQuestLegacyResetV1');
     localStorage.setItem(migrationKey, 'running');
 
     Promise.all(quests.map((quest) => base44.entities.ResearchQuest.update(quest.id, {
