@@ -22,7 +22,7 @@ const itemTypes = [
   { value: 'Capture Gear', label: 'Pokéballs', icon: Target },
   { value: 'Battle Item', label: 'Battle', icon: Swords },
   { value: 'Held Item', label: 'Held', icon: Sparkles },
-  { value: 'berry', label: 'Berries', icon: Sparkles },
+  { value: 'berry', label: 'Berries', icon: Sprout },
   { value: 'Material', label: 'Materials', icon: Package },
   { value: 'Key Item', label: 'Key Items', icon: Key },
 ];
