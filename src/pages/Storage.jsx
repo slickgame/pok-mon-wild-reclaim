@@ -22,6 +22,7 @@ export default function StoragePage() {
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false);
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('storage');
+  const [summaryPokemon, setSummaryPokemon] = useState(null);
   
   const queryClient = useQueryClient();
 
