@@ -848,11 +848,18 @@ export default function BattlePage() {
         synergyTriggered: false
       });
       // Mark active Pokemon as fainted and persist HP=0 and PP
-      setFaintedIds(prev => [...prev, newBattleState.playerPokemon.id]);
-      base44.entities.Pokemon.update(newBattleState.playerPokemon.id, {
-        currentHp: 0,
-        movePP: newBattleState.playerPokemon.movePP || {}
-      }).catch(err => console.error('Failed to persist faint state:', err));
+      const faintedId = newBattleState.playerPokemon?.id;
+      if (faintedId) {
+        setFaintedIds(prev => [...prev, faintedId]);
+        const rawFaintPP = newBattleState.playerPokemon.movePP || {};
+        const cleanFaintPP = Object.fromEntries(
+          Object.entries(rawFaintPP).filter(([, v]) => v !== undefined && v !== null)
+        );
+        base44.entities.Pokemon.update(faintedId, {
+          currentHp: 0,
+          movePP: cleanFaintPP
+        }).catch(err => console.error('Failed to persist faint state:', err));
+      }
     } else {
       newBattleState.currentTurn = 'player';
     }
