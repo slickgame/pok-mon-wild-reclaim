@@ -10,6 +10,7 @@ export default function StorageCard({
   onNickname,
   onMoveToParty,
   onMoveToStorage,
+  onClick,
   isInParty
 }) {
   const roleIcons = {
