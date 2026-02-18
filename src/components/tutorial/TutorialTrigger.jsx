@@ -2,13 +2,21 @@ import { useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+// In-memory set to avoid re-triggering the same tutorial in the same session
+const triggeredThisSession = new Set();
+
 /**
- * Hook to trigger tutorials based on game events
+ * Hook to trigger tutorials based on game events.
+ * Uses session-level deduplication to avoid hammering the API.
  */
 export function useTutorialTrigger() {
   const queryClient = useQueryClient();
 
   const triggerTutorial = async (triggerName) => {
+    // Skip if already triggered this session
+    if (triggeredThisSession.has(triggerName)) return;
+    triggeredThisSession.add(triggerName);
+
     try {
       const tutorials = await base44.entities.Tutorial.filter({ 
         trigger: triggerName,
@@ -17,11 +25,12 @@ export function useTutorialTrigger() {
       });
 
       if (tutorials.length > 0) {
-        // Invalidate tutorial query to show the tutorial
         queryClient.invalidateQueries({ queryKey: ['tutorials'] });
       }
     } catch (error) {
-      console.error('Failed to trigger tutorial:', error);
+      // Remove from set on error so it can be retried later
+      triggeredThisSession.delete(triggerName);
+      console.warn('Failed to trigger tutorial:', triggerName, error?.message);
     }
   };
 
