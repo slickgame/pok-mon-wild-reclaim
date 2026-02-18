@@ -225,6 +225,7 @@ export default function PartyManager() {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                         className="relative"
+                        onClick={() => setSelectedPokemon(pokemon)}
                       >
                         <PartyPokemonCard
                           pokemon={pokemon}
