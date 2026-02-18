@@ -1251,11 +1251,19 @@ function ZoneDetailView({ zone, onBack }) {
 
   const advanceTime = async (minutesToAdd) => {
     // Always fetch fresh gameTime to avoid stale closure issues
-    const times = await base44.entities.GameTime.list();
-    const freshGameTime = times[0] || gameTime;
+    let freshGameTime = null;
+    try {
+      const times = await base44.entities.GameTime.list();
+      freshGameTime = times[0] || null;
+    } catch (e) {
+      console.error('Failed to fetch GameTime:', e);
+      freshGameTime = gameTime;
+    }
 
     const normalized = normalizeGameTime(freshGameTime);
     const next = advanceGameTime(normalized, minutesToAdd);
+
+    console.log(`[advanceTime] +${minutesToAdd}min | was ${normalized.currentHour}:${String(normalized.currentMinute||0).padStart(2,'0')} → now ${next.currentHour}:${String(next.currentMinute).padStart(2,'0')}`);
 
     if (freshGameTime?.id) {
       await base44.entities.GameTime.update(freshGameTime.id, {
@@ -1277,11 +1285,12 @@ function ZoneDetailView({ zone, onBack }) {
         day: next.day,
         month: next.month,
         year: next.year,
-        currentSeason: freshGameTime?.currentSeason || 'Spring'
+        currentSeason: next.currentSeason || 'Spring'
       });
     }
 
-    queryClient.invalidateQueries({ queryKey: ['gameTime'] });
+    // Force immediate refetch so the clock updates in UI
+    await queryClient.refetchQueries({ queryKey: ['gameTime'] });
     queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
     queryClient.invalidateQueries({ queryKey: ['player'] });
   };
