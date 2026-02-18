@@ -13,6 +13,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 export default function PartyManager() {
   const [filter, setFilter] = useState('all');
+  const [selectedPokemon, setSelectedPokemon] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: player } = useQuery({
