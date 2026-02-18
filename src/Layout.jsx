@@ -34,13 +34,13 @@ export default function Layout({ children, currentPageName }) {
   const inZoneDetail = currentPageName === 'Zones' && location.search.includes('zoneId=');
 
   const { data: gameTime } = useQuery({
-    queryKey: ['gameTime'],
-    queryFn: async () => {
-      const times = await base44.entities.GameTime.list();
-      return times[0] || null;
-    },
-    refetchInterval: 60000, // Refresh every minute
-  });
+      queryKey: ['gameTime'],
+      queryFn: async () => {
+        const times = await base44.entities.GameTime.list();
+        return times[0] || null;
+      },
+      refetchInterval: 5000, // Refresh every 5 seconds so sidebar stays current
+    });
 
   const { data: player } = useQuery({
     queryKey: ['playerSidebarSummary'],
