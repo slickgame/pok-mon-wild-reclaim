@@ -31,6 +31,7 @@ import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
 import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zones/wildPokemonData';
 import { getMoveData } from '@/components/utils/getMoveData';
+import CatchStreakBadge from '@/components/battle/CatchStreakBadge';
 
 const createDefaultBattlefield = () => ({
   terrain: null,
