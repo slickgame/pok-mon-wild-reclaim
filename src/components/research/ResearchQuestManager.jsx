@@ -124,7 +124,9 @@ const CONDITION_POOL = [
   { type: 'nature', weight: 3 },
   { type: 'iv', weight: 3 },
   { type: 'talent', weight: 2 },
+  { type: 'talentGrade', weight: 2 },
   { type: 'level', weight: 2 },
+  { type: 'quantity', weight: 2 },
   { type: 'special', weight: 1 }
 ];
 
@@ -204,10 +206,13 @@ function getQuestDurationMinutes({ rarity, difficultyTier }) {
   return 14 * TIME_CONSTANTS.MINUTES_PER_DAY; // midpoint for uncommon/medium
 }
 
-function calculateDifficultyScore({ nature, level, ivConditions, talentConditions }) {
+function calculateDifficultyScore({ nature, level, quantityRequired, ivConditions, talentConditions }) {
   let score = 1;
   if (nature) score += 1;
   if (level && level >= 20) score += 1;
+  if (quantityRequired && quantityRequired > 1) {
+    score += Math.min(quantityRequired, 5);
+  }
   if (ivConditions?.length) {
     ivConditions.forEach((iv) => {
       score += iv.min > 20 ? 2 : 1;
@@ -238,6 +243,7 @@ function generateQuest(player, gameTime) {
   const requirements = [];
   let nature = null;
   let level = null;
+  let quantityRequired = 1;
   const ivConditions = [];
   const talentConditions = [];
   const specialFlags = {
@@ -267,6 +273,11 @@ function generateQuest(player, gameTime) {
     level = Math.floor(Math.random() * 21) + 10;
   }
 
+  if (pickedConditions.has('quantity')) {
+    const maxByRarity = rarity === 'common' ? 10 : rarity === 'uncommon' ? 5 : 3;
+    quantityRequired = Math.floor(Math.random() * (maxByRarity - 1)) + 2;
+  }
+
   if (pickedConditions.has('iv')) {
     const ivConditionCount = Math.random() < 0.25 ? 2 : 1;
     const availableStats = [...IV_STATS];
@@ -281,7 +292,7 @@ function generateQuest(player, gameTime) {
   if (pickedConditions.has('talent')) {
     const talentPool = getTalentPool(species);
     if (talentPool.length) {
-      const count = Math.random() < 0.5 ? 2 : 3;
+      const count = Math.floor(Math.random() * 3) + 1;
       const grades = Array.from({ length: count }, () => weightedRoll(TALENT_GRADES).grade);
       const talentTags = talentPool
         .map((talentId) => TalentRegistry[talentId]?.tagsAffected || [])
@@ -295,6 +306,18 @@ function generateQuest(player, gameTime) {
     }
   }
 
+  if (pickedConditions.has('talentGrade')) {
+    const talentPool = getTalentPool(species);
+    if (talentPool.length) {
+      const grade = weightedRoll(TALENT_GRADES).grade;
+      talentConditions.push({
+        count: 1,
+        grades: [grade],
+        requiredTags: []
+      });
+    }
+  }
+
   if (pickedConditions.has('special')) {
     const specialKeys = Object.keys(specialFlags);
     const chosen = pickRandom(specialKeys);
@@ -304,6 +327,7 @@ function generateQuest(player, gameTime) {
   const hasRequirement = Boolean(
     nature
     || level
+    || quantityRequired > 1
     || ivConditions.length
     || talentConditions.length
     || Object.values(specialFlags).some(Boolean)
@@ -321,6 +345,7 @@ function generateQuest(player, gameTime) {
   const difficultyScore = calculateDifficultyScore({
     nature,
     level,
+    quantityRequired,
     ivConditions,
     talentConditions,
     specialFlags
@@ -332,10 +357,10 @@ function generateQuest(player, gameTime) {
   const createdAtMinutes = toTotalMinutes(normalizedTime);
   const expiresAtMinutes = createdAtMinutes + getQuestDurationMinutes({ rarity, difficultyTier });
 
-  if (ivConditions.length === 0 && !nature) {
+  if (ivConditions.length === 0 && !nature && quantityRequired === 1) {
     nature = pickRandom(NATURES);
   }
-  const requirementType = ivConditions.length ? 'iv' : 'nature';
+  const requirementType = ivConditions.length ? 'iv' : quantityRequired > 1 ? 'quantity' : 'nature';
   const rewardBase = REWARD_BASE[rarity] || 100;
 
   return {
@@ -346,6 +371,7 @@ function generateQuest(player, gameTime) {
     requirementType,
     nature,
     level,
+    quantityRequired,
     ivConditions,
     talentConditions,
     ...specialFlags,
@@ -495,13 +521,15 @@ async function rerollQuestAction({ base44, quest, gameTime, analytics, progressi
   });
   await base44.entities.ResearchQuest.create(newQuest);
 
-  await base44.entities.Player.update(player.id, {
+  const updatedPlayer = await base44.entities.Player.update(player.id, {
     gold: (player.gold || 0) - cost,
     researchQuestRerolls: rerollCount + 1,
     researchQuestRerollResetDay: todayIndex
   });
+  
+  return { cost, replacementTier: newQuest.difficulty, updatedPlayer };
 
-  return { cost, replacementTier: newQuest.difficulty };
+
 }
 
 async function rerollAllQuestsAction({ base44, quests, gameTime, analytics, progression }) {
@@ -534,13 +562,13 @@ async function rerollAllQuestsAction({ base44, quests, gameTime, analytics, prog
 
   await Promise.all(newQuests.map((quest) => base44.entities.ResearchQuest.create(quest)));
 
-  await base44.entities.Player.update(player.id, {
+  const updatedPlayer = await base44.entities.Player.update(player.id, {
     gold: (player.gold || 0) - totalCost,
     researchQuestRerolls: rerollCount + quests.length,
     researchQuestRerollResetDay: todayIndex
   });
 
-  return { cost: totalCost, replacedCount: quests.length };
+  return { cost: totalCost, replacedCount: quests.length, updatedPlayer };
 }
 
 async function acceptQuestAction({ base44, player, quest, gameTime, getSubmissionCount }) {
@@ -710,8 +738,10 @@ export default function ResearchQuestManager() {
     }),
     onSuccess: (result) => {
       if (!result) return;
+      if (result.updatedPlayer) {
+        queryClient.setQueryData(['player'], result.updatedPlayer);
+      }
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
-      queryClient.invalidateQueries({ queryKey: ['player'] });
       setRerollMessage(
         `Quest rerolled${result.cost ? ` for ${result.cost} gold` : ''}. New request: ${result.replacementTier} tier.`
       );
@@ -733,8 +763,10 @@ export default function ResearchQuestManager() {
     }),
     onSuccess: (result) => {
       if (!result) return;
+      if (result.updatedPlayer) {
+        queryClient.setQueryData(['player'], result.updatedPlayer);
+      }
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
-      queryClient.invalidateQueries({ queryKey: ['player'] });
       setRerollMessage(
         `${result.replacedCount} quest${result.replacedCount === 1 ? '' : 's'} rerolled${result.cost ? ` for ${result.cost} gold` : ''}.`
       );
