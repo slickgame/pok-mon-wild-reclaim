@@ -218,8 +218,8 @@ function ZoneDetailView({ zone, onBack }) {
         const times = await base44.entities.GameTime.list();
         return times[0] || null;
       },
-      refetchInterval: 10000,
-      staleTime: 8000
+      refetchInterval: false,
+      staleTime: Infinity
     });
 
   const { data: items = [] } = useQuery({
