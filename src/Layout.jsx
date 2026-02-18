@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import TimeWidget from '@/components/time/TimeWidget';
-import { formatCalendarDate, formatDigitalTime, normalizeGameTime } from '@/systems/time/gameTimeSystem';
+import { formatCalendarDate, formatDigitalTime, normalizeGameTime } from '@/components/systems/time/gameTimeSystem';
 
 const navItems = [
   { name: 'Home', icon: Home, page: 'Home' },
