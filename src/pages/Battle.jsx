@@ -670,8 +670,8 @@ export default function BattlePage() {
 
       // Update all Pokemon with XP and persist HP/PP for active pokemon
       if (pokemonToUpdate.length > 0) {
-        await Promise.all(pokemonToUpdate.map(p => {
-          const isActive = p.id === newBattleState.playerPokemon.id;
+        await Promise.all(pokemonToUpdate.filter(p => p.id).map(p => {
+          const isActive = p.id === newBattleState.playerPokemon?.id;
           return base44.entities.Pokemon.update(p.id, {
             experience: p.experience,
             level: p.level,
