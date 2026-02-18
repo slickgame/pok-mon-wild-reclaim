@@ -14,6 +14,17 @@ export default function CaptureSuccessModal({
   const [stage, setStage] = useState('congratulations'); // 'congratulations', 'nickname', 'complete'
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
+  const [streakInfo, setStreakInfo] = useState(null);
+
+  useEffect(() => {
+    if (!pokemon?.species) return;
+    const prevData = getStreakData();
+    const newCount = updateCatchStreak(pokemon.species);
+    const isNewStreak = prevData.species !== pokemon.species;
+    const milestones = [5, 10, 15, 20, 25];
+    const hitMilestone = milestones.includes(newCount);
+    setStreakInfo({ count: newCount, species: pokemon.species, isNewStreak, hitMilestone });
+  }, [pokemon?.species]);
 
   const handleNicknameSubmit = () => {
     const trimmed = nickname.trim();
