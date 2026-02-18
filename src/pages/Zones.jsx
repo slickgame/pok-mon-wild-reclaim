@@ -208,12 +208,14 @@ function ZoneDetailView({ zone, onBack }) {
   });
 
   const { data: gameTime } = useQuery({
-    queryKey: ['gameTime'],
-    queryFn: async () => {
-      const times = await base44.entities.GameTime.list();
-      return times[0] || null;
-    }
-  });
+      queryKey: ['gameTime'],
+      queryFn: async () => {
+        const times = await base44.entities.GameTime.list();
+        return times[0] || null;
+      },
+      refetchInterval: 5000,
+      staleTime: 0
+    });
 
   const { data: items = [] } = useQuery({
     queryKey: ['items'],
