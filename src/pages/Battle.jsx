@@ -169,12 +169,14 @@ export default function BattlePage() {
     enabled: !!wildPokemonId
   });
 
-  // Auto-start battle with wild Pokémon
+  // Auto-start battle with wild Pokémon - only trigger once when both are first loaded
+  const battleStartedRef = React.useRef(false);
   useEffect(() => {
-    if (wildPokemon && playerPokemon.length > 0 && !battleState) {
+    if (wildPokemon && playerPokemon.length > 0 && !battleState && !battleStartedRef.current) {
+      battleStartedRef.current = true;
       startWildBattle(wildPokemon);
     }
-  }, [wildPokemon, playerPokemon]);
+  }, [wildPokemon?.id, playerPokemon.length]);
 
   // Start wild encounter battle
   const startWildBattle = (wildMon) => {
