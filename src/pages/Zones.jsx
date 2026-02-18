@@ -1246,11 +1246,15 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const advanceTime = async (minutesToAdd) => {
-    const normalized = normalizeGameTime(gameTime);
+    // Always fetch fresh gameTime to avoid stale closure issues
+    const times = await base44.entities.GameTime.list();
+    const freshGameTime = times[0] || gameTime;
+
+    const normalized = normalizeGameTime(freshGameTime);
     const next = advanceGameTime(normalized, minutesToAdd);
 
-    if (gameTime?.id) {
-      await base44.entities.GameTime.update(gameTime.id, {
+    if (freshGameTime?.id) {
+      await base44.entities.GameTime.update(freshGameTime.id, {
         currentHour: next.currentHour,
         currentMinute: next.currentMinute,
         currentDay: next.currentDay,
@@ -1258,7 +1262,7 @@ function ZoneDetailView({ zone, onBack }) {
         day: next.day,
         month: next.month,
         year: next.year,
-        currentSeason: next.currentSeason || gameTime?.currentSeason || 'Spring'
+        currentSeason: next.currentSeason || freshGameTime?.currentSeason || 'Spring'
       });
     } else {
       await base44.entities.GameTime.create({
@@ -1269,7 +1273,7 @@ function ZoneDetailView({ zone, onBack }) {
         day: next.day,
         month: next.month,
         year: next.year,
-        currentSeason: gameTime?.currentSeason || 'Spring'
+        currentSeason: freshGameTime?.currentSeason || 'Spring'
       });
     }
 
