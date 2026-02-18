@@ -28,7 +28,13 @@ const BERRY_EFFECTS = {
 export default function ItemsTab({ pokemon }) {
   const [showPicker, setShowPicker] = useState(null); // slot index
   const [saving, setSaving] = useState(false);
+  const [localHeldItems, setLocalHeldItems] = useState(pokemon.heldItems || []);
   const queryClient = useQueryClient();
+
+  // Keep local state in sync when pokemon prop changes
+  React.useEffect(() => {
+    setLocalHeldItems(pokemon.heldItems || []);
+  }, [pokemon.heldItems]);
 
   const { data: inventoryItems = [] } = useQuery({
     queryKey: ['items'],
@@ -37,7 +43,7 @@ export default function ItemsTab({ pokemon }) {
   });
 
   const maxSlots = 3;
-  const currentItems = pokemon.heldItems || [];
+  const currentItems = localHeldItems;
 
   // Items that can be held: Held Items + Berries (not seeds)
   const equippable = inventoryItems.filter(item =>
