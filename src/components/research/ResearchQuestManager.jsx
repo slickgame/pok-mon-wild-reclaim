@@ -177,13 +177,12 @@ function getRewardForQuest({ avgTargetLevel, difficultyTier }) {
   const baseMoney = 100;
   const levelFactor = (avgTargetLevel || 10) * 0.2;
   const totalReward = Math.floor(baseMoney * levelFactor * difficultyTier.difficultyMod);
+  const rawItemRewards = difficultyTier.itemRewards || [];
   return {
-    baseMoney,
-    levelFactor,
-    difficultyMod: difficultyTier.difficultyMod,
     gold: totalReward,
     items: difficultyTier.items,
-    itemRewards: difficultyTier.itemRewards || [],
+    itemRewardIds: rawItemRewards.map((r) => r.id),
+    itemRewardQtys: rawItemRewards.map((r) => r.quantity),
     trustGain: difficultyTier.trustGain || 0,
     notesGain: difficultyTier.notesGain || 0
   };
