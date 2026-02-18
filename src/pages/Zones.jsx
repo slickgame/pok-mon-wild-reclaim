@@ -2138,29 +2138,18 @@ function ZoneDetailView({ zone, onBack }) {
               <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => handleExploreNodelet(activeNodelet)}>
                 Explore Location
               </Button>
-              {activeNodelet.actions?.map((actionLabel) => {
+              {activeNodelet.actions?.filter(a => !['Harvest', 'Plant', 'Deliver Berries', 'Replant'].includes(a)).map((actionLabel) => {
                             const currentProgress = zoneProgress?.discoveryProgress || 0;
                             const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
                             const isLocked = currentProgress < unlockAt;
-
-                            const handleClick = () => {
-                              if (actionLabel === 'Plant') {
-                                setShowPlantingModal(true);
-                              } else {
-                                handleNodeletAction(activeNodelet, actionLabel);
-                              }
-                            };
-
                             return (
                               <Button
                                 key={`nodelet-${actionLabel}`}
                                 size="sm"
                                 variant="outline"
                                 disabled={isLocked}
-                                className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
-                                  isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
-                                onClick={handleClick}
+                                className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                onClick={() => handleNodeletAction(activeNodelet, actionLabel)}
                               >
                                 {isLocked ? `${actionLabel} 🔒` : actionLabel}
                               </Button>
