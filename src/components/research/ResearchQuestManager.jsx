@@ -318,8 +318,12 @@ function generateQuest(player, gameTime) {
   }
 
   if (pickedConditions.has('special')) {
-    const specialKeys = Object.keys(specialFlags);
-    const chosen = pickRandom(specialKeys);
+    // shinyRequired is rare — only ~15% of "special" rolls, and only for rare/uncommon species
+    const canBeShiny = rarity !== 'common' && Math.random() < 0.15;
+    const specialPool = canBeShiny
+      ? ['shinyRequired', 'alphaRequired', 'bondedRequired', 'hiddenAbilityRequired']
+      : ['alphaRequired', 'bondedRequired', 'hiddenAbilityRequired'];
+    const chosen = pickRandom(specialPool);
     specialFlags[chosen] = true;
   }
 
