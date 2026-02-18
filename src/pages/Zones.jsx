@@ -1225,8 +1225,6 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const advanceTime = async (minutesToAdd) => {
-    // Read the latest cached gameTime (already kept fresh by refetchInterval)
-    // then compute next state and persist — never re-fetch to avoid race conditions
     const currentGameTime = queryClient.getQueryData(['gameTime']) || gameTime;
 
     const normalized = normalizeGameTime(currentGameTime);
@@ -1244,20 +1242,24 @@ function ZoneDetailView({ zone, onBack }) {
       lastUpdated: new Date().toISOString()
     };
 
-    // Optimistically update the cache FIRST so the UI reflects the change immediately
     const updatedTime = { ...(currentGameTime || {}), ...payload };
+
+    // Set optimistic cache and cancel any pending background refetches so they
+    // don't overwrite our fresh value
+    queryClient.cancelQueries({ queryKey: ['gameTime'] });
     queryClient.setQueryData(['gameTime'], updatedTime);
 
-    // Then persist to DB (fire-and-forget style — cache is already updated)
     try {
       if (currentGameTime?.id) {
         await base44.entities.GameTime.update(currentGameTime.id, payload);
       } else {
         await base44.entities.GameTime.create(payload);
       }
+      // After DB write succeeds, update cache with the persisted value so
+      // subsequent refetches see the latest server state
+      queryClient.setQueryData(['gameTime'], updatedTime);
     } catch (e) {
       console.error('Failed to persist GameTime:', e);
-      // Revert cache on failure
       queryClient.setQueryData(['gameTime'], currentGameTime);
     }
   };
