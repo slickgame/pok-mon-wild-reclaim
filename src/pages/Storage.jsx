@@ -207,6 +207,7 @@ export default function StoragePage() {
                       setNicknameModalOpen(true);
                     }}
                     onMoveToParty={() => handleMoveToParty(pokemon)}
+                    onClick={() => setSummaryPokemon(pokemon)}
                     isInParty={false}
                   />
                 ))}
