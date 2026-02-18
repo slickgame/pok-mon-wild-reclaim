@@ -1268,12 +1268,12 @@ function ZoneDetailView({ zone, onBack }) {
   const healParty = async (healPercent, fullRestorePP = false) => {
     const teamPokemon = allPokemon.filter((pokemon) => pokemon.isInTeam);
     await Promise.all(teamPokemon.map((pokemon) => {
-      // Calculate maxHp from stats if available, fall back to stored value
-      const maxHp = pokemon.stats?.hp
-        ?? pokemon.stats?.maxHp
-        ?? pokemon.maxHp
-        ?? (pokemon.level ? pokemon.level * 10 : 50);
-      const currentHp = pokemon.currentHp ?? maxHp;
+      // Always compute maxHp from base stats formula so it's accurate
+      const baseStats = getBaseStats(pokemon.species);
+      const calculatedMaxHp = baseStats
+        ? calculateAllStats(pokemon, baseStats).hp
+        : (pokemon.stats?.hp ?? pokemon.stats?.maxHp ?? pokemon.maxHp ?? (pokemon.level ? pokemon.level * 10 : 50));
+      const maxHp = calculatedMaxHp;      const currentHp = pokemon.currentHp ?? maxHp;
       const isFainted = currentHp <= 0;
       if (isFainted && !fullRestorePP) {
         return Promise.resolve(); // Don't heal fainted pokemon on rest, only full sleep revives
