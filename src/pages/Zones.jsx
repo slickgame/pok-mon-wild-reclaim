@@ -1250,7 +1250,7 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
   const advanceTime = async (minutesToAdd) => {
-    // Always fetch fresh gameTime to avoid stale closure issues
+    // Always fetch fresh GameTime from DB to avoid stale closure issues
     let freshGameTime = null;
     try {
       const times = await base44.entities.GameTime.list();
@@ -1263,36 +1263,29 @@ function ZoneDetailView({ zone, onBack }) {
     const normalized = normalizeGameTime(freshGameTime);
     const next = advanceGameTime(normalized, minutesToAdd);
 
-    console.log(`[advanceTime] +${minutesToAdd}min | was ${normalized.currentHour}:${String(normalized.currentMinute||0).padStart(2,'0')} → now ${next.currentHour}:${String(next.currentMinute).padStart(2,'0')}`);
+    const payload = {
+      currentHour: next.currentHour,
+      currentMinute: next.currentMinute,
+      currentDay: next.currentDay,
+      currentWeek: next.currentWeek,
+      day: next.day,
+      month: next.month,
+      year: next.year,
+      currentSeason: next.currentSeason || freshGameTime?.currentSeason || 'Spring',
+      lastUpdated: new Date().toISOString()
+    };
 
     if (freshGameTime?.id) {
-      await base44.entities.GameTime.update(freshGameTime.id, {
-        currentHour: next.currentHour,
-        currentMinute: next.currentMinute,
-        currentDay: next.currentDay,
-        currentWeek: next.currentWeek,
-        day: next.day,
-        month: next.month,
-        year: next.year,
-        currentSeason: next.currentSeason || freshGameTime?.currentSeason || 'Spring'
-      });
+      await base44.entities.GameTime.update(freshGameTime.id, payload);
     } else {
-      await base44.entities.GameTime.create({
-        currentHour: next.currentHour,
-        currentMinute: next.currentMinute,
-        currentDay: next.currentDay,
-        currentWeek: next.currentWeek,
-        day: next.day,
-        month: next.month,
-        year: next.year,
-        currentSeason: next.currentSeason || 'Spring'
-      });
+      await base44.entities.GameTime.create(payload);
     }
 
-    // Force immediate refetch so the clock updates in UI
-    await queryClient.refetchQueries({ queryKey: ['gameTime'] });
-    queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
-    queryClient.invalidateQueries({ queryKey: ['player'] });
+    // Immediately push updated data into the query cache so Layout re-renders now
+    const updatedTime = { ...(freshGameTime || {}), ...payload };
+    queryClient.setQueryData(['gameTime'], updatedTime);
+    // Also refetch to confirm server state
+    queryClient.invalidateQueries({ queryKey: ['gameTime'] });
   };
 
   const healParty = async (healPercent, fullRestorePP = false) => {
