@@ -2305,53 +2305,33 @@ function ZoneDetailView({ zone, onBack }) {
                 )}
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                  {selectedNodelet.actions?.map((actionLabel) => {
-                    const currentProgress = zoneProgress?.discoveryProgress || 0;
-                    const unlockAt = selectedNodelet.unlockDiscoveryProgress || 0;
-                    const isLocked = currentProgress < unlockAt;
+                  <Button
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                    onClick={() => {
+                      setActiveNodelet(resolveNodeletConfig(selectedNodelet));
+                      setActiveSection('nodelet');
+                      setSelectedNodelet(null);
+                    }}
+                  >
+                    Enter Location
+                  </Button>
 
-                    if (actionLabel === 'Plant') {
-                      return (
-                        <Button
-                          key={actionLabel}
-                          size="sm"
-                          variant="outline"
-                          disabled={isLocked}
-                          className={`border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20 ${
-                            isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                          onClick={() => {
-                            setActiveNodelet(resolveNodeletConfig(selectedNodelet));
-                            setActiveSection('nodelet');
-                            setSelectedNodelet(null);
-                            setShowPlantingModal(true);
-                          }}
-                        >
-                          {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                        </Button>
-                      );
-                    }
-
-                    return (
-                      <Button
-                        key={actionLabel}
-                        size="sm"
-                        variant="outline"
-                        disabled={isLocked}
-                        className={`border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20 ${
-                          isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                        onClick={() => {
-                          setActiveNodelet(resolveNodeletConfig(selectedNodelet));
-                          setActiveSection('nodelet');
-                          setSelectedNodelet(null);
-                          handleNodeletAction(selectedNodelet, actionLabel);
-                        }}
-                      >
-                        {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                      </Button>
-                    );
-                  })}
+                  {selectedNodelet.id === 'vh-brambleberry-thicket' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/20"
+                      onClick={() => {
+                        setActiveNodelet(resolveNodeletConfig(selectedNodelet));
+                        setActiveSection('nodelet');
+                        setSelectedNodelet(null);
+                        setShowPlantingModal(true);
+                      }}
+                    >
+                      🌱 Plant Seeds
+                    </Button>
+                  )}
 
                   {(zoneProgress?.discoveryProgress || 0) < (selectedNodelet.unlockDiscoveryProgress || 0) && (
                     <Badge className="bg-amber-500/20 text-amber-200 border-amber-500/30">
