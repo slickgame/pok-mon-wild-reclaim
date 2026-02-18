@@ -195,10 +195,15 @@ export function shouldSeedVerdantNodelets(zone) {
     current.length > 0 &&
     current.every((nodelet) => LEGACY_PLACE_NAMES.has(nodelet?.name));
 
-  // Force update if any nodelet has "Replant" in actions
+  // Force update if any nodelet has "Replant" in actions (legacy fix)
   const hasReplantAction = current.some((nodelet) => 
     Array.isArray(nodelet?.actions) && nodelet.actions.includes('Replant')
   );
 
-  return !hasAnyModernId && hasOnlyLegacyNames || hasReplantAction;
+  // Force update if actions array is stale (missing Plant, has old wording)
+  const hasStaleActions = current.some((nodelet) =>
+    Array.isArray(nodelet?.actions) && nodelet.actions.includes('Replant')
+  );
+
+  return (!hasAnyModernId && hasOnlyLegacyNames) || hasReplantAction || hasStaleActions;
 }
