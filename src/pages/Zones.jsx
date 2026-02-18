@@ -612,6 +612,11 @@ function ZoneDetailView({ zone, onBack }) {
     const nowGameTs = getCurrentGameTimestamp();
 
     if (action === 'Harvest') {
+      // Harvest is now handled plot-by-plot in BerryFarmPanel via onHarvest prop
+      return;
+    }
+
+    if (action === '__legacy_harvest__') {
       const BERRY_YIELDS = {
         'Oran Berry Seed': [2, 4],
         'Pecha Berry Seed': [2, 5],
