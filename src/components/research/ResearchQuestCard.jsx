@@ -124,7 +124,7 @@ export default function ResearchQuestCard({
   if (primaryLevel) compactRequirementChips.push(`Lv≥${primaryLevel}`);
   if (ivRules.length) compactRequirementChips.push(`IV +${ivRules.length}`);
   if (talentRules.length) compactRequirementChips.push(`Talents +${talentRules.length}`);
-  if (quest.shinyRequired) compactRequirementChips.push('Shiny');
+  if (quest.shinyRequired) compactRequirementChips.push('✨ Shiny!');
   if (quest.alphaRequired) compactRequirementChips.push('Alpha');
   if (quest.hiddenAbilityRequired) compactRequirementChips.push('Hidden Ability');
   if (quest.bondedRequired) compactRequirementChips.push('Bonded');
