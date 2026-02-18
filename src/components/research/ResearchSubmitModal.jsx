@@ -192,7 +192,20 @@ export default function ResearchSubmitModal({ quest, onClose, onSuccess }) {
       return { reward: rewardSummary, completed: true };
     },
     onSuccess: ({ reward, completed }) => {
-      queryClient.invalidateQueries({ queryKey: ['player'] });
+      if (completed && reward?.gold) {
+        const currentPlayer = queryClient.getQueryData(['player']);
+        if (currentPlayer?.id) {
+          queryClient.setQueryData(['player'], {
+            ...currentPlayer,
+            gold: (currentPlayer.gold || 0) + reward.gold,
+            trustLevels: {
+              ...(currentPlayer.trustLevels || {}),
+              maple: Math.min((currentPlayer.trustLevels?.maple || 0) + (reward.trustGain || 0), 100)
+            },
+            researchNotes: (currentPlayer.researchNotes || 0) + (reward.notesGain || 0)
+          });
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['researchQuests'] });
