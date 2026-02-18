@@ -54,29 +54,33 @@ export default function ItemsTab({ pokemon }) {
 
   const handleEquip = async (slotIndex, itemName) => {
     setSaving(true);
+    setShowPicker(null);
+    const updated = [...localHeldItems];
+    while (updated.length <= slotIndex) updated.push(null);
+    updated[slotIndex] = itemName;
+    const cleaned = updated.filter(Boolean);
+    setLocalHeldItems(cleaned); // optimistic update
     try {
-      const updated = [...currentItems];
-      // Pad with nulls if needed
-      while (updated.length <= slotIndex) updated.push(null);
-      updated[slotIndex] = itemName;
-      // Remove nulls from tail
-      const cleaned = updated.filter((x, i) => x !== null || i < updated.findLastIndex(x => x !== null) + 1);
-      await base44.entities.Pokemon.update(pokemon.id, { heldItems: cleaned.filter(Boolean) });
+      await base44.entities.Pokemon.update(pokemon.id, { heldItems: cleaned });
       queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['pokemon'] });
+    } catch (e) {
+      setLocalHeldItems(pokemon.heldItems || []); // revert on error
     } finally {
       setSaving(false);
-      setShowPicker(null);
     }
   };
 
   const handleUnequip = async (slotIndex) => {
     setSaving(true);
+    const updated = localHeldItems.filter((_, i) => i !== slotIndex);
+    setLocalHeldItems(updated); // optimistic update
     try {
-      const updated = currentItems.filter((_, i) => i !== slotIndex);
       await base44.entities.Pokemon.update(pokemon.id, { heldItems: updated });
       queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
       queryClient.invalidateQueries({ queryKey: ['pokemon'] });
+    } catch (e) {
+      setLocalHeldItems(pokemon.heldItems || []); // revert on error
     } finally {
       setSaving(false);
     }
