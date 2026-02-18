@@ -704,45 +704,9 @@ function ZoneDetailView({ zone, onBack }) {
 
 
     if (action === 'Deliver Berries') {
-      if (!player?.id) return;
-      const berryNames = ['Oran Berry', 'Pecha Berry', 'Cheri Berry'];
-      const berryStocks = items.filter((item) => berryNames.includes(item.name) && (item.quantity || 0) > 0);
-      const totalBerries = berryStocks.reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-      if (totalBerries < 3) {
-        setExplorationEvents(prev => [{
-          title: '📦 Not Enough Berries',
-          description: 'Deliver Berries requires at least 3 berries in your inventory.',
-          type: 'special',
-          rarity: 'common'
-        }, ...prev].slice(0, 10));
-        return;
-      }
-
-      try {
-        let remaining = 3;
-        for (const stock of berryStocks) {
-          if (remaining <= 0) break;
-          const removeQty = Math.min(remaining, stock.quantity || 0);
-          await base44.entities.Item.update(stock.id, {
-            quantity: Math.max(0, (stock.quantity || 0) - removeQty)
-          });
-          remaining -= removeQty;
-        }
-
-        const currentGold = player?.gold || 0;
-        await base44.entities.Player.update(player.id, { gold: currentGold + 120 });
-        queryClient.invalidateQueries({ queryKey: ['items'] });
-        queryClient.invalidateQueries({ queryKey: ['player'] });
-        setExplorationEvents(prev => [{
-          title: '🧺 Berry Delivery Complete',
-          description: 'Delivered fresh berries and earned 120 gold.',
-          type: 'special',
-          rarity: 'uncommon'
-        }, ...prev].slice(0, 10));
-      } catch (error) {
-        console.error('Failed to deliver berries:', error);
-      }
+      // Now handled by MerraQuestsModal — open it directly
+      setShowMerraQuests(true);
+      return;
     }
 
     if (action === 'Fish') {
