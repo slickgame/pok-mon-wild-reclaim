@@ -195,15 +195,16 @@ export function shouldSeedVerdantNodelets(zone) {
     current.length > 0 &&
     current.every((nodelet) => LEGACY_PLACE_NAMES.has(nodelet?.name));
 
-  // Force update if any nodelet has "Replant" in actions (legacy fix)
-  const hasReplantAction = current.some((nodelet) => 
+  // Force re-seed if any nodelet has "Replant" instead of "Plant" in actions
+  const hasReplantAction = current.some((nodelet) =>
     Array.isArray(nodelet?.actions) && nodelet.actions.includes('Replant')
   );
 
-  // Force update if actions array is stale (missing Plant, has old wording)
-  const hasStaleActions = current.some((nodelet) =>
-    Array.isArray(nodelet?.actions) && nodelet.actions.includes('Replant')
-  );
+  // Force re-seed if the brambleberry thicket is missing the "Plant" action
+  const brambleberry = current.find((n) => n.id === 'vh-brambleberry-thicket');
+  const brambleberryMissingPlant = brambleberry
+    ? !(Array.isArray(brambleberry.actions) && brambleberry.actions.includes('Plant'))
+    : false;
 
-  return (!hasAnyModernId && hasOnlyLegacyNames) || hasReplantAction || hasStaleActions;
+  return (!hasAnyModernId && hasOnlyLegacyNames) || hasReplantAction || brambleberryMissingPlant;
 }
