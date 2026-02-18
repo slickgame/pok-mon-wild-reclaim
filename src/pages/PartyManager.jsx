@@ -331,6 +331,17 @@ export default function PartyManager() {
           </Droppable>
         </div>
       </DragDropContext>
+
+      <Dialog open={!!selectedPokemon} onOpenChange={() => setSelectedPokemon(null)}>
+        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedPokemon && (
+            <PokemonSummary
+              pokemon={selectedPokemon}
+              onClose={() => setSelectedPokemon(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
