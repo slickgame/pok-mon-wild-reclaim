@@ -450,6 +450,13 @@ function ZoneDetailView({ zone, onBack }) {
             battleType
           },
           trainerRoster: isTrainerNPC ? rosterInstances : undefined,
+          trainerData: isTrainerNPC && resolvedTrainer ? {
+            id: resolvedTrainer.id,
+            name: resolvedTrainer.name,
+            faction: resolvedTrainer.faction,
+            archetype: resolvedTrainer.archetype,
+            aiTier: resolvedTrainer.aiTier,
+          } : undefined,
           encounterPokemonIds: rosterInstances.map((pokemon) => pokemon.id),
           ...extraState
         }
