@@ -80,11 +80,20 @@ export default function BattlePage() {
     if (state?.wildPokemonId) {
       setWildPokemonId(state.wildPokemonId);
       setEncounterPokemonIds(state.encounterPokemonIds || [state.wildPokemonId]);
-      setTrainerRoster(Array.isArray(state.trainerRoster) ? state.trainerRoster : []);
+      const roster = Array.isArray(state.trainerRoster) ? state.trainerRoster : [];
+      setTrainerRoster(roster);
       setFaintedIds([]);
       setReturnTo(state.returnTo || 'Zones');
       setLocationHazardEscapePenalty(state.locationHazardEscapePenalty || 0);
       triggerTutorial('first_battle');
+
+      // Show trainer intro modal for NPC trainer battles
+      if (state.trainerData && roster.length > 0) {
+        setTrainerIntro({ trainer: state.trainerData, roster });
+        setBattleReady(false);
+      } else {
+        setBattleReady(true);
+      }
     }
 
     // Clean up navigation state to prevent reuse
