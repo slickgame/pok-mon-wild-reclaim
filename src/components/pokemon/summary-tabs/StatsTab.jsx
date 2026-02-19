@@ -6,31 +6,24 @@ import { getNatureDescription } from '../statCalculations';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
 
-// EXP thresholds: total XP needed to reach a given level = level^3 (medium-fast)
-function expToReachLevel(level) {
-  return Math.floor(Math.pow(Math.max(level, 1), 3));
-}
-
-// Given total XP, return the correct current level (no level cap assumed)
-function getLevelFromExp(totalExp) {
-  let level = 1;
-  while (expToReachLevel(level + 1) <= totalExp) level++;
-  return level;
+// XP needed to level up FROM level N = N * 100
+// The game stores leftover XP within the current level (post-level-up remainder)
+// So pokemon.experience is already the XP within the current level band.
+function expNeededForLevel(level) {
+  return level * 100;
 }
 
 export default function StatsTab({ pokemon, xpGained = 0 }) {
   const fullStats = getPokemonStats(pokemon);
   const stats = fullStats.stats;
 
-  // Recalculate correct level from total XP to catch missed level-ups
-  const correctLevel = getLevelFromExp(pokemon.experience ?? 0);
-  const displayLevel = correctLevel;
-
-  const expForThisLevel = expToReachLevel(displayLevel);
-  const expForNextLevel = expToReachLevel(displayLevel + 1);
-  const expInThisLevel = (pokemon.experience ?? 0) - expForThisLevel;
-  const expNeededThisLevel = expForNextLevel - expForThisLevel;
+  const displayLevel = pokemon.level ?? 1;
+  const expInThisLevel = pokemon.experience ?? 0;
+  const expNeededThisLevel = expNeededForLevel(displayLevel);
   const expPercent = Math.min((expInThisLevel / expNeededThisLevel) * 100, 100);
+
+  // Detect if level-up should have triggered (XP >= threshold)
+  const correctLevel = expInThisLevel >= expNeededThisLevel ? displayLevel + 1 : displayLevel;
 
   // Animate bar: start from old position, animate to new
   const prevPercent = xpGained > 0
