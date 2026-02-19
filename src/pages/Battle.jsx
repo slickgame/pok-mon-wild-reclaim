@@ -87,6 +87,9 @@ export default function BattlePage() {
       setLocationHazardEscapePenalty(state.locationHazardEscapePenalty || 0);
       triggerTutorial('first_battle');
 
+      // Reset battle ref so a new encounter can start
+      battleStartedRef.current = false;
+
       // Show trainer intro modal for NPC trainer battles
       if (state.trainerData && roster.length > 0) {
         setTrainerIntro({ trainer: state.trainerData, roster });
