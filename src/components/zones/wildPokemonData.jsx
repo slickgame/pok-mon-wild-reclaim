@@ -470,6 +470,15 @@ export function rollEncounter(encounterTable, party, environment) {
 }
 
 
+// IV templates for buildOverride
+const IV_TEMPLATES = {
+  competitive: { hp: 31, atk: 31, def: 31, spAtk: 31, spDef: 31, spd: 31 },
+  physical:    { hp: 31, atk: 31, def: 31, spAtk: 0,  spDef: 31, spd: 31 },
+  special:     { hp: 31, atk: 0,  def: 31, spAtk: 31, spDef: 31, spd: 31 },
+  defensive:   { hp: 31, atk: 0,  def: 31, spAtk: 0,  spDef: 31, spd: 31 },
+  average:     { hp: 15, atk: 15, def: 15, spAtk: 15, spDef: 15, spd: 15 },
+};
+
 export function createWildPokemonInstance(species, options = {}) {
   const registrySpecies = getPokemonData(species);
   const speciesData = wildPokemonData[species] || (registrySpecies ? convertPokemonData(registrySpecies) : null);
@@ -478,12 +487,31 @@ export function createWildPokemonInstance(species, options = {}) {
     return null;
   }
 
-  const level = typeof options.level === 'number' ? options.level : randomLevel(5, 12);
-  const ivs = options.ivs || generateRandomIVs();
-  const nature = options.nature || randomNature();
+  const build = options.buildOverride || null;
 
+  const level = typeof options.level === 'number' ? options.level : randomLevel(5, 12);
+
+  // ── IVs ──
+  let ivs;
+  if (build?.ivs) {
+    ivs = build.ivs;
+  } else if (build?.ivTemplate) {
+    ivs = IV_TEMPLATES[build.ivTemplate] || generateRandomIVs();
+  } else {
+    ivs = options.ivs || generateRandomIVs();
+  }
+
+  // ── Nature ──
+  const nature = build?.nature || options.nature || randomNature();
+
+  // ── EVs ──
+  const evs = build?.evSpread || { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 };
+
+  // ── Moves ──
   let moves = [];
-  if (Array.isArray(speciesData.learnset)) {
+  if (build?.moves && build.moves.length > 0) {
+    moves = build.moves.slice(0, 4);
+  } else if (Array.isArray(speciesData.learnset)) {
     const learnableMoves = speciesData.learnset
       .filter((m) => m.level <= level)
       .sort((a, b) => a.level - b.level);
@@ -497,36 +525,46 @@ export function createWildPokemonInstance(species, options = {}) {
     }
     moves = availableMoves.slice(-4);
   }
+  if (moves.length === 0) moves = ['Tackle', 'Growl'];
 
-  if (moves.length === 0) {
-    moves = ['Tackle', 'Growl'];
+  // ── Passive ability ──
+  let passiveAbilities;
+  if (build?.ability) {
+    passiveAbilities = [build.ability];
+  } else {
+    const allAbilities = [
+      ...(speciesData.passiveAbilities || []),
+      ...(speciesData.hiddenAbility ? [speciesData.hiddenAbility] : [])
+    ];
+    const assigned = allAbilities.length > 0
+      ? allAbilities[Math.floor(Math.random() * allAbilities.length)]
+      : null;
+    passiveAbilities = assigned ? [assigned] : [];
   }
 
-  // Randomly assign exactly ONE ability from passiveAbilities + hiddenAbility pool
-  const allAbilities = [
-    ...(speciesData.passiveAbilities || []),
-    ...(speciesData.hiddenAbility ? [speciesData.hiddenAbility] : [])
-  ];
-  const assignedAbility = allAbilities.length > 0
-    ? allAbilities[Math.floor(Math.random() * allAbilities.length)]
-    : null;
+  // ── Talents ──
+  const talents = build?.talents || options.talents || assignWildTalents(speciesData.species);
+
+  // ── Held item ──
+  const heldItems = build?.heldItem ? [build.heldItem] : [];
 
   return {
     species: speciesData.species,
     level,
     nature,
     ivs,
-    evs: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+    evs,
     type1: speciesData.type1,
     type2: speciesData.type2,
     currentHp: null,
     abilities: moves,
-    passiveAbilities: assignedAbility ? [assignedAbility] : [],
+    passiveAbilities,
     hiddenAbility: null,
-    talents: options.talents || assignWildTalents(speciesData.species),
+    talents,
+    heldItems,
     roles: [speciesData.battleRole],
     signatureMove: speciesData.signatureMove,
-    isWild: true,
+    isWild: !build, // trainer-built mons aren't "wild"
     _speciesData: speciesData
   };
 }
