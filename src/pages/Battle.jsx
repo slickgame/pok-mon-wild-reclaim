@@ -210,7 +210,7 @@ export default function BattlePage() {
     const playerStats = playerStatsResult?.stats || playerMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     const wildStats = wildStatsResult?.stats || wildMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     
-    const initialEnemyTeam = trainerRoster.length > 0 ? trainerRoster : [wildMon];
+    const initialEnemyTeam = trainerRosterRef.current.length > 0 ? trainerRosterRef.current : [wildMon];
 
     // Use persisted HP if available, otherwise use max HP
     const startingPlayerHP = (playerMon.currentHp !== undefined && playerMon.currentHp !== null && playerMon.currentHp > 0)
