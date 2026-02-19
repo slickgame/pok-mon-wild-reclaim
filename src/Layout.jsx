@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import TimeWidget from '@/components/time/TimeWidget';
-import { formatCalendarDate, formatDigitalTime, normalizeGameTime } from '@/systems/time/gameTimeSystem';
+import { formatCalendarDate, formatDigitalTime, normalizeGameTime } from '@/components/systems/time/gameTimeSystem';
 
 const navItems = [
   { name: 'Home', icon: Home, page: 'Home' },
@@ -34,21 +34,22 @@ export default function Layout({ children, currentPageName }) {
   const inZoneDetail = currentPageName === 'Zones' && location.search.includes('zoneId=');
 
   const { data: gameTime } = useQuery({
-    queryKey: ['gameTime'],
-    queryFn: async () => {
-      const times = await base44.entities.GameTime.list();
-      return times[0] || null;
-    },
-    refetchInterval: 60000, // Refresh every minute
-  });
+      queryKey: ['gameTime'],
+      queryFn: async () => {
+            const times = await base44.entities.GameTime.list();
+            return times[0] || null;
+          },
+          refetchInterval: false,
+          staleTime: Infinity,
+    });
 
   const { data: player } = useQuery({
-    queryKey: ['playerSidebarSummary'],
+    queryKey: ['player'],
     queryFn: async () => {
       const players = await base44.entities.Player.list();
       return players[0] || null;
     },
-    refetchInterval: 30000,
+    staleTime: 5000,
   });
 
   const playerName = player?.name || 'Traveler';

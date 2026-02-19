@@ -5,6 +5,7 @@ import { User, Coins, HeartHandshake, ListChecks, CheckCircle2 } from 'lucide-re
 import PageHeader from '@/components/common/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import EquipmentPanel from '@/components/player/EquipmentPanel';
 
 export default function PlayerPage() {
   const { data: player, isLoading } = useQuery({
@@ -68,6 +69,11 @@ export default function PlayerPage() {
             <CheckCircle2 className="w-5 h-5" /> {completedCrafting.length + completedResearch.length}
           </p>
         </div>
+      </div>
+
+      {/* Equipment */}
+      <div className="glass rounded-xl p-5 mb-6 border border-indigo-500/20">
+        <EquipmentPanel player={player} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

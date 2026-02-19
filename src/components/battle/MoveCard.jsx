@@ -17,12 +17,17 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
   const hasSynergy = move.synergyConditions && move.synergyConditions.length > 0;
   const matchingTalents = getMatchingTalents(move, pokemon?.talents || []);
 
+  const maxPP = move?.pp || 10;
+  const currentPP = pokemon?.movePP?.[move?.name] !== undefined ? pokemon.movePP[move.name] : maxPP;
+  const isOutOfPP = currentPP <= 0;
+  const isDisabled = disabled || isOutOfPP;
+
   return (
     <motion.div
-      whileHover={{ scale: disabled ? 1 : 1.02 }}
-      whileTap={{ scale: disabled ? 1 : 0.98 }}
+      whileHover={{ scale: isDisabled ? 1 : 1.02 }}
+      whileTap={{ scale: isDisabled ? 1 : 0.98 }}
       className={`glass rounded-lg p-3 relative ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+        isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
       }`}
       onMouseEnter={() => setShowDetails(true)}
       onMouseLeave={() => setShowDetails(false)}
@@ -61,7 +66,7 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
             <span>{move.power}</span>
           </div>
         )}
-        <div>PP: {move.pp}</div>
+        <div className={isOutOfPP ? 'text-red-400 font-bold' : ''}>PP: {currentPP}/{maxPP}</div>
         {move.accuracy < 100 && <div>Acc: {move.accuracy}%</div>}
         {move.priority !== 0 && (
           <div className={move.priority > 0 ? 'text-emerald-400' : 'text-red-400'}>
@@ -111,7 +116,7 @@ export default function MoveCard({ move, onUse, disabled, showSynergy = true, po
       <Button
         size="sm"
         onClick={() => onUse(move)}
-        disabled={disabled}
+        disabled={isDisabled}
         className={`w-full ${
           move.isSignature
             ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600'

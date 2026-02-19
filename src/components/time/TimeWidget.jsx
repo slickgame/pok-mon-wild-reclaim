@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, Sun, Moon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { formatCalendarDate, formatDigitalTime, getCurrentPhase, normalizeGameTime } from '@/systems/time/gameTimeSystem';
+import { formatCalendarDate, formatDigitalTime, getCurrentPhase, normalizeGameTime } from '@/components/systems/time/gameTimeSystem';
 
 const getTimePhase = (phaseName) => {
   if (phaseName === 'Night') return { phase: 'Night', icon: Moon, color: 'text-blue-400' };

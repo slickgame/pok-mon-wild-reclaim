@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Star, Edit3, Check, X } from 'lucide-react';
+import { Trophy, Star, Edit3, Check, X, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { updateCatchStreak, getStreakData } from '@/components/systems/shiny/shinySystem';
 
 export default function CaptureSuccessModal({ 
   pokemon, 
@@ -13,6 +14,17 @@ export default function CaptureSuccessModal({
   const [stage, setStage] = useState('congratulations'); // 'congratulations', 'nickname', 'complete'
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
+  const [streakInfo, setStreakInfo] = useState(null);
+
+  useEffect(() => {
+    if (!pokemon?.species) return;
+    const prevData = getStreakData();
+    const newCount = updateCatchStreak(pokemon.species);
+    const isNewStreak = prevData.species !== pokemon.species;
+    const milestones = [5, 10, 15, 20, 25];
+    const hitMilestone = milestones.includes(newCount);
+    setStreakInfo({ count: newCount, species: pokemon.species, isNewStreak, hitMilestone });
+  }, [pokemon?.species]);
 
   const handleNicknameSubmit = () => {
     const trimmed = nickname.trim();
@@ -72,6 +84,48 @@ export default function CaptureSuccessModal({
                   </div>
                 )}
               </div>
+
+              {/* Catch Streak */}
+              {streakInfo && streakInfo.count > 1 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`rounded-lg p-3 mb-4 flex items-center gap-3 border ${
+                    streakInfo.hitMilestone
+                      ? 'bg-yellow-500/15 border-yellow-500/40'
+                      : 'bg-orange-500/10 border-orange-500/30'
+                  }`}
+                >
+                  <Flame className={`w-5 h-5 flex-shrink-0 ${streakInfo.hitMilestone ? 'text-yellow-400' : 'text-orange-400'}`} />
+                  <div className="text-left">
+                    {streakInfo.hitMilestone ? (
+                      <p className="text-sm font-bold text-yellow-300">
+                        🎉 Streak milestone! {streakInfo.count}× {streakInfo.species}
+                      </p>
+                    ) : (
+                      <p className="text-sm font-semibold text-orange-200">
+                        Catch streak: {streakInfo.count}× {streakInfo.species}
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-400">
+                      {streakInfo.count >= 25
+                        ? '+5 bonus shiny rolls (max!)'
+                        : streakInfo.count >= 20
+                        ? '+4 bonus shiny rolls'
+                        : streakInfo.count >= 15
+                        ? '+3 bonus shiny rolls'
+                        : streakInfo.count >= 10
+                        ? '+2 bonus shiny rolls'
+                        : streakInfo.count >= 5
+                        ? '+1 bonus shiny roll'
+                        : `${5 - streakInfo.count} more for first bonus roll`}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+              {streakInfo && streakInfo.isNewStreak && streakInfo.count === 1 && (
+                <p className="text-xs text-slate-500 mb-3">Streak reset — new species!</p>
+              )}
 
               {/* Location Info */}
               <div className="bg-slate-800/50 rounded-lg p-4 mb-6">

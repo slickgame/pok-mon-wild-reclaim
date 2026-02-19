@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import PageHeader from '@/components/common/PageHeader';
 import StorageCard from '@/components/storage/StorageCard';
 import NicknameModal from '@/components/storage/NicknameModal';
 import PartySwapModal from '@/components/storage/PartySwapModal';
+import PokemonSummary from '@/components/pokemon/PokemonSummary';
 
 export default function StoragePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,6 +22,7 @@ export default function StoragePage() {
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false);
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('storage');
+  const [summaryPokemon, setSummaryPokemon] = useState(null);
   
   const queryClient = useQueryClient();
 
@@ -204,6 +207,7 @@ export default function StoragePage() {
                       setNicknameModalOpen(true);
                     }}
                     onMoveToParty={() => handleMoveToParty(pokemon)}
+                    onClick={() => setSummaryPokemon(pokemon)}
                     isInParty={false}
                   />
                 ))}
@@ -238,6 +242,7 @@ export default function StoragePage() {
                       }
                       moveToStorageMutation.mutate(pokemon.id);
                     }}
+                    onClick={() => setSummaryPokemon(pokemon)}
                     isInParty={true}
                   />
                 ))}
@@ -263,6 +268,18 @@ export default function StoragePage() {
           }}
         />
       )}
+
+      {/* Pokémon Summary Dialog */}
+      <Dialog open={!!summaryPokemon} onOpenChange={(open) => { if (!open) setSummaryPokemon(null); }}>
+        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl max-h-[90vh] overflow-y-auto">
+          {summaryPokemon && (
+            <PokemonSummary
+              pokemon={summaryPokemon}
+              onClose={() => setSummaryPokemon(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Party Swap Modal */}
       {swapModalOpen && selectedPokemon && (
