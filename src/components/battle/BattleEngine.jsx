@@ -278,11 +278,10 @@ export class BattleEngine {
         const healedHp = Math.min(maxHp, currentHp + healAmount);
         if (healedHp > currentHp) {
           pokemon.currentHp = healedHp;
-          if (pokemon === this.playerPokemon) {
-            battleState.playerHP = healedHp;
-          } else if (pokemon === this.enemyPokemon) {
-            battleState.enemyHP = healedHp;
-          }
+          // Update hpMap (multi-active) and legacy aliases
+          if (battleState.hpMap && pokemon.id) battleState.hpMap[pokemon.id] = healedHp;
+          if (pokemon === this.playerPokemon) battleState.playerHP = healedHp;
+          else if (pokemon === this.enemyPokemon) battleState.enemyHP = healedHp;
           consumed = true;
           resultText = `${pokemon.nickname || pokemon.species} consumed ${berry.name} and restored HP!`;
         }
