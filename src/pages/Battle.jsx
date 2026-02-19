@@ -32,6 +32,7 @@ import { getBaseStats } from '@/components/pokemon/baseStats';
 import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zones/wildPokemonData';
 import { getMoveData } from '@/components/utils/getMoveData';
 import CatchStreakBadge from '@/components/battle/CatchStreakBadge';
+import TrainerIntroModal from '@/components/battle/TrainerIntroModal';
 
 const createDefaultBattlefield = () => ({
   terrain: null,
