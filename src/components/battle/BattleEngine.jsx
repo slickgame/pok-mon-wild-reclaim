@@ -121,10 +121,25 @@ const triggerFieldTurnTalents = ({ battleState, battlefield, allPokemon, log }) 
 // Battle Engine - Core logic for turn-based combat
 // INTEGRATION: Uses centralized MOVE_DATA for all move metadata
 export class BattleEngine {
-  constructor(playerPokemon, enemyPokemon) {
+  /**
+   * @param {object} playerPokemon  — lead player Pokémon (1v1 legacy path)
+   * @param {object} enemyPokemon   — lead enemy Pokémon (1v1 legacy path)
+   * @param {object} [pokemonMap]   — { [id]: pokemonObj } for multi-active path
+   */
+  constructor(playerPokemon, enemyPokemon, pokemonMap = null) {
     // Ensure stats are calculated dynamically from base stats
     this.playerPokemon = getPokemonStats(playerPokemon);
     this.enemyPokemon = getPokemonStats(enemyPokemon);
+
+    // Multi-active support: full id→pokemon lookup
+    this.pokemonMap = pokemonMap || {
+      [this.playerPokemon.id]: this.playerPokemon,
+      [this.enemyPokemon.id]:  this.enemyPokemon,
+    };
+
+    // Cache all-active arrays for talent context (set by caller for multi-active)
+    this._allPlayerMons = null;
+    this._allEnemyMons  = null;
     
     // Initialize passive effects storage
     this.playerPokemon.passiveEffects = this.playerPokemon.passiveEffects || [];
