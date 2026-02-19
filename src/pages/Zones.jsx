@@ -368,29 +368,34 @@ function ZoneDetailView({ zone, onBack }) {
     runChallenge();
   };
 
-  const buildTrainerRoster = ({ nodelet, leadSpecies, level = 8 }) => {
-    const speciesPool = Array.from(new Set([
-    leadSpecies,
-    ...(nodelet?.wildPokemon || [])].
-    filter(Boolean)));
-
-    if (speciesPool.length === 0) {
-      return [];
+  const buildTrainerRoster = ({ nodelet, leadSpecies, level = 8, trainer = null }) => {
+    // If we have a trainer from the registry, use their curated roster
+    if (trainer?.roster?.length) {
+      return trainer.roster.map(slot => ({
+        species: slot.species,
+        level: slot.level || level,
+        buildOverride: slot.buildOverride || null,
+      }));
     }
 
-    const minTeamSize = 3;
-    const maxTeamSize = 6;
-    const teamSize = Math.floor(Math.random() * (maxTeamSize - minTeamSize + 1)) + minTeamSize;
+    // Fallback: random pool from nodelet wild pokemon
+    const speciesPool = Array.from(new Set([
+      leadSpecies,
+      ...(nodelet?.wildPokemon || [])
+    ].filter(Boolean)));
 
+    if (speciesPool.length === 0) return [];
+
+    const teamSize = Math.floor(Math.random() * 4) + 3; // 3–6
     const selected = [leadSpecies];
     while (selected.length < teamSize) {
-      const randomSpecies = speciesPool[Math.floor(Math.random() * speciesPool.length)] || leadSpecies;
-      selected.push(randomSpecies);
+      selected.push(speciesPool[Math.floor(Math.random() * speciesPool.length)] || leadSpecies);
     }
 
     return selected.map((speciesName, index) => ({
       species: speciesName,
-      level: Math.max(1, (level || 8) + index)
+      level: Math.max(1, (level || 8) + index),
+      buildOverride: null,
     }));
   };
 
