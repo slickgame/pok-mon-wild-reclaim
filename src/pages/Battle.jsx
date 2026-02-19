@@ -1373,7 +1373,7 @@ export default function BattlePage() {
         subtitle={`Turn ${battleState.turnNumber} - ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`}
         icon={Swords}
         action={
-          isBattleEnded && (
+          isBattleEnded && !battleState?.enemyPokemon?.isTrainerNPC && (
             <Button 
               onClick={() => setBattleState(null)}
               className="bg-indigo-600 hover:bg-indigo-700"
