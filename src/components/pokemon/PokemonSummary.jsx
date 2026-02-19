@@ -39,7 +39,7 @@ const typeColors = {
   Fairy: 'from-pink-400 to-pink-500'
 };
 
-export default function PokemonSummary({ pokemon, onClose }) {
+export default function PokemonSummary({ pokemon, onClose, xpGained = 0 }) {
   const [isEditingNickname, setIsEditingNickname] = useState(false);
   const [nickname, setNickname] = useState(pokemon.nickname || '');
   const queryClient = useQueryClient();
