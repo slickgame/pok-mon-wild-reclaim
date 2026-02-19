@@ -472,24 +472,35 @@ function ZoneDetailView({ zone, onBack }) {
       return false;
     }
 
-    const enemyTrainer = nodelet.enemyNPCs[Math.floor(Math.random() * nodelet.enemyNPCs.length)];
-    const encounter = getNodeletEncounter(nodelet, 'Explore') || { species: nodelet.wildPokemon?.[0], level: 10 };
-    if (!encounter?.species) return false;
+    const trainerFromRegistry = pickRandomTrainer(nodelet?.id);
+    const enemyTrainer = trainerFromRegistry
+      ? trainerFromRegistry
+      : { name: nodelet.enemyNPCs[Math.floor(Math.random() * nodelet.enemyNPCs.length)] || 'Poacher' };
+
+    // Use lead species from registry roster if available, else encounter table
+    const leadSpecies = trainerFromRegistry?.roster?.[0]?.species
+      || (getNodeletEncounter(nodelet, 'Explore'))?.species
+      || nodelet.wildPokemon?.[0];
+    const leadLevel = trainerFromRegistry?.roster?.[0]?.level
+      || ((getNodeletEncounter(nodelet, 'Explore'))?.level || 10) + 1;
+
+    if (!leadSpecies) return false;
 
     setExplorationEvents((prev) => [{
       title: '⚔️ Trainer Ambush',
-      description: `${enemyTrainer} challenged you near ${nodelet.name}.`,
+      description: `${enemyTrainer.name || enemyTrainer} challenged you near ${nodelet.name}!`,
       type: 'special',
       rarity: 'rare'
     }, ...prev].slice(0, 10));
 
     return startNodeletWildEncounter({
-      species: encounter.species,
-      level: (encounter.level || 10) + 1,
+      species: leadSpecies,
+      level: leadLevel,
       nodelet,
       battleType: 'enemyNpc',
       isTrainerNPC: true,
-      trainerName: enemyTrainer
+      trainerName: enemyTrainer.name || enemyTrainer,
+      trainer: trainerFromRegistry,
     });
   };
 
