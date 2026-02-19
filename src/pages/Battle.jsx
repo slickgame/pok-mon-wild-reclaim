@@ -1576,8 +1576,8 @@ export default function BattlePage() {
             </div>
           )}
 
-          {/* Battle Results Modal */}
-          {isBattleEnded && !moveLearnState && !evolutionState && !captureModalState && !battleSummary && (
+          {/* Battle Results Modal — only for defeat (victory uses BattleSummaryModal) */}
+          {isBattleEnded && battleState?.status === 'lost' && !moveLearnState && !evolutionState && !captureModalState && !battleSummary && (
             <BattleOutcomeModal
               outcome={{
                 result: battleState.status === 'captured' ? 'captured' : 
