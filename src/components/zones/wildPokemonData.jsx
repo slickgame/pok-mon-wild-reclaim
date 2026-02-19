@@ -478,55 +478,92 @@ export function createWildPokemonInstance(species, options = {}) {
     return null;
   }
 
+  const bo = options.buildOverride || null; // buildOverride shorthand
+
   const level = typeof options.level === 'number' ? options.level : randomLevel(5, 12);
-  const ivs = options.ivs || generateRandomIVs();
-  const nature = options.nature || randomNature();
 
-  let moves = [];
-  if (Array.isArray(speciesData.learnset)) {
-    const learnableMoves = speciesData.learnset
-      .filter((m) => m.level <= level)
-      .sort((a, b) => a.level - b.level);
-    moves = learnableMoves.slice(-4).map((m) => m.move || m.name).filter(Boolean);
-  } else if (speciesData.learnset && typeof speciesData.learnset === 'object') {
-    const availableMoves = [];
-    for (const [learnLevel, movesAtLevel] of Object.entries(speciesData.learnset)) {
-      if (parseInt(learnLevel, 10) <= level) {
-        availableMoves.push(...movesAtLevel);
+  // ── IVs ──
+  let ivs;
+  if (bo?.ivTemplate && bo.ivTemplate !== 'random') {
+    // Lazy-import to avoid circular deps — resolved at call-time
+    const templates = {
+      competitive: { hp: 31, atk: 31, def: 31, spAtk: 31, spDef: 31, spd: 31 },
+      mixed:       { hp: 31, atk: 31, def: 20, spAtk: 15, spDef: 20, spd: 31 },
+      bulk:        { hp: 31, atk: 15, def: 31, spAtk: 10, spDef: 31, spd: 15 },
+      speed_sweep: { hp: 25, atk: 31, def: 20, spAtk: 25, spDef: 20, spd: 31 },
+    };
+    ivs = templates[bo.ivTemplate] || generateRandomIVs();
+  } else {
+    ivs = options.ivs || generateRandomIVs();
+  }
+
+  const nature = bo?.nature || options.nature || randomNature();
+
+  // ── Moves ──
+  let moves;
+  if (bo?.moves?.length) {
+    moves = bo.moves;
+  } else {
+    moves = [];
+    if (Array.isArray(speciesData.learnset)) {
+      const learnableMoves = speciesData.learnset
+        .filter((m) => m.level <= level)
+        .sort((a, b) => a.level - b.level);
+      moves = learnableMoves.slice(-4).map((m) => m.move || m.name).filter(Boolean);
+    } else if (speciesData.learnset && typeof speciesData.learnset === 'object') {
+      const availableMoves = [];
+      for (const [learnLevel, movesAtLevel] of Object.entries(speciesData.learnset)) {
+        if (parseInt(learnLevel, 10) <= level) {
+          availableMoves.push(...movesAtLevel);
+        }
       }
+      moves = availableMoves.slice(-4);
     }
-    moves = availableMoves.slice(-4);
+    if (moves.length === 0) moves = ['Tackle', 'Growl'];
   }
 
-  if (moves.length === 0) {
-    moves = ['Tackle', 'Growl'];
+  // ── Ability ──
+  let passiveAbilities;
+  if (bo?.ability) {
+    passiveAbilities = [bo.ability];
+  } else {
+    const allAbilities = [
+      ...(speciesData.passiveAbilities || []),
+      ...(speciesData.hiddenAbility ? [speciesData.hiddenAbility] : [])
+    ];
+    const assigned = allAbilities.length > 0
+      ? allAbilities[Math.floor(Math.random() * allAbilities.length)]
+      : null;
+    passiveAbilities = assigned ? [assigned] : [];
   }
 
-  // Randomly assign exactly ONE ability from passiveAbilities + hiddenAbility pool
-  const allAbilities = [
-    ...(speciesData.passiveAbilities || []),
-    ...(speciesData.hiddenAbility ? [speciesData.hiddenAbility] : [])
-  ];
-  const assignedAbility = allAbilities.length > 0
-    ? allAbilities[Math.floor(Math.random() * allAbilities.length)]
-    : null;
+  // ── EVs ──
+  const evs = bo?.evSpread
+    ? { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0, ...bo.evSpread }
+    : { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 };
+
+  // ── Talents ──
+  const talents = bo?.talents?.length
+    ? bo.talents
+    : (options.talents || assignWildTalents(speciesData.species));
 
   return {
     species: speciesData.species,
     level,
     nature,
     ivs,
-    evs: { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 },
+    evs,
     type1: speciesData.type1,
     type2: speciesData.type2,
     currentHp: null,
     abilities: moves,
-    passiveAbilities: assignedAbility ? [assignedAbility] : [],
+    passiveAbilities,
     hiddenAbility: null,
-    talents: options.talents || assignWildTalents(speciesData.species),
+    heldItems: bo?.heldItem ? [bo.heldItem] : [],
+    talents,
     roles: [speciesData.battleRole],
     signatureMove: speciesData.signatureMove,
-    isWild: true,
+    isWild: !bo, // trainer mons are not wild
     _speciesData: speciesData
   };
 }
