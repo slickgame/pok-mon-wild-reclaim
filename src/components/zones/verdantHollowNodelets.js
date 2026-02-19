@@ -15,7 +15,7 @@ export const VERDANT_HOLLOW_NODELETS = [
     npcs: ['Iris the Forager', 'Merra (seasonal buyer)'],
     items: ['Oran Berry', 'Pecha Berry', 'Cheri Berry', 'Soft Mulch', "Forager's Gloves"],
     wildPokemon: ['Oddish', 'Caterpie', 'Cherubi', 'Bounsweet', 'Pidgey', 'Pikachu'],
-    enemyNPCs: ['Berry Poacher Duo'],
+    enemyNPCs: ['Rusk "Pruner" Vale', 'Marta Siltgrin', 'Kade & Nix, Basket Blades', 'Foreman Bramblejack'],
     actions: ['Harvest', 'Replant', 'Deliver Berries'],
     encounterTables: {
       ExploreDay: [

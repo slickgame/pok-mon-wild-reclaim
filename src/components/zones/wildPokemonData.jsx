@@ -502,15 +502,6 @@ export function createWildPokemonInstance(species, options = {}) {
     moves = ['Tackle', 'Growl'];
   }
 
-  // Randomly assign exactly ONE ability from passiveAbilities + hiddenAbility pool
-  const allAbilities = [
-    ...(speciesData.passiveAbilities || []),
-    ...(speciesData.hiddenAbility ? [speciesData.hiddenAbility] : [])
-  ];
-  const assignedAbility = allAbilities.length > 0
-    ? allAbilities[Math.floor(Math.random() * allAbilities.length)]
-    : null;
-
   return {
     species: speciesData.species,
     level,
@@ -521,8 +512,8 @@ export function createWildPokemonInstance(species, options = {}) {
     type2: speciesData.type2,
     currentHp: null,
     abilities: moves,
-    passiveAbilities: assignedAbility ? [assignedAbility] : [],
-    hiddenAbility: null,
+    passiveAbilities: speciesData.passiveAbilities || [],
+    hiddenAbility: speciesData.hiddenAbility || null,
     talents: options.talents || assignWildTalents(speciesData.species),
     roles: [speciesData.battleRole],
     signatureMove: speciesData.signatureMove,
