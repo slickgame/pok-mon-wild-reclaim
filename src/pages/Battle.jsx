@@ -1368,6 +1368,15 @@ export default function BattlePage() {
 
   return (
     <div>
+      {/* Trainer intro modal — shown before battle begins */}
+      {trainerIntro && (
+        <TrainerIntroModal
+          trainer={trainerIntro.trainer}
+          roster={trainerIntro.roster}
+          onBegin={() => { setTrainerIntro(null); setBattleReady(true); }}
+        />
+      )}
+
       <PageHeader 
         title="Battle Arena" 
         subtitle={`Turn ${battleState.turnNumber} - ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`}
