@@ -40,6 +40,7 @@ import {
   generateWildPokemon,
   createWildPokemonInstance } from
 '@/components/zones/wildPokemonData';
+import { pickRandomTrainer, rollTrainerRewards } from '@/components/data/TrainerRegistry';
 import { VERDANT_HOLLOW_NODELETS, shouldSeedVerdantNodelets } from '@/components/zones/verdantHollowNodelets';
 
 const EXPLORE_TIME_MINUTES = 10;
