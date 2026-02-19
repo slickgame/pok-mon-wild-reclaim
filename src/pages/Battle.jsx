@@ -1386,7 +1386,11 @@ export default function BattlePage() {
 
       <PageHeader 
         title="Battle Arena" 
-        subtitle={`Turn ${battleState.turnNumber} - ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`}
+        subtitle={
+          battleState.enemyPokemon?.isTrainerNPC
+            ? `${battleState.enemyPokemon.trainerName || 'Trainer'} — Turn ${battleState.turnNumber} | ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`
+            : `Turn ${battleState.turnNumber} - ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`
+        }
         icon={Swords}
         action={
           isBattleEnded && !battleState?.enemyPokemon?.isTrainerNPC && (
