@@ -656,7 +656,9 @@ export default function BattlePage() {
           fainted: false,
           xpGained: xpGained,
           leveledUp: levelsGained.length > 0,
-          newLevel: newLevel
+          newLevel: newLevel,
+          level: newLevel,
+          expAfter: totalXP
         });
       }
 
