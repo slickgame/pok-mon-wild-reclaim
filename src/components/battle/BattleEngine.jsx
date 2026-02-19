@@ -988,13 +988,12 @@ export class BattleEngine {
           },
           battle: battleState,
           applyDamage: (amount) => {
-            if (pokemonKey === 'player') {
-              battleState.playerHP = Math.max(0, battleState.playerHP - amount);
-              pokemon.currentHp = battleState.playerHP;
-            } else {
-              battleState.enemyHP = Math.max(0, battleState.enemyHP - amount);
-              pokemon.currentHp = battleState.enemyHP;
-            }
+            const newHp = Math.max(0, (pokemon.currentHp ?? 0) - amount);
+            pokemon.currentHp = newHp;
+            // Update both hpMap (multi-active) and legacy fields
+            if (battleState.hpMap && pokemon.id) battleState.hpMap[pokemon.id] = newHp;
+            if (pokemonKey === 'player') battleState.playerHP = newHp;
+            else if (pokemonKey === 'enemy') battleState.enemyHP = newHp;
           },
           addBattleLog: (message) => {
             logs.push({
