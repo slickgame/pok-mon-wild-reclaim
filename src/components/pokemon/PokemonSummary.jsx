@@ -289,7 +289,7 @@ export default function PokemonSummary({ pokemon, onClose, xpGained = 0 }) {
         </TabsList>
 
         <TabsContent value="stats" className="mt-4">
-          <StatsTab pokemon={pokemon} />
+          <StatsTab pokemon={pokemon} xpGained={xpGained} />
         </TabsContent>
 
         <TabsContent value="talents" className="mt-4">
