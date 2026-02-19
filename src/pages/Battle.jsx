@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTutorialTrigger } from '../components/tutorial/TutorialTrigger';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Swords, Trophy, Sparkles, AlertCircle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,7 @@ import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 import { getAllMovesUpToLevel, getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
 import MoveLearnModal from '@/components/battle/MoveLearnModal';
-import { checkEvolution, getEvolvedStats, getEvolvedRoles, evolvePokemon } from '@/components/pokemon/evolutionData';
+import { checkEvolution, evolvePokemon } from '@/components/pokemon/evolutionData';
 import EvolutionModal from '@/components/pokemon/EvolutionModal';
 import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
@@ -49,18 +49,19 @@ const createDefaultBattlefield = () => ({
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
-  const [selectedMove, setSelectedMove] = useState(null);
   const [wildPokemonId, setWildPokemonId] = useState(null);
+  const [encounterPokemonIds, setEncounterPokemonIds] = useState([]);
+  const [trainerRoster, setTrainerRoster] = useState([]);
   const [returnTo, setReturnTo] = useState(null);
   const [capturingPokemon, setCapturingPokemon] = useState(false);
   const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch', 'pokeballs'
-  const [selectedPokeball, setSelectedPokeball] = useState(null);
   const [moveLearnState, setMoveLearnState] = useState(null); // { pokemon, newMoves, currentMoves, pendingUpdate }
   const [evolutionState, setEvolutionState] = useState(null); // { pokemon, evolvesInto, pendingUpdate }
   const [captureModalState, setCaptureModalState] = useState(null); // { pokemon, addedToParty }
   const [itemsUsed, setItemsUsed] = useState([]); // Track items used in battle
   const [battleSummary, setBattleSummary] = useState(null); // Battle summary data
   const [faintedIds, setFaintedIds] = useState([]); // Track which Pokemon fainted in battle
+  const [poacherBattleMeta, setPoacherBattleMeta] = useState(null);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -71,9 +72,21 @@ export default function BattlePage() {
     const state = location.state;
 
     if (state?.wildPokemonId) {
-    setWildPokemonId(state.wildPokemonId);
-    setReturnTo(state.returnTo || 'Zones');
-    triggerTutorial('first_battle');
+      setWildPokemonId(state.wildPokemonId);
+      setEncounterPokemonIds(state.encounterPokemonIds || [state.wildPokemonId]);
+      setTrainerRoster(Array.isArray(state.trainerRoster) ? state.trainerRoster : []);
+      setFaintedIds([]);
+      setReturnTo(state.returnTo || 'Zones');
+      setPoacherBattleMeta({
+        trainerId: state.poacherTrainerId || null,
+        trainerTier: state.poacherTrainerTier || null,
+        aiProfile: state.poacherTrainerAiProfile || null,
+        rewardTier: state.poacherRewardTier || null,
+        lossProfile: state.poacherLossProfile || null,
+        triggeredByAction: state.triggeredByAction || null,
+        harvestTxnId: state.harvestTxnId || null
+      });
+      triggerTutorial('first_battle');
     }
 
     // Clean up navigation state to prevent reuse
@@ -181,22 +194,70 @@ export default function BattlePage() {
     const playerStats = playerStatsResult?.stats || playerMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     const wildStats = wildStatsResult?.stats || wildMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     
+    const initialEnemyTeam = trainerRoster.length > 0 ? trainerRoster : [wildMon];
+
     setBattleState({
       playerPokemon: playerMon,
       enemyPokemon: wildMon,
+      enemyTeam: initialEnemyTeam,
       playerHP: playerStats.maxHp,
       enemyHP: wildStats.maxHp,
       turnNumber: 1,
       currentTurn: 'player',
       battleLog: [
-        { turn: 1, actor: 'System', action: `A wild ${wildMon.species} appeared!`, result: '', synergyTriggered: false }
+        { turn: 1, actor: 'System', action: wildMon.isTrainerNPC ? `${wildMon.trainerName || 'Trainer'} challenged you with ${wildMon.species}!` : `A wild ${wildMon.species} appeared!`, result: wildMon.isTrainerNPC ? `Trainer party size: ${initialEnemyTeam.length}` : '', synergyTriggered: false }
       ],
       playerStatus: { conditions: [], buffs: [] },
       enemyStatus: { conditions: [], buffs: [] },
       battlefield: createDefaultBattlefield(),
       synergyChains: 0,
-      isWildBattle: true
+      isWildBattle: !wildMon.isTrainerNPC
     });
+  };
+
+
+  const getRemainingTrainerPokemonCount = (state) => {
+    const team = Array.isArray(state?.enemyTeam) && state.enemyTeam.length > 0
+      ? state.enemyTeam
+      : trainerRoster;
+    if (!Array.isArray(team) || team.length === 0) return 0;
+
+    const faintedEnemyIds = new Set(state?.faintedEnemyIds || []);
+    const activeEnemyId = state?.enemyPokemon?.id;
+    return team.filter((pokemon) => pokemon.id !== activeEnemyId && !faintedEnemyIds.has(pokemon.id)).length;
+  };
+
+  const getNextTrainerPokemon = (state) => {
+    if (!state?.enemyPokemon?.isTrainerNPC) return null;
+    const team = Array.isArray(state.enemyTeam) && state.enemyTeam.length > 0
+      ? state.enemyTeam
+      : trainerRoster;
+
+    if (!Array.isArray(team) || team.length === 0) return null;
+
+    const faintedEnemyIds = new Set(state.faintedEnemyIds || []);
+    const activeEnemyId = state.enemyPokemon?.id;
+    if (activeEnemyId) {
+      faintedEnemyIds.add(activeEnemyId);
+    }
+
+    return team.find((pokemon) => !faintedEnemyIds.has(pokemon.id)) || null;
+  };
+
+  const cleanupEncounterPokemon = async (excludeIds = []) => {
+    const idsToDelete = (encounterPokemonIds || []).filter((id) => id && !excludeIds.includes(id));
+    if (idsToDelete.length === 0) return;
+
+    await Promise.all(idsToDelete.map(async (id) => {
+      try {
+        await base44.entities.Pokemon.delete(id);
+      } catch (err) {
+        console.error('Failed to delete encounter Pokémon:', err);
+      }
+    }));
+
+    queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
+    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
   };
 
   // Start a new battle (practice mode)
@@ -464,7 +525,7 @@ export default function BattlePage() {
   };
 
   // Use a move
-  const useMove = async (move) => {
+  const performMove = async (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
 
     // Initialize battle engine
@@ -489,6 +550,37 @@ export default function BattlePage() {
 
     // Check for victory/defeat
     if (newBattleState.enemyHP <= 0) {
+      const defeatedEnemy = newBattleState.enemyPokemon;
+      const updatedFaintedEnemyIds = Array.from(new Set([...(newBattleState.faintedEnemyIds || []), defeatedEnemy.id]));
+      newBattleState.faintedEnemyIds = updatedFaintedEnemyIds;
+
+      const nextTrainerPokemon = getNextTrainerPokemon({
+        ...newBattleState,
+        faintedEnemyIds: updatedFaintedEnemyIds
+      });
+
+      if (nextTrainerPokemon) {
+        const nextStatsResult = getPokemonStats(nextTrainerPokemon);
+        const nextStats = nextStatsResult?.stats || nextTrainerPokemon.stats || { maxHp: 100 };
+        const nextMaxHp = nextStats.maxHp || 100;
+
+        newBattleState.enemyPokemon = nextTrainerPokemon;
+        newBattleState.enemyHP = nextTrainerPokemon.currentHp ?? nextMaxHp;
+        newBattleState.currentTurn = 'player';
+        newBattleState.enemyStatus = { conditions: [], buffs: [] };
+        const remainingOpponents = getRemainingTrainerPokemonCount({ ...newBattleState, enemyPokemon: nextTrainerPokemon });
+        newBattleState.battleLog.push({
+          turn: newBattleState.turnNumber,
+          actor: 'System',
+          action: defeatedEnemy.trainerName || 'Trainer',
+          result: `${nextTrainerPokemon.nickname || nextTrainerPokemon.species} was sent out! (${remainingOpponents} remaining)`,
+          synergyTriggered: false
+        });
+
+        setBattleState(newBattleState);
+        return;
+      }
+
       newBattleState.status = 'won';
       newBattleState.currentTurn = 'ended';
       newBattleState.battleLog.push({
@@ -501,16 +593,20 @@ export default function BattlePage() {
 
       // Award XP to all team members
       const speciesData = wildPokemonData[newBattleState.enemyPokemon.species];
-      const baseXpGained = speciesData 
-        ? calculateWildXP(speciesData, newBattleState.enemyPokemon.level, false)
-        : Math.floor(newBattleState.enemyPokemon.level * 25);
+      const trainerTeam = Array.isArray(newBattleState.enemyTeam) && newBattleState.enemyTeam.length > 0 ? newBattleState.enemyTeam : trainerRoster;
+      const trainerTeamLevelTotal = trainerTeam.reduce((sum, mon) => sum + (mon?.level || 0), 0);
+      const trainerAvgLevel = trainerTeam.length > 0 ? Math.floor(trainerTeamLevelTotal / trainerTeam.length) : (newBattleState.enemyPokemon.level || 1);
+      const trainerBattleXpBase = Math.floor((trainerAvgLevel * 24) + (trainerTeam.length * 18));
+      const baseXpGained = newBattleState.enemyPokemon.isTrainerNPC
+        ? trainerBattleXpBase
+        : (speciesData
+          ? calculateWildXP(speciesData, newBattleState.enemyPokemon.level, Boolean(newBattleState.enemyPokemon.isTrainerNPC))
+          : Math.floor(newBattleState.enemyPokemon.level * 25));
       const xpResults = [];
       const pokemonToUpdate = [];
 
       // Process each team member
       for (const teamMember of playerPokemon) {
-        const pokemonStats = getPokemonStats(teamMember);
-        const maxHp = pokemonStats?.stats?.maxHp || teamMember.stats?.maxHp || 100;
         // Check if this Pokemon fainted during battle (use battle session tracking)
         const isFainted = faintedIds.includes(teamMember.id);
 
@@ -617,8 +713,12 @@ export default function BattlePage() {
           }
         }
       } else {
-        // Practice battles still give gold
-        goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
+        // Trainer/practice battles give deterministic gold in-battle.
+        // Poacher item rewards are resolved authoritatively in Zones post-battle handling.
+        const trainerTeam = Array.isArray(newBattleState.enemyTeam) && newBattleState.enemyTeam.length > 0 ? newBattleState.enemyTeam : trainerRoster;
+        const trainerTeamLevelTotal = trainerTeam.reduce((sum, mon) => sum + (mon?.level || 0), 0);
+        const baseTrainerGold = Math.floor((trainerTeamLevelTotal * 5) + (trainerTeam.length * 16));
+        goldGained = baseTrainerGold;
       }
 
       newBattleState.rewards = {
@@ -741,23 +841,17 @@ export default function BattlePage() {
   // Flee from battle
   const fleeBattle = async () => {
     if (!battleState || !battleState.isWildBattle) return;
-    
-    // Delete the wild Pokemon when fleeing
-    if (wildPokemonId) {
-      try {
-        await base44.entities.Pokemon.delete(wildPokemonId);
-        queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
-      } catch (err) {
-        console.error('Failed to delete wild Pokemon:', err);
-      }
-    }
-    
-    // Navigate back to zone using React Router
+
+    await cleanupEncounterPokemon();
+
+    // Navigate back to zone using React Router (wild flee always succeeds)
     if (returnTo) {
       navigate(`/${returnTo}`);
     } else {
       setBattleState(null);
       setWildPokemonId(null);
+      setEncounterPokemonIds([]);
+      setTrainerRoster([]);
       setReturnTo(null);
     }
   };
@@ -826,7 +920,7 @@ export default function BattlePage() {
 
     triggerTalent('onSwitchIn', {
       playerTeam: [newPokemon],
-      enemyTeam: [battleState.enemyPokemon],
+      enemyTeam: battleState.enemyTeam || [battleState.enemyPokemon],
       battleState: newBattleState,
       turnCount: newBattleState.turnNumber,
       weather: mappedWeather,
@@ -855,7 +949,7 @@ export default function BattlePage() {
   };
 
   // Use battle item
-  const useItem = async (item) => {
+  const handleBattleItem = async (item) => {
     if (!battleState) return;
 
     let healAmount = 0;
@@ -1423,14 +1517,8 @@ export default function BattlePage() {
               summary={battleSummary}
               onClose={async () => {
                 // Clean up wild Pokémon if defeated (not captured)
-                if (wildPokemonId && battleState?.isWildBattle && battleState.status === 'won') {
-                  try {
-                    await base44.entities.Pokemon.delete(wildPokemonId);
-                    queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
-                    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-                  } catch (err) {
-                    console.error('Failed to delete defeated wild Pokémon:', err);
-                  }
+                if (battleState?.isWildBattle && battleState.status === 'won') {
+                  await cleanupEncounterPokemon();
                 }
 
                 setBattleSummary(null);
@@ -1439,6 +1527,8 @@ export default function BattlePage() {
                 } else {
                   setBattleState(null);
                   setWildPokemonId(null);
+                  setEncounterPokemonIds([]);
+                  setTrainerRoster([]);
                   setReturnTo(null);
                   setItemsUsed([]);
                 }
@@ -1454,7 +1544,11 @@ export default function BattlePage() {
                         battleState.status === 'won' ? 'victory' : 'defeat',
                 enemyName: battleState.enemyPokemon.species,
                 xpGained: (battleState.status === 'won' || battleState.status === 'captured') ? (battleState.rewards?.xpGained || Math.floor(battleState.enemyPokemon.level * 25)) : 0,
-                goldGained: (battleState.status === 'won' || battleState.status === 'captured') ? (battleState.rewards?.goldGained || Math.floor(battleState.enemyPokemon.level * 15)) : 0,
+                goldGained: (battleState.status === 'won' || battleState.status === 'captured') ? (() => {
+                  const baseGold = battleState.rewards?.goldGained || Math.floor(battleState.enemyPokemon.level * 15);
+                  const poacherMult = poacherBattleMeta?.rewardTier ? (POACHER_REWARD_TIERS[poacherBattleMeta.rewardTier]?.goldMultiplier || 1) : 1;
+                  return Math.floor(baseGold * poacherMult);
+                })() : 0,
                 synergyChains: battleState.synergyChains || 0,
                 itemsReceived: battleState.rewards?.materialsDropped || [],
                 canCapture: false,
@@ -1463,22 +1557,27 @@ export default function BattlePage() {
               }}
               onClose={async () => {
                  // Clean up wild Pokémon only if NOT captured
-                 if (wildPokemonId && battleState.isWildBattle && battleState.status !== 'captured') {
-                   try {
-                     await base44.entities.Pokemon.delete(wildPokemonId);
-                     queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
-                     queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-                   } catch (err) {
-                     console.error('Failed to delete wild Pokémon:', err);
-                   }
+                 if (battleState.isWildBattle && battleState.status !== 'captured') {
+                   await cleanupEncounterPokemon();
                  }
 
                // Return to exploration if this was a wild battle
                if (returnTo && battleState.isWildBattle) {
-                 navigate(`/${returnTo}`);
+                 const separator = returnTo.includes('?') ? '&' : '?';
+                 const battleOutcome = battleState.status === 'won' || battleState.status === 'captured'
+                   ? 'victory'
+                   : 'defeat';
+                 const metaParams = buildPoacherReturnMetaParams({
+                   poacherBattleMeta,
+                   battleRewards: battleState.rewards
+                 });
+                 const metaSuffix = metaParams.toString();
+                 navigate(`/${returnTo}${separator}battleOutcome=${battleOutcome}${metaSuffix ? `&${metaSuffix}` : ''}`);
                } else {
                  setBattleState(null);
                  setWildPokemonId(null);
+                 setEncounterPokemonIds([]);
+                 setTrainerRoster([]);
                  setReturnTo(null);
                }
               }}
@@ -1570,7 +1669,7 @@ export default function BattlePage() {
                            move={moveData}
                            pokemon={battleState.playerPokemon}
                            onUse={(m) => {
-                             useMove(m);
+                             performMove(m);
                              setActionMenu('main');
                            }}
                            disabled={!isPlayerTurn}
@@ -1645,7 +1744,7 @@ export default function BattlePage() {
                             <Button
                               key={item.id}
                               onClick={() => {
-                                useItem(item);
+                                handleBattleItem(item);
                                 setActionMenu('main');
                               }}
                               disabled={!isPlayerTurn}

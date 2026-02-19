@@ -1,5 +1,5 @@
 // Pokémon evolution chains and conditions
-import { PokemonRegistry } from '@/components/data/PokemonRegistry';
+import { getPokemonData } from '@/components/data/PokemonRegistry';
 import { assignRandomTalents } from '@/components/utils/talentAssignment';
 
 export const EVOLUTION_CHAINS = {
@@ -70,6 +70,21 @@ export const EVOLUTION_CHAINS = {
     evolvesInto: 'Gloom',
     method: 'level',
     requirement: 21
+  },
+  Cherubi: {
+    evolvesInto: 'Cherrim',
+    method: 'level',
+    requirement: 25
+  },
+  Bounsweet: {
+    evolvesInto: 'Steenee',
+    method: 'level',
+    requirement: 18
+  },
+  Steenee: {
+    evolvesInto: 'Tsareena',
+    method: 'level',
+    requirement: 30
   },
   
   // Stone evolutions
@@ -276,7 +291,7 @@ export function getEvolvedRoles(evolvedSpecies, currentRoles) {
 }
 
 export function getEvolutionMoveOptions(evolvedSpecies) {
-  const speciesData = PokemonRegistry[evolvedSpecies?.toLowerCase()];
+  const speciesData = getPokemonData(evolvedSpecies);
   if (!speciesData?.learnset) return [];
   if (Array.isArray(speciesData.learnset)) {
     return speciesData.learnset
@@ -305,7 +320,7 @@ export function evolvePokemon(pokemon, evolvesInto) {
 
   const newStats = getEvolvedStats(evolvesInto, currentStats);
   const newRoles = getEvolvedRoles(evolvesInto, pokemon.roles || []);
-  const newSpecies = PokemonRegistry[evolvesInto?.toLowerCase()];
+  const newSpecies = getPokemonData(evolvesInto);
   const retainedTalents = (pokemon.talents || []).filter((talent) => {
     if (!newSpecies?.talentPool) return true;
     return newSpecies.talentPool.includes(talent.id);
