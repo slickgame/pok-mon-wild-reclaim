@@ -25,7 +25,7 @@ export default function StatsTab({ pokemon, xpGained = 0 }) {
   // Detect if level-up should have triggered (XP >= threshold)
   const correctLevel = expInThisLevel >= expNeededThisLevel ? displayLevel + 1 : displayLevel;
 
-  // Animate bar: start from old position, animate to new
+  // Animate bar: start from before XP was gained, sweep to current
   const prevPercent = xpGained > 0
     ? Math.max(0, Math.min(((expInThisLevel - xpGained) / expNeededThisLevel) * 100, 100))
     : expPercent;
