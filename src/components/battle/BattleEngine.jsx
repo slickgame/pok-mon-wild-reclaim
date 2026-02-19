@@ -1181,6 +1181,170 @@ export class BattleEngine {
     }
   }
 
+  // ─── Multi-active turn pipeline (Step 2) ────────────────────────────────────
+  /**
+   * Execute a full turn from a pre-sorted action queue.
+   *
+   * @param {object[]} actionQueue  — sorted array of Action objects:
+   *   { type: 'move'|'switch'|'item', pokemonId, payload, side: 'player'|'enemy', defenderIds: string[] }
+   * @param {object}   battleState  — multi-active state (hpMap, statusMap, etc.)
+   * @param {object}   pokemonMap   — { [id]: pokemonObj } full lookup
+   * @returns {object[]} turnLog entries
+   */
+  executeTurnQueue(actionQueue, battleState, pokemonMap = this.pokemonMap) {
+    const turnLog = [];
+    ensureBattlefield(battleState);
+
+    if (!battleState.lastTurnStatChanges) battleState.lastTurnStatChanges = {};
+    battleState.currentTurnStatChanges = {};
+
+    // Sync currentHp from hpMap for all active mons
+    const allActiveIds = [...(battleState.playerActive || []), ...(battleState.enemyActive || [])];
+    for (const id of allActiveIds) {
+      const mon = pokemonMap[id];
+      if (mon) mon.currentHp = battleState.hpMap?.[id] ?? mon.currentHp;
+    }
+
+    // Turn-start: battlefield, abilities, status, passives, talents
+    const activeMons = allActiveIds.map(id => pokemonMap[id]).filter(Boolean);
+    this.processBattlefieldTurnStart(battleState, turnLog);
+
+    for (const mon of activeMons) {
+      this.triggerAbilityTurnStart(mon, battleState, turnLog);
+    }
+
+    const addLog = (message) => turnLog.push({
+      turn: battleState.turnNumber,
+      actor: 'Status', action: message, result: '', synergyTriggered: false
+    });
+
+    for (const mon of activeMons) {
+      const startStatus = handleTurnStart(mon);
+      if (startStatus?.log) addLog(startStatus.log);
+      processStatusEffects(mon, battleState, addLog);
+      if (battleState.hpMap) battleState.hpMap[mon.id] = mon.currentHp;
+      this.tryConsumeBerry(mon, battleState, turnLog);
+      const passiveLogs = this.processPassiveEffects(mon, mon.id, battleState);
+      turnLog.push(...passiveLogs);
+    }
+
+    // Set team arrays for talent context
+    this._allPlayerMons = (battleState.playerActive || []).map(id => pokemonMap[id]).filter(Boolean);
+    this._allEnemyMons  = (battleState.enemyActive  || []).map(id => pokemonMap[id]).filter(Boolean);
+    triggerTalent('onTurnStart', this.createTalentContext(battleState, turnLog));
+
+    // ── Resolve each action in initiative order ──
+    for (const action of actionQueue) {
+      const attMon = pokemonMap[action.pokemonId];
+      if (!attMon) continue;
+
+      // Skip if attacker already fainted this turn
+      if ((battleState.hpMap?.[action.pokemonId] ?? attMon.currentHp ?? 1) <= 0) continue;
+
+      if (action.type === 'switch') {
+        // Switch action: handled externally; log here
+        turnLog.push({
+          turn: battleState.turnNumber,
+          actor: 'System',
+          action: 'Switch',
+          result: `${attMon.nickname || attMon.species} switched in!`,
+          synergyTriggered: false
+        });
+        continue;
+      }
+
+      if (action.type === 'item') {
+        // Item action: handled externally; log placeholder
+        turnLog.push({
+          turn: battleState.turnNumber,
+          actor: attMon.nickname || attMon.species,
+          action: `used ${action.payload?.itemName || 'an item'}`,
+          result: '',
+          synergyTriggered: false
+        });
+        continue;
+      }
+
+      if (action.type === 'move') {
+        // Determine targets
+        const move = action.payload;
+        const targetClass = move?.target || 'single-opponent';
+        const side = action.side;
+
+        let defenderIds = action.defenderIds || [];
+
+        // Auto-resolve AoE target classes
+        if (targetClass === 'all-opponents') {
+          defenderIds = side === 'player'
+            ? (battleState.enemyActive || [])
+            : (battleState.playerActive || []);
+        } else if (targetClass === 'all-allies') {
+          defenderIds = side === 'player'
+            ? (battleState.playerActive || []).filter(id => id !== action.pokemonId)
+            : (battleState.enemyActive  || []).filter(id => id !== action.pokemonId);
+        } else if (targetClass === 'self') {
+          defenderIds = [action.pokemonId];
+        }
+
+        // Fallback: if no defenderIds still, pick first active opponent
+        if (defenderIds.length === 0) {
+          const oppActive = side === 'player' ? battleState.enemyActive : battleState.playerActive;
+          const firstAlive = (oppActive || []).find(id => (battleState.hpMap?.[id] ?? 0) > 0);
+          if (firstAlive) defenderIds = [firstAlive];
+        }
+
+        for (const defId of defenderIds) {
+          const defMon = pokemonMap[defId];
+          if (!defMon) continue;
+          if ((battleState.hpMap?.[defId] ?? defMon.currentHp ?? 1) <= 0) continue;
+
+          const defSide = side === 'player' ? 'enemy' : 'player';
+          const attackerSlot = { pokemon: attMon, move, key: side };
+          const defenderSlot = { pokemon: defMon, key: defSide };
+
+          // Sync HP into legacy fields before executeMove
+          battleState.playerHP = battleState.hpMap?.[battleState.playerPokemon?.id] ?? battleState.playerHP;
+          battleState.enemyHP  = battleState.hpMap?.[battleState.enemyPokemon?.id]  ?? battleState.enemyHP;
+
+          const result = this.executeMove(attackerSlot, defenderSlot, battleState);
+          turnLog.push(...result.logs);
+
+          // Write back HP from legacy fields into hpMap
+          if (battleState.hpMap) {
+            if (battleState.playerPokemon?.id) battleState.hpMap[battleState.playerPokemon.id] = battleState.playerHP;
+            if (battleState.enemyPokemon?.id)  battleState.hpMap[battleState.enemyPokemon.id]  = battleState.enemyHP;
+            // Also update via currentHp on the objects themselves
+            for (const id of allActiveIds) {
+              const m = pokemonMap[id];
+              if (m?.currentHp !== undefined) battleState.hpMap[id] = m.currentHp;
+            }
+          }
+        }
+      }
+    }
+
+    // Turn-end processing for all active mons
+    for (const mon of activeMons) {
+      const endStatus = handleTurnEnd(mon);
+      if (endStatus?.log) addLog(endStatus.log);
+      this.tryConsumeBerry(mon, battleState, turnLog);
+      if (battleState.hpMap) battleState.hpMap[mon.id] = mon.currentHp;
+    }
+
+    // Flush legacy HP aliases
+    if (battleState.hpMap) {
+      if (battleState.playerPokemon?.id) battleState.playerHP = battleState.hpMap[battleState.playerPokemon.id];
+      if (battleState.enemyPokemon?.id)  battleState.enemyHP  = battleState.hpMap[battleState.enemyPokemon.id];
+    }
+
+    battleState.lastTurnStatChanges = battleState.currentTurnStatChanges;
+    this._allPlayerMons = null;
+    this._allEnemyMons  = null;
+
+    return turnLog;
+  }
+
+  // ─── Legacy 1v1 turn pipeline (unchanged) ────────────────────────────────────
   // Execute a full turn
   executeTurn(playerMove, enemyMove, battleState) {
     const turnLog = [];
