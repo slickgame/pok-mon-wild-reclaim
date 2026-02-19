@@ -399,15 +399,22 @@ function ZoneDetailView({ zone, onBack }) {
     }));
   };
 
-  const startNodeletWildEncounter = async ({ species, level = 8, nodelet, battleType = 'wild', extraState = {}, isTrainerNPC = false, trainerName = null }) => {
+  const startNodeletWildEncounter = async ({ species, level = 8, nodelet, battleType = 'wild', extraState = {}, isTrainerNPC = false, trainerName = null, trainer = null }) => {
     try {
-      const rosterPlan = isTrainerNPC ?
-      buildTrainerRoster({ nodelet, leadSpecies: species, level }) :
-      [{ species, level }];
+      // Pick trainer from registry if not supplied
+      const resolvedTrainer = trainer || (isTrainerNPC ? pickRandomTrainer(nodelet?.id) : null);
+      const resolvedTrainerName = resolvedTrainer?.name || trainerName;
+
+      const rosterPlan = isTrainerNPC
+        ? buildTrainerRoster({ nodelet, leadSpecies: species, level, trainer: resolvedTrainer })
+        : [{ species, level, buildOverride: null }];
 
       const rosterInstances = [];
       for (const entry of rosterPlan) {
-        const wildTemplate = createWildPokemonInstance(entry.species, { level: entry.level });
+        const wildTemplate = createWildPokemonInstance(entry.species, {
+          level: entry.level,
+          buildOverride: entry.buildOverride || null,
+        });
         if (!wildTemplate) continue;
 
         const createdPokemon = await base44.entities.Pokemon.create({
@@ -415,7 +422,9 @@ function ZoneDetailView({ zone, onBack }) {
           isInTeam: false,
           isWild: !isTrainerNPC,
           isTrainerNPC,
-          trainerName
+          trainerName: resolvedTrainerName,
+          trainerFaction: resolvedTrainer?.faction || null,
+          trainerAiTier: resolvedTrainer?.aiTier || 1,
         });
         rosterInstances.push(createdPokemon);
       }
