@@ -706,10 +706,11 @@ export default function BattlePage() {
           levelsGained.push(lvl);
         }
 
+        const existingMoves = newBattleState.playerPokemon.abilities || [];
         levelsGained.forEach(level => {
-          const moves = getMovesLearnedAtLevel(newBattleState.playerPokemon.species, level);
-          if (moves.length > 0) {
-            movesLearned.push(...moves);
+          const newAtLevel = getMovesLearnedAtLevel(newBattleState.playerPokemon.species, level, [...existingMoves, ...movesLearned]);
+          if (newAtLevel.length > 0) {
+            movesLearned.push(...newAtLevel);
           }
         });
       }
