@@ -87,11 +87,11 @@ export default function StatsTab({ pokemon, xpGained = 0 }) {
 
         <div className="flex items-center justify-between">
           <p className="text-xs text-slate-500">
-            {expNeededThisLevel - expInThisLevel} XP to Level {displayLevel + 1}
+            {Math.max(0, expNeededThisLevel - expInThisLevel)} XP to Level {displayLevel + 1}
           </p>
-          {levelMismatch && (
+          {correctLevel > displayLevel && (
             <span className="text-xs text-yellow-400 flex items-center gap-1">
-              <Star className="w-3 h-3" /> Level should be {correctLevel}
+              <Star className="w-3 h-3" /> Level up pending!
             </span>
           )}
         </div>
