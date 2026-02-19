@@ -1055,9 +1055,12 @@ export class BattleEngine {
     const battlefield = ensureBattlefield(battleState);
     const mappedWeather = battlefield.weather === 'sunny' ? 'sun' : battlefield.weather;
     const mappedTerrain = battlefield.terrain === 'grassy' ? 'grass' : battlefield.terrain;
+    // Multi-active: expose all active mons; fall back to legacy singleton arrays
+    const playerTeam = this._allPlayerMons || [this.playerPokemon];
+    const enemyTeam  = this._allEnemyMons  || [this.enemyPokemon];
     return {
-      playerTeam: [this.playerPokemon],
-      enemyTeam: [this.enemyPokemon],
+      playerTeam,
+      enemyTeam,
       battleState,
       turnCount: battleState.turnNumber,
       weather: mappedWeather ?? battleState.weather,
