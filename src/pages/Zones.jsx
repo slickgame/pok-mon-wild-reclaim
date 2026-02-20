@@ -2305,10 +2305,11 @@ function ZoneDetailView({ zone, onBack }) {
             zone={zone}
             gameTime={gameTime}
             seeds={items.filter((item) => item.name?.includes('Berry Seed'))}
-            onPlant={() => {
+            onPlant={async ({ plotNumber, seedName }) => {
+              await applyNodeletAction(activeNodelet, 'Replant', { count: 1 });
               setExplorationEvents((prev) => [{
                 title: '🌱 Seed Planted',
-                description: 'Your berry plot is growing. Check back later to harvest!',
+                description: `Planted ${seedName} in plot #${plotNumber}.`,
                 type: 'special',
                 rarity: 'common'
               }, ...prev].slice(0, 10));
