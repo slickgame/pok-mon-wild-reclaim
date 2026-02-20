@@ -878,7 +878,9 @@ export default function BattlePage() {
           enemyName: newBattleState.enemyPokemon.species,
           xpResults: xpResults,
           itemsUsed: itemsUsed,
-          materialsDropped: materialsDropped
+          materialsDropped: materialsDropped,
+          goldGained,
+          trainerItems
         });
         }
 
