@@ -1493,11 +1493,6 @@ function ZoneDetailView({ zone, onBack }) {
     prevNodeletIdRef.current = next;
   }, [activeNodelet?.id]); // eslint-disable-line
 
-  const handleLeaveNodelet = () => {
-    setActiveNodelet(null);
-    setActiveSection('places');
-  };
-
   const consumeItemByName = async (name, qty) => {
     const item = items.find((it) => it.name === name && (it.quantity || 0) > 0);
     if (!item) return false;
@@ -1508,30 +1503,6 @@ function ZoneDetailView({ zone, onBack }) {
       await base44.entities.Item.delete(item.id);
     }
     return true;
-  };
-
-  const upsertItem = async (name, quantity, overrides = {}) => {
-    const existingItem = items.find((item) => item.name === name && item.stackable !== false);
-
-    if (existingItem) {
-      await base44.entities.Item.update(existingItem.id, {
-        quantity: Math.max(0, (existingItem.quantity || 0) + quantity)
-      });
-      return;
-    }
-
-    if (quantity > 0) {
-      await base44.entities.Item.create({
-        name,
-        type: overrides.type || 'Material',
-        tier: overrides.tier || 1,
-        rarity: overrides.rarity || 'Common',
-        description: overrides.description || `Found in ${zone.name}`,
-        quantity,
-        stackable: true,
-        sellValue: overrides.sellValue || 10
-      });
-    }
   };
 
   const applyNodeletAction = async (nodelet, action, opts = {}) => {
