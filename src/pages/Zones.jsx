@@ -2047,6 +2047,51 @@ function ZoneDetailView({ zone, onBack }) {
     return updatedZone;
   };
 
+  const adjustBrambleberryPoacherPresence = async (delta, reason = 'decay') => {
+    const nodeletId = 'vh-brambleberry-thicket';
+    if (!zone?.id) return;
+
+    const updatedZone = await updateZoneNodeletById(nodeletId, (n) => {
+      const cur = n.poacherPresence || 0;
+      const next = clamp(cur + delta, 0, 100);
+      if (next === cur) return n;
+      return { ...n, poacherPresence: next, poacherLastShift: getCurrentGameTimestamp() };
+    });
+
+    if (updatedZone && activeNodelet?.id === nodeletId) {
+      const refreshed = (updatedZone.nodelets || []).find((n) => n.id === nodeletId);
+      setActiveNodelet(resolveNodeletConfig(refreshed) || null);
+      setSelectedNodelet(resolveNodeletConfig(refreshed) || null);
+    }
+
+    if (delta !== 0) {
+      setExplorationEvents((prev) => [{
+        title: '🕵️ Poacher Presence Shift',
+        description: `${delta < 0 ? 'Poacher presence decreased' : 'Poacher presence increased'} (${reason}).`,
+        type: 'special',
+        rarity: delta < 0 ? 'uncommon' : 'common'
+      }, ...prev].slice(0, 10));
+    }
+  };
+
+  const maybeDailyPoacherPresenceDecay = async () => {
+    const nodeletId = 'vh-brambleberry-thicket';
+    const raw = zone?.nodelets?.find((n) => n.id === nodeletId);
+    if (!raw) return;
+
+    const today = getCurrentGameDayId();
+    const last = typeof raw.lastPresenceDecayDay === 'number' ? raw.lastPresenceDecayDay : null;
+    if (last === today) return;
+
+    const DAILY_DECAY = 5;
+    await updateZoneNodeletById(nodeletId, (n) => {
+      const cur = n.poacherPresence || 0;
+      const next = clamp(cur - DAILY_DECAY, 0, 100);
+      if (next === cur) return { ...n, lastPresenceDecayDay: today };
+      return { ...n, poacherPresence: next, lastPresenceDecayDay: today };
+    });
+  };
+
   const maybeBankBrambleberryStreak = async () => {
     const BANK_CAP = 3;
     const nodeletId = 'vh-brambleberry-thicket';
