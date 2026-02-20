@@ -94,6 +94,13 @@ export default function BattlePage() {
       battleStartedRef.current = false;
       setIntroDismissed(false);
 
+      // Track trainer data for reward payout
+      if (state?.trainerData) {
+        setTrainerData(state.trainerData);
+      } else {
+        setTrainerData(null);
+      }
+
       // Show trainer intro modal for NPC trainer battles
       if (state.trainerData && roster.length > 0) {
         setTrainerIntro({ trainer: state.trainerData, roster });
