@@ -478,9 +478,16 @@ function ZoneDetailView({ zone, onBack }) {
 
   const maybeTriggerEnemyNPCEncounter = async (nodelet, chance = 0.2) => {
     nodelet = resolveNodeletConfig(nodelet);
-    const scaledChance = nodelet?.id === 'vh-brambleberry-thicket'
-      ? Math.min(0.95, chance + getBrambleberryEncounterModifiers(nodelet).poacherChanceBonus)
-      : chance;
+    const presence = nodelet?.poacherPresence || 0;
+      let scaledChance = chance;
+      if (nodelet?.id === 'vh-brambleberry-thicket') {
+        const contractState = getBrambleberryContractState(nodelet);
+        scaledChance += (presence / 100) * 0.15;
+        scaledChance += contractState.tier1Completed ? 0.06 : 0;
+        scaledChance += contractState.tier2Completed ? 0.08 : 0;
+        scaledChance += contractState.tier3Unlocked ? 0.10 : 0;
+      }
+      scaledChance = clamp(scaledChance, 0, 0.85);
 
     if (!nodelet?.enemyNPCs?.length || Math.random() > scaledChance) {
       return false;
