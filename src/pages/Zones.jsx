@@ -1416,12 +1416,18 @@ function ZoneDetailView({ zone, onBack }) {
     queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
   };
 
-  const resetNodeletHarvestStreak = async (nodeletId, reason = 'reset') => {
+  const adjustNodeletHarvestStreak = async (nodeletId, { mode = 'decay', amount = 2, reason = 'decay' } = {}) => {
     if (!zone?.id || !nodeletId) return;
     const updatedNodelets = (zone.nodelets || []).map((n) => {
       if (n.id !== nodeletId) return n;
-      if (!n.harvestStreak || n.harvestStreak <= 0) return n;
-      return { ...n, harvestStreak: 0 };
+      const cur = n.harvestStreak || 0;
+      if (cur <= 0) return n;
+      let next = cur;
+      if (mode === 'reset') next = 0;
+      if (mode === 'decay') next = Math.max(0, cur - Math.max(0, amount));
+      if (mode === 'set') next = Math.max(0, amount);
+      if (next === cur) return n;
+      return { ...n, harvestStreak: next };
     });
     const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
     queryClient.setQueryData(['zones'], (existingZones = []) =>
@@ -1433,8 +1439,10 @@ function ZoneDetailView({ zone, onBack }) {
       setSelectedNodelet(resolveNodeletConfig(refreshed) || null);
     }
     setExplorationEvents((prev) => [{
-      title: '🍃 Harvest Streak Reset',
-      description: `Your harvest streak was reset (${reason}).`,
+      title: mode === 'reset' ? '🍃 Harvest Streak Reset' : '🍂 Harvest Streak Decayed',
+      description: mode === 'reset'
+        ? `Your harvest streak was reset (${reason}).`
+        : `Your harvest streak decayed by ${amount} (${reason}).`,
       type: 'special',
       rarity: 'common'
     }, ...prev].slice(0, 10));
