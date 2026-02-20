@@ -1378,11 +1378,15 @@ export default function BattlePage() {
   return (
     <div>
       {/* Trainer intro modal — shown before battle begins */}
-      {trainerIntro && (
+      {trainerIntro && !introDismissed && (
         <TrainerIntroModal
           trainer={trainerIntro.trainer}
           roster={trainerIntro.roster}
-          onBegin={() => { setTrainerIntro(null); setBattleReady(true); }}
+          onBegin={() => {
+            setIntroDismissed(true);
+            setTrainerIntro(null);
+            setBattleReady(true);
+          }}
         />
       )}
 
