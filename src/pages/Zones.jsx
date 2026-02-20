@@ -126,48 +126,19 @@ export default function ZonesPage() {
       <PageHeader
         title="Zone Exploration"
         subtitle="Discover new areas and catch wild Pokémon"
-        icon={MapIcon}
+        icon={Map}
         action={
-        <div className="relative">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-            placeholder="Search zones..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-slate-800/50 border-slate-700 w-48" />
-
+              placeholder="Search zones..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-slate-800/50 border-slate-700 w-48"
+            />
           </div>
-        } />
-
-
-      {isLoading ?
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) =>
-        <Skeleton key={i} className="h-64 bg-slate-800" />
-        )}
-        </div> :
-      selectedZone ?
-      <ZoneDetailView
-        zone={selectedZone}
-        onBack={() => setSearchParams({})} /> :
-
-      filteredZones.length > 0 ?
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}>
-
-          {filteredZones.map((zone, idx) =>
-        <motion.div
-          key={zone.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: idx * 0.05 }}>
-
-              <ZoneCard
-            zone={zone}
-            isDiscovered={discoveredZones.includes(zone.name)}
-            onClick={() => setSearchParams({ zoneId: zone.id })} />
+        }
+      />
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -181,7 +152,7 @@ export default function ZonesPage() {
           onBack={() => setSearchParams({})}
         />
       ) : filteredZones.length > 0 ? (
-        <motion.div 
+        <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -193,7 +164,7 @@ export default function ZonesPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
             >
-              <ZoneCard 
+              <ZoneCard
                 zone={zone}
                 isDiscovered={discoveredZones.includes(zone.name)}
                 onClick={() => setSearchParams({ zoneId: zone.id })}
@@ -208,7 +179,6 @@ export default function ZonesPage() {
           <p className="text-slate-400">Try a different search term</p>
         </div>
       )}
-
     </div>
   );
 }
