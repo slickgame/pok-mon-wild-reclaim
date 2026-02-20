@@ -147,6 +147,8 @@ const KADE_AND_NIX = {
   faction: 'Thorn Syndicate',
   archetype: 'Duo Pressure',
   aiTier: 2,
+  isNamed: true,
+  signatureDrop: 'Snare Wire',
   description: 'Coordinated dual assault — one disrupts while the other damages.',
   roster: [
     {
