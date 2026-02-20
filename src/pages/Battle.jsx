@@ -1655,12 +1655,12 @@ export default function BattlePage() {
     setBattleState((prev) => {
       if (!prev) return prev;
 
-      const enemyActions = buildEnemyActionsSmart(prev);
+      const enemyActions = buildEnemyActionsSmartWithSwitch(prev);
       const combined = [
         ...playerActions.map(a => ({ ...a, side: 'player' })),
         ...enemyActions
       ];
-      const sorted = sortActionQueue(combined, pokemonMap);
+      const sorted = sortActionQueue(combined, pokemonMap, `turn:${prev.turnNumber || 1}`);
 
       const turnLog = [];
 
@@ -1679,13 +1679,39 @@ export default function BattlePage() {
         });
       }
 
-      // 2) Execute remaining actions (moves/items)
+      // 2) Retarget / skip fainted actors before executing
+      const hpMap = prev.hpMap || {};
+      const isAlive = (id) => (hpMap[id] ?? 0) > 0;
+
+      const retargetIfNeeded = (action) => {
+        if (action.type !== 'move') return action;
+        if (!isAlive(action.pokemonId)) return null; // attacker fainted
+
+        const moveTarget = action.payload?.target || 'single-opponent';
+        if (moveTarget === 'all-opponents') {
+          const pool = action.side === 'player' ? prev.enemyActive : prev.playerActive;
+          const alive = (pool || []).filter(isAlive);
+          return alive.length ? { ...action, defenderIds: alive } : null;
+        }
+
+        const stillAlive = (action.defenderIds || []).filter(isAlive);
+        if (stillAlive.length) return { ...action, defenderIds: stillAlive };
+
+        const pool = action.side === 'player' ? prev.enemyActive : prev.playerActive;
+        const fallback = (pool || []).find(isAlive);
+        return fallback ? { ...action, defenderIds: [fallback] } : null;
+      };
+
+      const cleaned = remaining.map(retargetIfNeeded).filter(Boolean)
+        .filter(a => a.type !== 'move' || (a.defenderIds?.length ?? 0) > 0);
+
+      // 3) Execute remaining actions (moves/items)
       const engine = new BattleEngine(
         pokemonMap[prev.playerActive?.[0]] || prev.playerPokemon,
         pokemonMap[prev.enemyActive?.[0]]  || prev.enemyPokemon,
         pokemonMap
       );
-      const engineLog = engine.executeTurnQueue(remaining, prev, pokemonMap);
+      const engineLog = engine.executeTurnQueue(cleaned, prev, pokemonMap);
 
       // 3) Post-turn faint/refill + win/loss
       const after = handleMultiFaintsAndRefill(prev, engineLog);
