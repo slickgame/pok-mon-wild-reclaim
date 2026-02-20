@@ -1425,16 +1425,41 @@ function ZoneDetailView({ zone, onBack }) {
   const adjustNodeletHarvestStreak = async (nodeletId, { mode = 'decay', amount = 2, reason = 'decay' } = {}) => {
     if (!zone?.id || !nodeletId) return;
     if (mode === 'decay' && amount <= 0) return;
-    const updatedNodelets = (zone.nodelets || []).map((n) => {
-      if (n.id !== nodeletId) return n;
-      const cur = n.harvestStreak || 0;
-      if (cur <= 0) return n;
+    const updatedNodelets = (zone.nodelets || []).map((orig) => {
+      if (orig.id !== nodeletId) return orig;
+      const cur = orig.harvestStreak || 0;
+      if (cur <= 0 && mode !== 'set') return orig;
+
+      let nextNodelet = { ...orig };
       let next = cur;
-      if (mode === 'reset') next = 0;
-      if (mode === 'decay') next = Math.max(0, cur - Math.max(0, amount));
+
+      if (mode === 'reset') {
+        next = 0;
+        if (nodeletId === 'vh-brambleberry-thicket') {
+          nextNodelet.harvestStreakBank = 0;
+        }
+      }
       if (mode === 'set') next = Math.max(0, amount);
-      if (next === cur) return n;
-      return { ...n, harvestStreak: next };
+      if (mode === 'decay') {
+        const dec = Math.max(0, amount);
+        let nextCandidate = Math.max(0, cur - dec);
+
+        if (nodeletId === 'vh-brambleberry-thicket') {
+          const resolved = resolveNodeletConfig(nextNodelet);
+          const contract = getBrambleberryContractState(resolved);
+          const bank = nextNodelet.harvestStreakBank || 0;
+          if (contract?.tier3Unlocked && cur > 0 && nextCandidate === 0 && bank > 0) {
+            nextCandidate = 1;
+            nextNodelet.harvestStreakBank = bank - 1;
+          }
+        }
+
+        next = nextCandidate;
+      }
+
+      if ((nextNodelet.harvestStreak || 0) === next && nextNodelet.harvestStreakBank === orig.harvestStreakBank) return nextNodelet;
+      nextNodelet.harvestStreak = next;
+      return nextNodelet;
     });
     const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
     queryClient.setQueryData(['zones'], (existingZones = []) =>
