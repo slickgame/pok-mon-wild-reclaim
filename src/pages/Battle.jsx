@@ -26,6 +26,7 @@ import {
   removeFainted,
   sendNextFromBench,
   sortActionQueue,
+  switchIn,
 } from '@/components/battle/battleStateModel';
 import BattlefieldStatus from '@/components/battle/BattlefieldStatus';
 import { HazardRegistry } from '@/components/data/HazardRegistry';
