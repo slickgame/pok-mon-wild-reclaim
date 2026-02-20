@@ -2566,6 +2566,9 @@ function ZoneDetailView({ zone, onBack }) {
                       <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">⭐ Rare bias: {mult(mods.rareWeightMultiplier)}</Badge>
                       <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">🎁 Loot bonus: {mult(mods.lootBonusMultiplier)}</Badge>
                       <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">🔥 Streak: {nodelet.harvestStreak || 0}</Badge>
+                      {contractState.tier3Unlocked && (
+                        <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">🏦 Bank: {nodelet.harvestStreakBank || 0}/3</Badge>
+                      )}
                     </div>
                     {(() => {
                       const decayRules = getBrambleberryStreakDecayRules(nodelet);
