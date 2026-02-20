@@ -18,6 +18,15 @@ import CaptureSuccessModal from '@/components/battle/CaptureSuccessModal';
 import BattleSummaryModal from '@/components/battle/BattleSummaryModal';
 import { BattleEngine, triggerTalent } from '@/components/battle/BattleEngine';
 import { createDefaultStatStages } from '@/components/battle/statStageUtils';
+import ActionQueuePanel from '@/components/battle/multi/ActionQueuePanel';
+import {
+  createBattleState,
+  syncLegacyFields,
+  isSideDefeated,
+  removeFainted,
+  sendNextFromBench,
+  sortActionQueue,
+} from '@/components/battle/battleStateModel';
 import BattlefieldStatus from '@/components/battle/BattlefieldStatus';
 import { HazardRegistry } from '@/components/data/HazardRegistry';
 import { inflictStatus } from '@/components/data/StatusRegistry';
