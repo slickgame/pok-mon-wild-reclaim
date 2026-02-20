@@ -652,6 +652,72 @@ function ZoneDetailView({ zone, onBack }) {
     }
   };
 
+  const applyNodeletAction = async (nodelet, action, opts = {}) => {
+    nodelet = resolveNodeletConfig(nodelet);
+    if (!zone?.id || !nodelet?.id) return;
+
+    const count = Math.max(1, opts.count || 1);
+    const nowGameTs = getCurrentGameTimestamp();
+
+    const updatedNodelets = (zone.nodelets || []).map((currentNodelet) => {
+      if (currentNodelet.id !== nodelet.id) return currentNodelet;
+
+      const objectives = currentNodelet.objectives || [];
+      const objective = objectives.find((entry) => entry.action === action);
+
+      const objectiveProgress = { ...(currentNodelet.objectiveProgress || {}) };
+      const objectiveCompletedAt = { ...(currentNodelet.objectiveCompletedAt || {}) };
+      const objectiveHistory = [...(currentNodelet.objectiveHistory || [])];
+
+      let harvestStreak = currentNodelet.harvestStreak || 0;
+      if (typeof opts.setHarvestStreak === 'number') {
+        harvestStreak = opts.setHarvestStreak;
+      } else if (opts.incrementHarvestStreak) {
+        harvestStreak = Math.min(99, harvestStreak + count);
+      }
+
+      if (objective) {
+        for (let i = 0; i < count; i++) {
+          const completedAt = objectiveCompletedAt[objective.id];
+          const cooldownEnd = completedAt
+            ? (typeof completedAt === 'number' ? completedAt : new Date(completedAt).getTime()) +
+              (objective.repeatMinutes || 0) * 60 * 1000
+            : null;
+          const onCooldown = Boolean(cooldownEnd && cooldownEnd > nowGameTs);
+          if (onCooldown) break;
+
+          const progress = (objectiveProgress[objective.id] || 0) + 1;
+          if (progress >= (objective.goal || 1)) {
+            objectiveProgress[objective.id] = 0;
+            objectiveCompletedAt[objective.id] = nowGameTs;
+            objectiveHistory.unshift({
+              id: objective.id,
+              label: objective.label,
+              completedAt: nowGameTs,
+              reward: objective.reward || {},
+              claimedAt: null
+            });
+          } else {
+            objectiveProgress[objective.id] = progress;
+          }
+        }
+      }
+
+      return { ...currentNodelet, objectiveProgress, objectiveCompletedAt, objectiveHistory, harvestStreak };
+    });
+
+    const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
+    queryClient.setQueryData(['zones'], (existingZones = []) =>
+      existingZones.map((z) =>
+        z.id === zone.id ? { ...z, nodelets: updatedZone.nodelets || updatedNodelets } : z
+      )
+    );
+
+    const refreshedNodelet = (updatedZone.nodelets || updatedNodelets).find((n) => n.id === nodelet.id);
+    setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
+    setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
+  };
+
   const handleNodeletAction = async (nodelet, action) => {
     nodelet = resolveNodeletConfig(nodelet);
     if (!zone?.id || !nodelet?.id) return;
