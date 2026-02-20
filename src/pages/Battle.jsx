@@ -1395,6 +1395,113 @@ export default function BattlePage() {
     setEvolutionState(null);
   };
 
+  const buildEnemyActionsBasic = (state) => {
+    const enemyActs = [];
+    const enemyActive = state.enemyActive || [];
+    const playerActive = state.playerActive || [];
+    const hpMap = state.hpMap || {};
+    const firstAlivePlayer = playerActive.find(id => (hpMap[id] ?? 0) > 0);
+
+    for (const enemyId of enemyActive) {
+      const mon = pokemonMap[enemyId];
+      if (!mon) continue;
+      if ((hpMap[enemyId] ?? 0) <= 0) continue;
+
+      const moveName = (mon.abilities || []).find(mn => {
+        const md = getMoveData(mn, mon);
+        if (!md) return false;
+        const maxPP = md.pp || 10;
+        const curPP = mon.movePP?.[mn] !== undefined ? mon.movePP[mn] : maxPP;
+        return curPP > 0;
+      }) || (mon.abilities?.[0] || 'Tackle');
+
+      const moveData = getMoveData(moveName, mon);
+      const targetClass = moveData?.target || 'single-opponent';
+
+      let defenderIds = [];
+      if (targetClass === 'all-opponents') defenderIds = playerActive.filter(id => (hpMap[id] ?? 0) > 0);
+      else if (targetClass === 'self') defenderIds = [enemyId];
+      else defenderIds = firstAlivePlayer ? [firstAlivePlayer] : [];
+
+      enemyActs.push({ type: 'move', pokemonId: enemyId, side: 'enemy', payload: moveData, defenderIds });
+    }
+    return enemyActs;
+  };
+
+  const handleMultiFaintsAndRefill = (state, turnLog) => {
+    const hpMap = state.hpMap || {};
+    const log = (msg) => turnLog.push({
+      turn: state.turnNumber, actor: 'System', action: msg, result: '', synergyTriggered: false
+    });
+
+    for (const id of [...(state.playerActive || [])]) {
+      if ((hpMap[id] ?? 0) <= 0) {
+        removeFainted(state, id, 'player');
+        log(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'A Pokémon'} fainted!`);
+      }
+    }
+    for (const id of [...(state.enemyActive || [])]) {
+      if ((hpMap[id] ?? 0) <= 0) {
+        removeFainted(state, id, 'enemy');
+        log(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'An enemy Pokémon'} fainted!`);
+      }
+    }
+
+    while ((state.playerActive || []).length < (state.activeSlots || 1)) {
+      const nextId = (state.playerBench || []).find(pid => (hpMap[pid] ?? 0) > 0);
+      if (!nextId) break;
+      const sent = sendNextFromBench(state, 'player');
+      if (!sent) break;
+      if ((hpMap[sent] ?? 0) <= 0) continue;
+      log(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'A Pokémon'} enters the fight!`);
+    }
+
+    while ((state.enemyActive || []).length < (state.activeSlots || 1)) {
+      const nextId = (state.enemyBench || []).find(pid => (hpMap[pid] ?? 0) > 0);
+      if (!nextId) break;
+      const sent = sendNextFromBench(state, 'enemy');
+      if (!sent) break;
+      if ((hpMap[sent] ?? 0) <= 0) continue;
+      log(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'Enemy'} enters the fight!`);
+    }
+
+    return state;
+  };
+
+  const runMultiTurn = (playerActions) => {
+    setBattleState((prev) => {
+      if (!prev) return prev;
+
+      const enemyActions = buildEnemyActionsBasic(prev);
+      const combined = [
+        ...playerActions.map(a => ({ ...a, side: 'player' })),
+        ...enemyActions
+      ];
+      const sorted = sortActionQueue(combined, pokemonMap);
+
+      const engine = new BattleEngine(
+        pokemonMap[prev.playerActive?.[0]] || prev.playerPokemon,
+        pokemonMap[prev.enemyActive?.[0]]  || prev.enemyPokemon,
+        pokemonMap
+      );
+
+      const turnLog = engine.executeTurnQueue(sorted, prev, pokemonMap);
+      const after = handleMultiFaintsAndRefill(prev, turnLog);
+
+      if (isSideDefeated(after, 'enemy')) after.status = 'won';
+      if (isSideDefeated(after, 'player')) after.status = 'lost';
+
+      after.turnNumber = (after.turnNumber || 1) + 1;
+      after.battleLog = [...(after.battleLog || []), ...turnLog];
+
+      after.playerPokemon = pokemonMap[after.playerActive?.[0]] || after.playerPokemon;
+      after.enemyPokemon  = pokemonMap[after.enemyActive?.[0]]  || after.enemyPokemon;
+      syncLegacyFields(after);
+
+      return { ...after };
+    });
+  };
+
   // isTrainer3v3: true only when trainerData + a real roster exist
   const isTrainer3v3 = useMemo(() => {
     const st = location.state;
