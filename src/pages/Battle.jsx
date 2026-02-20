@@ -237,7 +237,7 @@ export default function BattlePage() {
     const initialEnemyTeam = enemyParty;
 
     // 3v3 trainer battle path
-        if (trainerRosterRef.current.length > 0 && trainerData) {
+          if (trainerRosterRef.current.length > 0 && trainerDataRef.current) {
           const multiState = createBattleState({
             playerParty: playerPokemon,
             enemyParty,
