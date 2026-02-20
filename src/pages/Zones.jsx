@@ -3142,7 +3142,7 @@ function ZoneDetailView({ zone, onBack }) {
             </div>
           )}
         </div>
-      )}
+      }
 
       {activeSection === 'nodelet' && activeNodelet && (
         <div className="space-y-4">
