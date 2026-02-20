@@ -1458,9 +1458,11 @@ function ZoneDetailView({ zone, onBack }) {
   const handleCampRest = async () => {
     await healParty(0.1, false);
     await advanceTime(60);
+    const bbNodeletRest = resolveNodeletConfig(zone?.nodelets?.find((n) => n.id === 'vh-brambleberry-thicket'));
+    const restRules = getBrambleberryStreakDecayRules(bbNodeletRest || {});
     await adjustNodeletHarvestStreak('vh-brambleberry-thicket', {
       mode: 'decay',
-      amount: BRAMBLEBERRY_STREAK_DECAY.nap,
+      amount: restRules.nap,
       reason: 'napping'
     });
   };
