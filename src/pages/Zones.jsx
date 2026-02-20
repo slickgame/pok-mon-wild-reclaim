@@ -1930,6 +1930,61 @@ function ZoneDetailView({ zone, onBack }) {
     return new Date(Date.UTC(year, month, day, hour, minute, 0)).getTime();
   };
 
+  const getCurrentGameDayId = () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    return Math.floor(getCurrentGameTimestamp() / DAY_MS);
+  };
+
+  const updateZoneNodeletById = async (nodeletId, updater) => {
+    if (!zone?.id || !nodeletId) return null;
+    const updatedNodelets = (zone.nodelets || []).map((n) =>
+      n.id !== nodeletId ? n : updater(n)
+    );
+    const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
+    queryClient.setQueryData(['zones'], (existingZones = []) =>
+      existingZones.map((z) => (z.id === zone.id ? { ...z, nodelets: updatedZone.nodelets } : z))
+    );
+    return updatedZone;
+  };
+
+  const maybeBankBrambleberryStreak = async () => {
+    const BANK_CAP = 3;
+    const nodeletId = 'vh-brambleberry-thicket';
+    const raw = zone?.nodelets?.find((n) => n.id === nodeletId);
+    if (!raw) return;
+
+    const nodelet = resolveNodeletConfig(raw);
+    const contract = getBrambleberryContractState(nodelet);
+    if (!contract?.tier3Unlocked) return;
+
+    const today = getCurrentGameDayId();
+    const last = typeof raw.lastBankedDay === 'number' ? raw.lastBankedDay : null;
+    if (last === today) return;
+
+    const curBank = raw.harvestStreakBank || 0;
+    const nextBank = Math.min(BANK_CAP, curBank + 1);
+    if (nextBank === curBank) return;
+
+    const updatedZone = await updateZoneNodeletById(nodeletId, (n) => ({
+      ...n,
+      harvestStreakBank: nextBank,
+      lastBankedDay: today
+    }));
+
+    if (activeNodelet?.id === nodeletId && updatedZone) {
+      const refreshed = (updatedZone.nodelets || []).find((n) => n.id === nodeletId);
+      setActiveNodelet(resolveNodeletConfig(refreshed) || null);
+      setSelectedNodelet(resolveNodeletConfig(refreshed) || null);
+    }
+
+    setExplorationEvents((prev) => [{
+      title: '🏦 Streak Insurance Added',
+      description: `Contract III banked +1 streak insurance. (Bank: ${nextBank}/${BANK_CAP})`,
+      type: 'special',
+      rarity: 'uncommon'
+    }, ...prev].slice(0, 10));
+  };
+
   const toNodeletTimestamp = (value) => {
     if (typeof value === 'number') return value;
     if (!value) return null;
