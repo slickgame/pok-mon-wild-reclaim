@@ -2286,8 +2286,114 @@ function ZoneDetailView({ zone, onBack }) {
           }
 
             {activeNodelet.id === 'vh-brambleberry-thicket' && (() => {
-            const contractState = getBrambleberryContractState(activeNodelet);
-            return null;
+              const nodelet = resolveNodeletConfig(activeNodelet);
+              const contractState = getBrambleberryContractState(nodelet);
+              const berryNames = ['Oran Berry','Pecha Berry','Cheri Berry','Sitrus Berry','Lum Berry'];
+              const berryCounts = berryNames.reduce((acc, name) => {
+                const it = items.find((x) => x.name === name);
+                acc[name] = it?.quantity || 0;
+                return acc;
+              }, {});
+              const totalBerries = Object.values(berryCounts).reduce((a, b) => a + b, 0);
+              const deliverableBundles = Math.floor(totalBerries / 3);
+              const objectives = Array.isArray(nodelet.objectives) ? nodelet.objectives : [];
+              const prog = nodelet.objectiveProgress || {};
+              const compAt = nodelet.objectiveCompletedAt || {};
+              const nowTs = getCurrentGameTimestamp();
+              const msUntil = (ts, repeatMinutes) => {
+                if (!ts) return 0;
+                const end = (typeof ts === 'number' ? ts : new Date(ts).getTime()) + (repeatMinutes || 0) * 60 * 1000;
+                return Math.max(0, end - nowTs);
+              };
+              const formatMs = (ms) => {
+                const mins = Math.ceil(ms / 60000);
+                const h = Math.floor(mins / 60);
+                const m = mins % 60;
+                return h > 0 ? `${h}h ${m}m` : `${m}m`;
+              };
+              const deliverOneBundle = async () => {
+                if (deliverableBundles <= 0) return;
+                let remaining = 3;
+                const sorted = [...berryNames].sort((a, b) => (berryCounts[b] || 0) - (berryCounts[a] || 0));
+                for (const name of sorted) {
+                  if (remaining <= 0) break;
+                  const have = items.find((x) => x.name === name)?.quantity || 0;
+                  if (have <= 0) continue;
+                  const take = Math.min(remaining, have);
+                  const ok = await consumeItemByName(name, take);
+                  if (ok) remaining -= take;
+                }
+                if (remaining > 0) return;
+                queryClient.invalidateQueries({ queryKey: ['items'] });
+                await applyNodeletAction(nodelet, 'Deliver Berries', { count: 1 });
+                setExplorationEvents((prev) => [{
+                  title: '📦 Berry Bundle Delivered',
+                  description: "Delivered a berry bundle to Merra's buyers.",
+                  type: 'special',
+                  rarity: 'uncommon'
+                }, ...prev].slice(0, 10));
+              };
+              return (
+                <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-emerald-100 font-semibold">📜 Brambleberry Contracts</div>
+                      <div className="text-xs text-emerald-100/70">
+                        Harvest streak: <span className="text-emerald-200 font-semibold">{nodelet.harvestStreak || 0}</span>
+                        {contractState.tier1Completed && <span className="ml-2 text-emerald-200/80">• Contract I cleared</span>}
+                        {contractState.tier2Completed && <span className="ml-2 text-emerald-200/80">• Contract II cleared</span>}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20" onClick={() => handleClaimNodeletRewards(nodelet)}>
+                      🎁 Claim Rewards
+                    </Button>
+                  </div>
+                  <div className="rounded-md border border-emerald-500/20 bg-black/20 p-3">
+                    <div className="text-sm text-emerald-100 font-semibold mb-2">📦 Delivery</div>
+                    <div className="text-xs text-emerald-100/70 mb-2">
+                      You have <span className="text-emerald-200 font-semibold">{totalBerries}</span> berries (
+                      <span className="text-emerald-200 font-semibold">{deliverableBundles}</span> bundle{deliverableBundles === 1 ? '' : 's'} deliverable).
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {berryNames.map((name) => (
+                        <Badge key={name} className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">
+                          {name}: {berryCounts[name] || 0}
+                        </Badge>
+                      ))}
+                    </div>
+                    <Button size="sm" disabled={deliverableBundles <= 0} onClick={deliverOneBundle}>
+                      Deliver 1 Bundle (3 berries)
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {objectives.map((obj) => {
+                      const cur = prog[obj.id] || 0;
+                      const goal = obj.goal || 1;
+                      const cd = msUntil(compAt[obj.id], obj.repeatMinutes);
+                      const onCooldown = cd > 0;
+                      return (
+                        <div key={obj.id} className="rounded-md border border-emerald-500/20 bg-black/20 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm text-emerald-100 font-semibold">{obj.label}</div>
+                              <div className="text-xs text-emerald-100/70">
+                                Action: <span className="text-emerald-200">{obj.action}</span>
+                                {' • '}Progress: <span className="text-emerald-200 font-semibold">{cur}</span> / {goal}
+                                {obj.repeatMinutes ? <> {' • '}Cooldown: {obj.repeatMinutes}m</> : null}
+                              </div>
+                            </div>
+                            {onCooldown
+                              ? <Badge className="bg-amber-500/10 border border-amber-500/30 text-amber-200">⏳ {formatMs(cd)}</Badge>
+                              : <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">Active</Badge>
+                            }
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            // return null (replaced);
 
 
 
