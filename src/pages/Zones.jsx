@@ -709,7 +709,7 @@ function ZoneDetailView({ zone, onBack }) {
     return { settled: true };
   };
 
-  const handleNodeletAction = async (nodelet, action) => {
+  const _unusedHandleNodeletActionLegacy = async (nodelet, action) => {
     nodelet = resolveNodeletConfig(nodelet);
     if (!zone?.id || !nodelet?.id) return;
 
