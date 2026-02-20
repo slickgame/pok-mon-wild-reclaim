@@ -68,6 +68,7 @@ export default function BattlePage() {
   const [locationHazardEscapePenalty, setLocationHazardEscapePenalty] = useState(0);
   const [trainerIntro, setTrainerIntro] = useState(null); // { trainer, roster }
   const [battleReady, setBattleReady] = useState(false); // gated until intro dismissed
+  const [introDismissed, setIntroDismissed] = useState(false); // prevent re-show
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
