@@ -3618,7 +3618,7 @@ function ZoneDetailView({ zone, onBack }) {
                 );
               })()}
 
-              <BerryFarmPanel
+          <BerryFarmPanel
             player={player}
             playerEmail={user?.email}
             zone={zone}
@@ -3647,7 +3647,6 @@ function ZoneDetailView({ zone, onBack }) {
                 'Cheri Berry Seed': [3, 6], 'Sitrus Berry Seed': [1, 3], 'Lum Berry Seed': [1, 2]
               };
 
-              // Single-plot poacher check
               const poacherTriggered = await maybeTriggerEnemyNPCEncounter(
                 resolveNodeletConfig(activeNodelet), 0.22
               );
@@ -3663,7 +3662,6 @@ function ZoneDetailView({ zone, onBack }) {
 
               await applyNodeletAction(activeNodelet, 'Harvest', { count: 1, incrementHarvestStreak: true });
 
-              // Single-plot wild encounter check
               if (Math.random() < 0.25) {
                 const nodelet = resolveNodeletConfig(activeNodelet);
                 const encounter = getNodeletEncounter(nodelet, 'Harvest');
@@ -3683,13 +3681,10 @@ function ZoneDetailView({ zone, onBack }) {
                 description: `Harvested ${quantity}× ${berryName}!`,
                 type: 'material',
                 rarity: 'common'
-                }, ...prev].slice(0, 10));
-                }}
-                />
-                </>
-                )}
-
-                {Array.isArray(activeNodelet.gameplayFeatures) && activeNodelet.gameplayFeatures.length > 0 && (
+              }, ...prev].slice(0, 10));
+            }}
+          />
+          {Array.isArray(activeNodelet.gameplayFeatures) && activeNodelet.gameplayFeatures.length > 0 && (
             <ul className="mt-2 space-y-1 text-sm text-emerald-100/80">
               {activeNodelet.gameplayFeatures.map((feature, idx) => (
                 <li key={`feature-${idx}`} className="flex gap-2">
@@ -3699,9 +3694,8 @@ function ZoneDetailView({ zone, onBack }) {
               ))}
             </ul>
           )}
-          </div>
         </div>
-      }
+      )}
 
       {/* Details dialog — streamlined, no verbose info dump */}
       <Dialog
