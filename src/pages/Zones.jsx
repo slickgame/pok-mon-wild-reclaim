@@ -1455,13 +1455,20 @@ function ZoneDetailView({ zone, onBack }) {
   const handleCampRest = async () => {
     await healParty(0.1, false);
     await advanceTime(60);
-    await resetNodeletHarvestStreak('vh-brambleberry-thicket', 'resting');
+    await adjustNodeletHarvestStreak('vh-brambleberry-thicket', {
+      mode: 'decay',
+      amount: BRAMBLEBERRY_STREAK_DECAY.nap,
+      reason: 'napping'
+    });
   };
 
   const handleCampSleep = async () => {
-    await healParty(1.0, true); // Full HP + full PP restore
+    await healParty(1.0, true);
     await advanceTime(480);
-    await resetNodeletHarvestStreak('vh-brambleberry-thicket', 'sleeping');
+    await adjustNodeletHarvestStreak('vh-brambleberry-thicket', {
+      mode: 'reset',
+      reason: 'sleeping'
+    });
   };
 
   const movePartyMember = async (index, direction) => {
