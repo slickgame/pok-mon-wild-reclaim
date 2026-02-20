@@ -2956,10 +2956,9 @@ function ZoneDetailView({ zone, onBack }) {
             }}
             className={activeSection === section.id ? 'bg-indigo-500 text-white' : 'border-slate-700 text-slate-200'}
           >
-
             {section.label}
           </Button>
-        )}
+        ))}
       </div>
 
       {activeSection === 'explore' &&
