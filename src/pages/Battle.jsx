@@ -41,16 +41,6 @@ import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
 import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zones/wildPokemonData';
 import { getMoveData } from '@/components/utils/getMoveData';
-import ActionQueuePanel from '@/components/battle/multi/ActionQueuePanel';
-import {
-  createBattleState,
-  syncLegacyFields,
-  isSideDefeated,
-  removeFainted,
-  sendNextFromBench,
-  sortActionQueue,
-  switchIn
-} from '@/components/battle/battleStateModel';
 import { rollTrainerRewards } from '@/components/data/TrainerRegistry';
 import { POACHER_REWARD_TIERS } from '@/components/zones/poacherTrainerRegistry';
 import { buildPoacherReturnMetaParams } from '@/components/zones/poacherOutcomeHandoff';
