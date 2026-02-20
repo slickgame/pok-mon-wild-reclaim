@@ -771,25 +771,54 @@ export default function BattlePage() {
       // Generate material drops for wild battles (species-specific)
       const materialsDropped = [];
       let goldGained = 0;
-      
+      let trainerItems = [];
+
       if (newBattleState.isWildBattle) {
         // Wild Pokémon drop items using species data
         const speciesData = wildPokemonData[newBattleState.enemyPokemon.species];
-        
         if (speciesData) {
           const droppedItems = rollItemDrops(speciesData);
           materialsDropped.push(...droppedItems);
         }
-        
-        // Fallback to generic drops if no species data
         if (materialsDropped.length === 0) {
-          if (Math.random() < 0.5) {
-            materialsDropped.push('Monster Essence');
-          }
+          if (Math.random() < 0.5) materialsDropped.push('Monster Essence');
         }
+        goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
+
+      } else if (newBattleState.enemyPokemon?.isTrainerNPC) {
+        // NPC trainer rewards
+        const payout = rollTrainerRewards(trainerData);
+        goldGained = payout.gold || 0;
+        trainerItems = payout.items || [];
+
+        if (player?.id) {
+          await base44.entities.Player.update(player.id, {
+            gold: (player.gold || 0) + goldGained
+          });
+          queryClient.invalidateQueries({ queryKey: ['player'] });
+        }
+
+        for (const itemName of trainerItems) {
+          await upsertRewardItem(itemName, 1, {
+            type: 'Material',
+            rarity: 'Uncommon',
+            description: `Taken from ${trainerData?.name || 'a trainer'}`
+          });
+        }
+        if (trainerItems.length > 0) {
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['items'] });
+        }
+
       } else {
-        // Practice battles still give gold
-        goldGained = Math.floor(newBattleState.enemyPokemon.level * (newBattleState.enemyPokemon.isTrainerNPC ? 22 : 15));
+        // Practice battle fallback
+        goldGained = Math.floor(newBattleState.enemyPokemon.level * 22);
+        if (player?.id) {
+          await base44.entities.Player.update(player.id, {
+            gold: (player.gold || 0) + goldGained
+          });
+          queryClient.invalidateQueries({ queryKey: ['player'] });
+        }
       }
 
       newBattleState.rewards = {
