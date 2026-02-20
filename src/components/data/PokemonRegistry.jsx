@@ -10,6 +10,11 @@ import { vileplumeData } from './pokemon/vileplume';
 import { bellossomData } from './pokemon/bellossom';
 import { pikachuData } from './pokemon/pikachu';
 import { raichuData } from './pokemon/raichu';
+import { cherubiData } from './pokemon/cherubi';
+import { cherrimData } from './pokemon/cherrim';
+import { tsareenaData } from './pokemon/tsareena';
+import { steeneeData } from './pokemon/steenee';
+import { bounsweetData } from './pokemon/bounsweet';
 
 /**
  * Central Pokemon Registry
@@ -28,12 +33,23 @@ export const PokemonRegistry = {
   bellossom: bellossomData,
   pikachu: pikachuData,
   raichu: raichuData,
+  cherubi: cherubiData,
+  cherrim: cherrimData,
+  bounsweet: bounsweetData,
+  steenee: steeneeData,
+  tsareena: tsareenaData,
   // Add future Pokemon below
 };
+
+function normalizeSpeciesId(speciesId) {
+  return typeof speciesId === 'string' ? speciesId.trim().toLowerCase() : '';
+}
 
 /**
  * Get Pokemon data by species ID
  */
 export function getPokemonData(speciesId) {
-  return PokemonRegistry[speciesId.toLowerCase()] || null;
+  const normalizedSpeciesId = normalizeSpeciesId(speciesId);
+  if (!normalizedSpeciesId) return null;
+  return PokemonRegistry[normalizedSpeciesId] || null;
 }

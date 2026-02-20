@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { TrendingUp, Award } from 'lucide-react';
 import { getPokemonStats } from '../usePokemonStats';
 import { getNatureDescription } from '../statCalculations';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function StatsTab({ pokemon }) {
   const fullStats = getPokemonStats(pokemon);
@@ -39,9 +40,18 @@ export default function StatsTab({ pokemon }) {
             <Award className="w-4 h-4 text-purple-400" />
             <h3 className="text-sm font-semibold text-white">Nature</h3>
           </div>
-          <Badge className="bg-purple-500/20 border-purple-500/30 text-purple-300">
-            {pokemon.nature}
-          </Badge>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge className="bg-purple-500/20 border-purple-500/30 text-purple-300 cursor-help">
+                  {pokemon.nature}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs border border-white/10 bg-slate-900/95 p-2 text-xs text-slate-100 shadow-lg">
+                <p>{natureDesc || 'Affects stat growth patterns.'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {natureDesc && (
             <p className="text-xs text-slate-400 mt-2">{natureDesc}</p>
           )}

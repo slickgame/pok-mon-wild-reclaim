@@ -9,6 +9,8 @@ import { handleMoveAttempt, handleTurnEnd, handleTurnStart } from '@/components/
 import { WeatherRegistry } from '@/components/data/WeatherRegistry';
 import { TerrainRegistry } from '@/components/data/TerrainRegistry';
 import { ScreenRegistry } from '@/components/data/ScreenRegistry';
+import { getPokemonData } from '@/components/data/PokemonRegistry';
+import { getAbilityEffect } from '@/components/data/AbilityEffectRegistry';
 import {
   createDefaultStatStages,
   formatStatStageChange,
@@ -136,6 +138,167 @@ export class BattleEngine {
 
     this.attachModifyStat(this.playerPokemon);
     this.attachModifyStat(this.enemyPokemon);
+
+    this.normalizeHeldItem(this.playerPokemon);
+    this.normalizeHeldItem(this.enemyPokemon);
+
+    this.initializeAbilityProfile(this.playerPokemon);
+    this.initializeAbilityProfile(this.enemyPokemon);
+  }
+
+  normalizeHeldItem(pokemon) {
+    if (!pokemon) return;
+    if (!pokemon.heldItem && Array.isArray(pokemon.heldItems) && pokemon.heldItems.length > 0) {
+      pokemon.heldItem = pokemon.heldItems[0];
+    }
+    if (!Array.isArray(pokemon.heldItems)) {
+      pokemon.heldItems = pokemon.heldItem ? [pokemon.heldItem] : [];
+    }
+  }
+
+
+  initializeAbilityProfile(pokemon) {
+    if (!pokemon) return;
+
+    const speciesData = getPokemonData(pokemon.species);
+    const passiveAbilities = Array.isArray(speciesData?.passiveAbilities)
+      ? speciesData.passiveAbilities
+      : Array.isArray(speciesData?.abilities)
+        ? speciesData.abilities
+        : [];
+    const hiddenAbility = speciesData?.hiddenAbility || null;
+
+    const activeAbility = pokemon.useHiddenAbility && hiddenAbility
+      ? hiddenAbility
+      : passiveAbilities[0] || hiddenAbility || null;
+
+    pokemon.abilityProfile = {
+      passiveAbilities,
+      hiddenAbility,
+      activeAbility
+    };
+    pokemon.abilityState = pokemon.abilityState || {};
+  }
+
+  triggerAbilityTurnStart(pokemon, battleState, logs) {
+    if (!pokemon) return;
+    const activeAbility = pokemon.abilityProfile?.activeAbility;
+    if (!activeAbility) return;
+
+    const abilityEffect = getAbilityEffect(activeAbility);
+    if (!abilityEffect?.onTurnStart) return;
+
+    const battlefield = ensureBattlefield(battleState);
+    abilityEffect.onTurnStart({
+      pokemon,
+      battlefield,
+      state: pokemon.abilityState,
+      applyStatStage: (stat, stages) => {
+        const result = this.modifyStatStage(pokemon, stat, stages, battleState);
+        if (result.actualChange !== 0) {
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: this.getPossessiveName(pokemon),
+            action: this.formatStatStageLogMessage(stat, stages, result.actualChange),
+            result: '',
+            synergyTriggered: false
+          });
+        }
+        return result;
+      },
+      log: (message) => {
+        logs.push({
+          turn: battleState.turnNumber,
+          actor: pokemon.nickname || pokemon.species,
+          action: 'Ability',
+          result: message,
+          synergyTriggered: false
+        });
+      }
+    });
+  }
+
+  clearHeldItem(pokemon) {
+    if (!pokemon) return;
+    pokemon.heldItem = null;
+    pokemon.heldItems = [];
+  }
+
+  getStatusId(pokemon) {
+    return (pokemon?.status?.id || pokemon?.activeStatus?.type || '').toLowerCase();
+  }
+
+  tryConsumeBerry(pokemon, battleState, logs, reason = 'held') {
+    this.normalizeHeldItem(pokemon);
+
+    if (!pokemon.heldItem && pokemon.__berryRefreshReady && pokemon.__lastConsumedBerry) {
+      pokemon.heldItem = { ...pokemon.__lastConsumedBerry };
+      pokemon.heldItems = [pokemon.heldItem];
+      pokemon.__berryRefreshReady = false;
+      logs.push({
+        turn: battleState.turnNumber,
+        actor: pokemon.nickname || pokemon.species,
+        action: 'Ability',
+        result: `${pokemon.nickname || pokemon.species} regrew a ${pokemon.heldItem.name}!`,
+        synergyTriggered: false
+      });
+    }
+
+    const berry = pokemon.heldItem;
+    if (!berry || berry.type !== 'berry') return false;
+
+    const maxHp = pokemon.stats?.maxHp || pokemon.stats?.hp || 0;
+    const currentHp = pokemon.currentHp ?? maxHp;
+    const hpPercent = maxHp > 0 ? currentHp / maxHp : 1;
+    const statusId = this.getStatusId(pokemon);
+
+    let consumed = false;
+    let resultText = '';
+
+    if (berry.berryTrigger === 'low_hp') {
+      const triggerHpPercent = berry.triggerHpPercent ?? 0.5;
+      if (hpPercent <= triggerHpPercent && maxHp > 0) {
+        const healPercent = berry.healPercent ?? 0.125;
+        const healAmount = Math.max(1, Math.floor(maxHp * healPercent));
+        const healedHp = Math.min(maxHp, currentHp + healAmount);
+        if (healedHp > currentHp) {
+          pokemon.currentHp = healedHp;
+          if (pokemon === this.playerPokemon) {
+            battleState.playerHP = healedHp;
+          } else if (pokemon === this.enemyPokemon) {
+            battleState.enemyHP = healedHp;
+          }
+          consumed = true;
+          resultText = `${pokemon.nickname || pokemon.species} consumed ${berry.name} and restored HP!`;
+        }
+      }
+    }
+
+    if (berry.berryTrigger === 'status') {
+      const cures = (berry.curesStatus || []).map((value) => value.toLowerCase());
+      const canCure = statusId && (cures.includes('any') || cures.includes(statusId));
+      if (canCure) {
+        if (pokemon.status) pokemon.status = null;
+        if (pokemon.activeStatus) pokemon.activeStatus = null;
+        consumed = true;
+        resultText = `${pokemon.nickname || pokemon.species} consumed ${berry.name} and cured its status!`;
+      }
+    }
+
+    if (consumed) {
+      pokemon.__lastConsumedBerry = berry;
+      this.clearHeldItem(pokemon);
+      logs.push({
+        turn: battleState.turnNumber,
+        actor: pokemon.nickname || pokemon.species,
+        action: reason === 'stolen' ? 'Berry Stolen' : 'Held Berry',
+        result: resultText,
+        synergyTriggered: false
+      });
+      return true;
+    }
+
+    return false;
   }
 
   handleBattleEvent(eventType, context, logs, battleState) {
@@ -214,6 +377,82 @@ export class BattleEngine {
   getPossessiveName(pokemon) {
     const name = pokemon.nickname || pokemon.species;
     return `${name}'s`;
+  }
+
+  getActiveAbilityName(pokemon) {
+    return (pokemon?.abilityProfile?.activeAbility || '').toLowerCase().replace(/\s+/g, '');
+  }
+
+  hasAbility(pokemon, abilityName) {
+    const target = (abilityName || '').toLowerCase().replace(/\s+/g, '');
+    return this.getActiveAbilityName(pokemon) === target;
+  }
+
+  isPokemonBattleActive(pokemon) {
+    if (!pokemon) return false;
+    const currentHp = Number.isFinite(pokemon.currentHp)
+      ? pokemon.currentHp
+      : Number.isFinite(pokemon.hp)
+        ? pokemon.hp
+        : null;
+    return currentHp === null || currentHp > 0;
+  }
+
+  getPokemonSide(pokemon, battleState) {
+    if (!pokemon || !battleState) return null;
+    if (pokemon === this.playerPokemon || pokemon === battleState.playerPokemon) return 'player';
+    if (pokemon === this.enemyPokemon || pokemon === battleState.enemyPokemon) return 'enemy';
+    if (Array.isArray(battleState.playerTeam) && battleState.playerTeam.includes(pokemon)) return 'player';
+    if (Array.isArray(battleState.enemyTeam) && battleState.enemyTeam.includes(pokemon)) return 'enemy';
+    return null;
+  }
+
+  teamHasAbility(side, abilityName, battleState) {
+    if (!side || !battleState) return false;
+    const members = [];
+    if (side === 'player') {
+      members.push(this.playerPokemon, battleState.playerPokemon, ...(battleState.playerTeam || []));
+    } else {
+      members.push(this.enemyPokemon, battleState.enemyPokemon, ...(battleState.enemyTeam || []));
+    }
+    const deduped = Array.from(new Set(members.filter(Boolean)));
+    return deduped
+      .filter((member) => this.isPokemonBattleActive(member))
+      .some((member) => this.hasAbility(member, abilityName));
+  }
+
+  isSunnyBattlefield(battleState) {
+    const weather = ensureBattlefield(battleState)?.weather;
+    return weather === 'sun' || weather === 'sunny';
+  }
+
+  blocksPriorityMove(attacker, defender, move) {
+    const priority = move?.priority || 0;
+    if (priority <= 0) return false;
+    return this.hasAbility(defender, 'queenlymajesty') && attacker !== defender;
+  }
+
+  isStatusPreventedByAbility(target, statusId, battleState) {
+    const normalizedStatus = String(statusId || '').toLowerCase();
+    const targetSide = this.getPokemonSide(target, battleState);
+
+    if (normalizedStatus === 'sleep' && this.teamHasAbility(targetSide, 'sweetveil', battleState)) {
+      return {
+        prevented: true,
+        reason: `${target.nickname || target.species} is protected from sleep by Sweet Veil.`
+      };
+    }
+
+    if (['burn', 'poison', 'badlypoison', 'paralyze', 'paralysis', 'sleep', 'freeze'].includes(normalizedStatus)
+      && this.hasAbility(target, 'leafguard')
+      && this.isSunnyBattlefield(battleState)) {
+      return {
+        prevented: true,
+        reason: `${target.nickname || target.species}'s Leaf Guard prevents status in sunlight.`
+      };
+    }
+
+    return { prevented: false, reason: '' };
   }
 
   // Calculate turn order based on Speed stat and priority
@@ -472,8 +711,15 @@ export class BattleEngine {
   // Apply status effects
   applyStatusEffect(target, effect, battleState, addBattleLog) {
     const statusId = effect === 'paralysis' ? 'paralyze' : effect;
-    const success = inflictStatus(target, statusId, battleState, addBattleLog);
     const statusName = StatusRegistry[statusId]?.name || statusId;
+    const prevention = this.isStatusPreventedByAbility(target, statusId, battleState);
+
+    if (prevention.prevented) {
+      addBattleLog?.(prevention.reason);
+      return { success: false, status: statusName, preventedByAbility: true };
+    }
+
+    const success = inflictStatus(target, statusId, battleState, addBattleLog);
     if (success) {
       triggerTalent('onStatusApply', this.createTalentContext(battleState, [], {
         target,
@@ -514,11 +760,21 @@ export class BattleEngine {
   }
 
   // Apply buffs/debuffs (legacy)
-  applyStatChange(target, stat, stages, battleState) {
+  applyStatChange(target, stat, stages, battleState, sourcePokemon = null) {
+    const normalizedStat = normalizeStatStageKey(stat);
+    if (
+      stages < 0
+      && normalizedStat === 'atk'
+      && sourcePokemon
+      && sourcePokemon !== target
+      && this.hasAbility(target, 'oblivious')
+    ) {
+      return { stat, stages, actualChange: 0, newTotal: (target.statStages?.[normalizedStat] || 0), blockedByAbility: 'Oblivious' };
+    }
+
     const result = this.modifyStatStage(target, stat, stages, battleState);
     
     const targetState = target === this.playerPokemon ? battleState.playerStatus : battleState.enemyStatus;
-    const normalizedStat = normalizeStatStageKey(stat);
     const existingBuff = targetState.buffs.find(b => b.stat === normalizedStat);
     if (existingBuff) {
       existingBuff.value = result.newTotal;
@@ -923,6 +1179,9 @@ export class BattleEngine {
     this.enemyPokemon.currentHp = battleState.enemyHP;
     this.processBattlefieldTurnStart(battleState, turnLog);
 
+    this.triggerAbilityTurnStart(this.playerPokemon, battleState, turnLog);
+    this.triggerAbilityTurnStart(this.enemyPokemon, battleState, turnLog);
+
     // Process status effects at turn start
     const addLog = (message) => turnLog.push({
       turn: battleState.turnNumber,
@@ -945,6 +1204,9 @@ export class BattleEngine {
     processStatusEffects(this.enemyPokemon, battleState, addLog);
     battleState.playerHP = this.playerPokemon.currentHp;
     battleState.enemyHP = this.enemyPokemon.currentHp;
+
+    this.tryConsumeBerry(this.playerPokemon, battleState, turnLog);
+    this.tryConsumeBerry(this.enemyPokemon, battleState, turnLog);
 
     // Process passive effects at turn start
     const playerPassiveLogs = this.processPassiveEffects(this.playerPokemon, 'player', battleState);
@@ -997,9 +1259,67 @@ export class BattleEngine {
     battleState.playerHP = this.playerPokemon.currentHp;
     battleState.enemyHP = this.enemyPokemon.currentHp;
 
+    this.tryConsumeBerry(this.playerPokemon, battleState, turnLog);
+    this.tryConsumeBerry(this.enemyPokemon, battleState, turnLog);
+
     battleState.lastTurnStatChanges = battleState.currentTurnStatChanges;
     battleState.playerPokemon = this.playerPokemon;
     battleState.enemyPokemon = this.enemyPokemon;
+
+    return turnLog;
+  }
+
+
+  executeTurnQueue(actionQueue = [], battleState, pokemonMap = {}) {
+    const turnLog = [];
+    const addLog = (message, actor = 'System') => turnLog.push({
+      turn: battleState.turnNumber,
+      actor,
+      action: message,
+      result: '',
+      synergyTriggered: false
+    });
+
+    this.processBattlefieldTurnStart(battleState, turnLog);
+
+    actionQueue.forEach((action) => {
+      if (action?.type !== 'move') return;
+      const attackerMon = pokemonMap[action.pokemonId];
+      if (!attackerMon) return;
+      if ((battleState.hpMap?.[action.pokemonId] ?? 0) <= 0) return;
+
+      const defenderIds = Array.isArray(action.defenderIds) ? action.defenderIds : [];
+      if (defenderIds.length === 0) return;
+
+      defenderIds.forEach((defenderId) => {
+        const defenderMon = pokemonMap[defenderId];
+        if (!defenderMon) return;
+        if ((battleState.hpMap?.[defenderId] ?? 0) <= 0) return;
+
+        const attackerKey = (battleState.playerActive || []).includes(action.pokemonId) ? 'player' : 'enemy';
+        const defenderKey = attackerKey === 'player' ? 'enemy' : 'player';
+
+        const moveResult = this.executeMove(
+          { pokemon: attackerMon, move: action.payload, key: attackerKey },
+          { pokemon: defenderMon, key: defenderKey },
+          {
+            ...battleState,
+            playerPokemon: attackerKey === 'player' ? attackerMon : defenderMon,
+            enemyPokemon: attackerKey === 'player' ? defenderMon : attackerMon,
+            playerHP: battleState.hpMap?.[attackerKey === 'player' ? action.pokemonId : defenderId] ?? 0,
+            enemyHP: battleState.hpMap?.[attackerKey === 'player' ? defenderId : action.pokemonId] ?? 0
+          }
+        );
+
+        turnLog.push(...moveResult.logs);
+
+        const estDamage = Math.max(1, Math.floor((action.payload?.power || 40) / 6));
+        battleState.hpMap[defenderId] = Math.max(0, (battleState.hpMap?.[defenderId] ?? 0) - estDamage);
+        if (battleState.hpMap[defenderId] <= 0) {
+          addLog(`${defenderMon.nickname || defenderMon.species} fainted!`);
+        }
+      });
+    });
 
     return turnLog;
   }
@@ -1040,6 +1360,17 @@ export class BattleEngine {
         actor: attacker.pokemon.nickname || attacker.pokemon.species,
         action: 'Error',
         result: 'Move data not found',
+        synergyTriggered: false
+      });
+      return { logs };
+    }
+
+    if (this.blocksPriorityMove(attacker.pokemon, defender.pokemon, move)) {
+      logs.push({
+        turn: battleState.turnNumber,
+        actor: defender.pokemon.nickname || defender.pokemon.species,
+        action: 'Queenly Majesty',
+        result: `blocked ${attacker.pokemon.nickname || attacker.pokemon.species}'s priority move!`,
         synergyTriggered: false
       });
       return { logs };
@@ -1145,6 +1476,12 @@ export class BattleEngine {
       triggerTalent('onMoveHit', this.createTalentContext(battleState, logs, {
         attacker: attacker.pokemon,
         target: defender.pokemon,
+        damage,
+        move
+      }));
+      triggerTalent('onDamaged', this.createTalentContext(battleState, logs, {
+        user: defender.pokemon,
+        attacker: attacker.pokemon,
         damage,
         move
       }));
@@ -1290,7 +1627,7 @@ export class BattleEngine {
             });
           }
         },
-        heldItem: defender.pokemon.heldItems?.[0] || null,
+        heldItem: defender.pokemon.heldItem || defender.pokemon.heldItems?.[0] || null,
         lastStatChanges: battleState.lastTurnStatChanges?.[defender.key] || []
       },
       user: {
@@ -1314,6 +1651,16 @@ export class BattleEngine {
           });
         },
         consumeItemEffect: (item) => {
+          this.tryConsumeBerry(
+            {
+              ...attacker.pokemon,
+              heldItem: item,
+              heldItems: [item]
+            },
+            battleState,
+            logs,
+            'stolen'
+          );
           logs.push({
             turn: battleState.turnNumber,
             actor: attacker.pokemon.nickname || attacker.pokemon.species,
@@ -1342,7 +1689,19 @@ export class BattleEngine {
 
     // Handle special move effects (legacy support)
     if (move.effect) {
-      if (move.effect === 'drain') {
+      if (move.effect === 'selfBoost' && move.statBoosts && typeof move.statBoosts === 'object') {
+        for (const [stat, amount] of Object.entries(move.statBoosts)) {
+          const changeResult = this.applyStatChange(attacker.pokemon, stat, amount, battleState);
+          const message = this.formatStatStageLogMessage(stat, amount, changeResult.actualChange);
+          logs.push({
+            turn: battleState.turnNumber,
+            actor: this.getPossessiveName(attacker.pokemon),
+            action: message,
+            result: '',
+            synergyTriggered: false
+          });
+        }
+      } else if (move.effect === 'drain') {
         const sourceMaxHp = attacker.pokemon.stats?.maxHp || attacker.pokemon.stats?.hp || 0;
         const sourceCurrentHp = attacker.pokemon.currentHp ?? (attacker.key === 'player' ? battleState.playerHP : battleState.enemyHP);
         const drainPercent = typeof move.drainPercentage === 'number' ? move.drainPercentage : 0.5;
@@ -1588,7 +1947,7 @@ export class BattleEngine {
         Object.entries(statChanges).forEach(([stat, stages]) => {
           const stagesValue = typeof stages === 'number' ? stages : 0;
           const normalizedStat = normalizeStatStageKey(stat);
-          const changeResult = this.applyStatChange(defender.pokemon, normalizedStat, stagesValue, battleState);
+          const changeResult = this.applyStatChange(defender.pokemon, normalizedStat, stagesValue, battleState, attacker.pokemon);
           
           // Track for Echo Thread
           if (changeResult.actualChange !== 0) {
@@ -1613,7 +1972,7 @@ export class BattleEngine {
         const statChanges = move.effect.selfStatChange;
         Object.entries(statChanges).forEach(([stat, stages]) => {
           const normalizedStat = normalizeStatStageKey(stat);
-          const changeResult = this.applyStatChange(attacker.pokemon, normalizedStat, stages, battleState);
+          const changeResult = this.applyStatChange(attacker.pokemon, normalizedStat, stages, battleState, attacker.pokemon);
           if (changeResult.actualChange !== 0) {
             battleState.currentTurnStatChanges[attacker.key] = battleState.currentTurnStatChanges[attacker.key] || [];
             battleState.currentTurnStatChanges[attacker.key].push({
