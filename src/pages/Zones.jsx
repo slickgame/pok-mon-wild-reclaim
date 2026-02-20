@@ -3216,26 +3216,6 @@ function ZoneDetailView({ zone, onBack }) {
               <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => handleExploreNodelet(activeNodelet)}>
                 Explore Location
               </Button>
-              {activeNodelet.actions?.map((actionLabel) => {
-                const currentProgress = zoneProgress?.discoveryProgress || 0;
-                const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
-                const isLocked = currentProgress < unlockAt;
-
-                return (
-                  <Button
-                    key={`nodelet-${actionLabel}`}
-                    size="sm"
-                    variant="outline"
-                    disabled={isLocked}
-                    className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${
-                      isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                    onClick={() => handleNodeletAction(activeNodelet, actionLabel)}
-                  >
-                    {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                  </Button>
-                );
-              })}
               <Button size="sm" variant="outline" className="border-slate-700 text-slate-200" onClick={() => handleNodeletInspect(activeNodelet)}>
                 Details
               </Button>
@@ -3278,29 +3258,7 @@ function ZoneDetailView({ zone, onBack }) {
               </Button>
             )}
 
-            {activeNodelet.id === 'vh-brambleberry-thicket' && (() => {
-              const contractState = getBrambleberryContractState(activeNodelet);
-              return (
-                <div className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3 mb-3">
-                  <h4 className="text-xs font-semibold text-fuchsia-200 mb-2">Brambleberry Contract Board</h4>
-                  <Badge className="bg-rose-500/10 border border-rose-500/20 text-rose-100 mb-2">
-                    🕵️ Poacher Presence: {activeNodelet.poacherPresence || 0}/100
-                  </Badge>
-                  <div className="space-y-1 text-xs text-fuchsia-100/90">
-                    <p>Tier I (Merra Contract): {contractState.tier1Completed ? `Complete (${contractState.tier1Runs} run${contractState.tier1Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
-                    <p>Tier II (Streak Contract): {contractState.tier2Completed ? `Complete (${contractState.tier2Runs} run${contractState.tier2Runs > 1 ? 's' : ''})` : 'Not yet complete'}</p>
-                  </div>
-                </div>
-              );
-            })()}
 
-            {activeNodelet.gameplayFeatures?.length > 0 && (
-              <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300">
-                {activeNodelet.gameplayFeatures.map((feature) => (
-                  <li key={feature}>{feature}</li>
-                ))}
-              </ul>
-            )}
           </div>
         </div>
       )}
@@ -3433,27 +3391,7 @@ function ZoneDetailView({ zone, onBack }) {
         </DialogContent>
       </Dialog>
 
-      {activeSection === 'camp' && (
-        <div className="glass rounded-xl p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-white">Camp</h3>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-              <h4 className="text-sm font-semibold text-white mb-1">Rest</h4>
-              <p className="text-xs text-slate-400 mb-3">Recovers 10% HP for non-fainted Pokémon. Advances time by 1 hour. Does not restore PP.</p>
-              <Button onClick={handleCampRest} className="w-full bg-indigo-500 hover:bg-indigo-600">
-                Rest (+1 hour)
-              </Button>
-            </div>
-            <div className="flex-1 bg-slate-800/50 rounded-lg p-4 border border-emerald-700/40">
-              <h4 className="text-sm font-semibold text-emerald-300 mb-1">Sleep</h4>
-              <p className="text-xs text-slate-400 mb-3">Fully restores HP <span className="text-emerald-300 font-medium">and PP</span> for all Pokémon. Advances time by 8 hours. Fainted Pokémon are not revived.</p>
-              <Button onClick={handleCampSleep} className="w-full bg-emerald-500 hover:bg-emerald-600">
-                Sleep (+8 hours)
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {activeSection === 'items' &&
       <ZoneInventoryPanel items={items} />
@@ -3800,8 +3738,8 @@ function ZoneDetailView({ zone, onBack }) {
         </DialogContent>
       </Dialog>
 
-      {activeSection === 'camp' &&
-      <div className="glass rounded-xl p-6 space-y-4">
+      {activeSection === 'camp' && (
+        <div className="glass rounded-xl p-6 space-y-4">
           <h3 className="text-lg font-semibold text-white">Camp</h3>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 bg-slate-800/50 rounded-lg p-4 border border-slate-700">
@@ -3820,15 +3758,15 @@ function ZoneDetailView({ zone, onBack }) {
             </div>
           </div>
         </div>
-      }
+      )}
 
-      {activeSection === 'items' &&
-      <ZoneInventoryPanel items={items} />
-      }
+      {activeSection === 'items' && (
+        <ZoneInventoryPanel items={items} />
+      )}
 
-      {activeSection === 'pokemon' &&
-      <ZonePartyPanel player={player} allPokemon={allPokemon} />
-      }
+      {activeSection === 'pokemon' && (
+        <ZonePartyPanel player={player} allPokemon={allPokemon} />
+      )}
 
       {activeSection === 'bestiary' &&
       <ZoneBestiary
