@@ -351,18 +351,52 @@ export function pickRandomTrainer(nodeletId) {
 
 /**
  * Build a reward payout from a trainer's reward table.
+ * Applies boss/named multipliers and guaranteed signature drops.
  * Returns { gold: number, items: string[] }
  */
 export function rollTrainerRewards(trainer) {
-  if (!trainer?.rewards) return { gold: 100, items: [] };
-  const { gold, items = [] } = trainer.rewards;
-  const goldAmount = gold
+  const t = trainer || {};
+  const tier = t.aiTier || t.tier || 1;
+
+  // Base gold + item rolls from reward table
+  const rewardTable = t.rewards || {};
+  const { gold, items = [] } = rewardTable;
+  let baseGold = gold
     ? Math.floor(Math.random() * (gold.max - gold.min + 1)) + gold.min
     : 100;
 
-  const droppedItems = items
+  let droppedItems = items
     .filter(item => Math.random() < item.chance)
     .map(item => item.name);
 
-  return { gold: goldAmount, items: droppedItems };
+  // --- Boss / Named modifiers ---
+  const isNamed = Boolean(t.isNamed);
+  const isBoss = Boolean(t.isBoss);
+
+  let goldMult = 1.0;
+  if (isNamed) goldMult *= 1.25;
+  if (isBoss) {
+    if (tier >= 4) goldMult *= 1.75;
+    else if (tier >= 3) goldMult *= 1.55;
+    else goldMult *= 1.40;
+  }
+
+  baseGold = Math.round(baseGold * goldMult);
+
+  // Guaranteed signature material
+  if (isBoss) {
+    const sig = t.signatureDrop || 'Poacher Emblem';
+    droppedItems = [sig, ...droppedItems];
+  } else if (isNamed) {
+    const sig = t.signatureDrop || 'Marked Coin';
+    droppedItems = [sig, ...droppedItems];
+  }
+
+  // Bonus roll for bosses (50% chance to duplicate a drop)
+  if (isBoss && Math.random() < 0.5 && droppedItems.length > 0) {
+    const extra = droppedItems[1] || droppedItems[0];
+    if (extra) droppedItems.push(extra);
+  }
+
+  return { gold: baseGold, items: droppedItems };
 }
