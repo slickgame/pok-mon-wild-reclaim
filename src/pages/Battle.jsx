@@ -67,6 +67,7 @@ export default function BattlePage() {
   const [battleSummary, setBattleSummary] = useState(null); // Battle summary data
   const [faintedIds, setFaintedIds] = useState([]); // Track which Pokemon fainted in battle
   const [locationHazardEscapePenalty, setLocationHazardEscapePenalty] = useState(0);
+  const [trainerData, setTrainerData] = useState(null);
   const [trainerIntro, setTrainerIntro] = useState(null); // { trainer, roster }
   const [battleReady, setBattleReady] = useState(false); // gated until intro dismissed
   const [introDismissed, setIntroDismissed] = useState(false); // prevent re-show
