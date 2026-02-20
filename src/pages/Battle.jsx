@@ -1710,25 +1710,24 @@ export default function BattlePage() {
                 wasCaptured: battleState.status === 'captured'
               }}
               onClose={async () => {
-                 // Clean up wild Pokémon only if NOT captured
-                 if (battleState.isWildBattle && battleState.status !== 'captured') {
-                   await cleanupEncounterPokemon();
-                 }
+                 // Clean up all spawned encounter Pokémon unless captured
+                   if (battleState?.status !== 'captured') {
+                     await cleanupEncounterPokemon();
+                   }
 
-               // Return to exploration if this was a wild battle
-               if (returnTo && battleState.isWildBattle) {
-                 const separator = returnTo.includes('?') ? '&' : '?';
-                 const battleOutcome = battleState.status === 'won' || battleState.status === 'captured'
-                   ? 'victory'
-                   : 'defeat';
-                 navigate(`/${returnTo}${separator}battleOutcome=${battleOutcome}`);
-               } else {
-                 setBattleState(null);
-                 setWildPokemonId(null);
-                 setEncounterPokemonIds([]);
-                 setTrainerRoster([]);
-                 setReturnTo(null);
-               }
+                 if (returnTo) {
+                   const separator = returnTo.includes('?') ? '&' : '?';
+                   const battleOutcome = battleState.status === 'won' || battleState.status === 'captured'
+                     ? 'victory'
+                     : 'defeat';
+                   navigate(`/${returnTo}${separator}battleOutcome=${battleOutcome}`);
+                 } else {
+                   setBattleState(null);
+                   setWildPokemonId(null);
+                   setEncounterPokemonIds([]);
+                   setTrainerRoster([]);
+                   setReturnTo(null);
+                 }
               }}
             />
           )}
