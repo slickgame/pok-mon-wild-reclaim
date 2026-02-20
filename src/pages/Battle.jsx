@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTutorialTrigger } from '../components/tutorial/TutorialTrigger';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Swords, Trophy, Sparkles, AlertCircle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,12 +25,25 @@ import { applyEVGains } from '@/components/pokemon/evManager';
 import { getPokemonStats } from '@/components/pokemon/usePokemonStats';
 import { getAllMovesUpToLevel, getMovesLearnedAtLevel } from '@/components/pokemon/levelUpLearnsets';
 import MoveLearnModal from '@/components/battle/MoveLearnModal';
-import { checkEvolution, getEvolvedStats, getEvolvedRoles, evolvePokemon } from '@/components/pokemon/evolutionData';
+import { checkEvolution, evolvePokemon } from '@/components/pokemon/evolutionData';
 import EvolutionModal from '@/components/pokemon/EvolutionModal';
 import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
 import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zones/wildPokemonData';
 import { getMoveData } from '@/components/utils/getMoveData';
+import ActionQueuePanel from '@/components/battle/multi/ActionQueuePanel';
+import {
+  createBattleState,
+  syncLegacyFields,
+  isSideDefeated,
+  removeFainted,
+  sendNextFromBench,
+  sortActionQueue,
+  switchIn
+} from '@/components/battle/battleStateModel';
+import { rollTrainerRewards } from '@/components/data/TrainerRegistry';
+import { POACHER_REWARD_TIERS } from '@/components/zones/poacherTrainerRegistry';
+import { buildPoacherReturnMetaParams } from '@/components/zones/poacherOutcomeHandoff';
 
 const createDefaultBattlefield = () => ({
   terrain: null,
@@ -49,18 +62,20 @@ const createDefaultBattlefield = () => ({
 
 export default function BattlePage() {
   const [battleState, setBattleState] = useState(null);
-  const [selectedMove, setSelectedMove] = useState(null);
   const [wildPokemonId, setWildPokemonId] = useState(null);
+  const [encounterPokemonIds, setEncounterPokemonIds] = useState([]);
+  const [trainerRoster, setTrainerRoster] = useState([]);
   const [returnTo, setReturnTo] = useState(null);
   const [capturingPokemon, setCapturingPokemon] = useState(false);
   const [actionMenu, setActionMenu] = useState('main'); // 'main', 'fight', 'items', 'switch', 'pokeballs'
-  const [selectedPokeball, setSelectedPokeball] = useState(null);
   const [moveLearnState, setMoveLearnState] = useState(null); // { pokemon, newMoves, currentMoves, pendingUpdate }
   const [evolutionState, setEvolutionState] = useState(null); // { pokemon, evolvesInto, pendingUpdate }
   const [captureModalState, setCaptureModalState] = useState(null); // { pokemon, addedToParty }
   const [itemsUsed, setItemsUsed] = useState([]); // Track items used in battle
   const [battleSummary, setBattleSummary] = useState(null); // Battle summary data
   const [faintedIds, setFaintedIds] = useState([]); // Track which Pokemon fainted in battle
+  const [poacherBattleMeta, setPoacherBattleMeta] = useState(null);
+  const [trainerData, setTrainerData] = useState(null);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -71,9 +86,22 @@ export default function BattlePage() {
     const state = location.state;
 
     if (state?.wildPokemonId) {
-    setWildPokemonId(state.wildPokemonId);
-    setReturnTo(state.returnTo || 'Zones');
-    triggerTutorial('first_battle');
+      setWildPokemonId(state.wildPokemonId);
+      setEncounterPokemonIds(state.encounterPokemonIds || [state.wildPokemonId]);
+      setTrainerRoster(Array.isArray(state.trainerRoster) ? state.trainerRoster : []);
+      setFaintedIds([]);
+      setTrainerData(state?.trainerData || null);
+      setReturnTo(state.returnTo || 'Zones');
+      setPoacherBattleMeta({
+        trainerId: state.poacherTrainerId || null,
+        trainerTier: state.poacherTrainerTier || null,
+        aiProfile: state.poacherTrainerAiProfile || null,
+        rewardTier: state.poacherRewardTier || null,
+        lossProfile: state.poacherLossProfile || null,
+        triggeredByAction: state.triggeredByAction || null,
+        harvestTxnId: state.harvestTxnId || null
+      });
+      triggerTutorial('first_battle');
     }
 
     // Clean up navigation state to prevent reuse
@@ -162,6 +190,30 @@ export default function BattlePage() {
     enabled: !!wildPokemonId
   });
 
+  const pokemonMap = useMemo(() => {
+    const map = {};
+    const all = [...(playerPokemon || []), ...(trainerRoster || [])];
+
+    for (const mon of all) {
+      if (!mon?.id) continue;
+      const withStats = getPokemonStats(mon);
+
+      map[mon.id] = {
+        ...withStats,
+        abilities: withStats.abilities || mon.abilities || [],
+        movePP: withStats.movePP || mon.movePP || {},
+        statStages: withStats.statStages || createDefaultStatStages(),
+        types: withStats.types || mon.types || (mon.type ? [mon.type] : []),
+        nickname: withStats.nickname || mon.nickname
+      };
+    }
+    return map;
+  }, [playerPokemon, trainerRoster]);
+
+  const isTrainer3v3 = useMemo(() => {
+    return Boolean(trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
+  }, [trainerData, trainerRoster]);
+
   // Auto-start battle with wild Pokémon
   useEffect(() => {
     if (wildPokemon && playerPokemon.length > 0 && !battleState) {
@@ -173,6 +225,26 @@ export default function BattlePage() {
   const startWildBattle = (wildMon) => {
     if (playerPokemon.length === 0) return;
 
+    if (isTrainer3v3) {
+      const multiState = createBattleState({
+        playerParty: playerPokemon,
+        enemyParty: trainerRoster,
+        activeSlots: 3,
+        isWildBattle: false,
+        openingLog: `${trainerData?.name || 'Trainer'} challenges you to a 3v3 battle!`
+      });
+
+      multiState.pokemonMap = pokemonMap;
+      multiState.playerPokemon = pokemonMap[multiState.playerActive?.[0]] || playerPokemon[0];
+      multiState.enemyPokemon = pokemonMap[multiState.enemyActive?.[0]] || trainerRoster[0];
+      multiState.enemyTeam = trainerRoster;
+
+      syncLegacyFields(multiState);
+      setBattleState({ ...multiState });
+      setActionMenu('main');
+      return;
+    }
+
     // Always use first Pokémon in party as lead
     const playerMon = playerPokemon[0];
     const playerStatsResult = getPokemonStats(playerMon);
@@ -181,22 +253,70 @@ export default function BattlePage() {
     const playerStats = playerStatsResult?.stats || playerMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     const wildStats = wildStatsResult?.stats || wildMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     
+    const initialEnemyTeam = trainerRoster.length > 0 ? trainerRoster : [wildMon];
+
     setBattleState({
       playerPokemon: playerMon,
       enemyPokemon: wildMon,
+      enemyTeam: initialEnemyTeam,
       playerHP: playerStats.maxHp,
       enemyHP: wildStats.maxHp,
       turnNumber: 1,
       currentTurn: 'player',
       battleLog: [
-        { turn: 1, actor: 'System', action: `A wild ${wildMon.species} appeared!`, result: '', synergyTriggered: false }
+        { turn: 1, actor: 'System', action: wildMon.isTrainerNPC ? `${wildMon.trainerName || 'Trainer'} challenged you with ${wildMon.species}!` : `A wild ${wildMon.species} appeared!`, result: wildMon.isTrainerNPC ? `Trainer party size: ${initialEnemyTeam.length}` : '', synergyTriggered: false }
       ],
       playerStatus: { conditions: [], buffs: [] },
       enemyStatus: { conditions: [], buffs: [] },
       battlefield: createDefaultBattlefield(),
       synergyChains: 0,
-      isWildBattle: true
+      isWildBattle: !wildMon.isTrainerNPC
     });
+  };
+
+
+  const getRemainingTrainerPokemonCount = (state) => {
+    const team = Array.isArray(state?.enemyTeam) && state.enemyTeam.length > 0
+      ? state.enemyTeam
+      : trainerRoster;
+    if (!Array.isArray(team) || team.length === 0) return 0;
+
+    const faintedEnemyIds = new Set(state?.faintedEnemyIds || []);
+    const activeEnemyId = state?.enemyPokemon?.id;
+    return team.filter((pokemon) => pokemon.id !== activeEnemyId && !faintedEnemyIds.has(pokemon.id)).length;
+  };
+
+  const getNextTrainerPokemon = (state) => {
+    if (!state?.enemyPokemon?.isTrainerNPC) return null;
+    const team = Array.isArray(state.enemyTeam) && state.enemyTeam.length > 0
+      ? state.enemyTeam
+      : trainerRoster;
+
+    if (!Array.isArray(team) || team.length === 0) return null;
+
+    const faintedEnemyIds = new Set(state.faintedEnemyIds || []);
+    const activeEnemyId = state.enemyPokemon?.id;
+    if (activeEnemyId) {
+      faintedEnemyIds.add(activeEnemyId);
+    }
+
+    return team.find((pokemon) => !faintedEnemyIds.has(pokemon.id)) || null;
+  };
+
+  const cleanupEncounterPokemon = async (excludeIds = []) => {
+    const idsToDelete = (encounterPokemonIds || []).filter((id) => id && !excludeIds.includes(id));
+    if (idsToDelete.length === 0) return;
+
+    await Promise.all(idsToDelete.map(async (id) => {
+      try {
+        await base44.entities.Pokemon.delete(id);
+      } catch (err) {
+        console.error('Failed to delete encounter Pokémon:', err);
+      }
+    }));
+
+    queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
+    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
   };
 
   // Start a new battle (practice mode)
@@ -464,7 +584,182 @@ export default function BattlePage() {
   };
 
   // Use a move
-  const useMove = async (move) => {
+  const buildEnemyActionsBasic = (state) => {
+    const hpMap = state.hpMap || {};
+    const enemyActs = [];
+    const enemyActive = state.enemyActive || [];
+    const playerActive = state.playerActive || [];
+
+    const alivePlayers = playerActive.filter((id) => (hpMap[id] ?? 0) > 0);
+    const firstAlive = alivePlayers[0];
+    if (!firstAlive) return enemyActs;
+
+    for (const enemyId of enemyActive) {
+      const mon = pokemonMap[enemyId];
+      if (!mon) continue;
+      if ((hpMap[enemyId] ?? 0) <= 0) continue;
+
+      const moveName = (mon.abilities || []).find((mn) => {
+        const md = getMoveData(mn, mon);
+        if (!md) return false;
+        const maxPP = md.pp || 10;
+        const curPP = mon.movePP?.[mn] !== undefined ? mon.movePP[mn] : maxPP;
+        return curPP > 0;
+      }) || (mon.abilities?.[0] || 'Tackle');
+
+      const moveData = getMoveData(moveName, mon) || { name: moveName, type: 'Normal', power: 40, target: 'single-opponent' };
+      const targetClass = moveData.target || 'single-opponent';
+
+      let defenderIds = [];
+      if (targetClass === 'all-opponents') defenderIds = alivePlayers;
+      else if (targetClass === 'self') defenderIds = [enemyId];
+      else defenderIds = [firstAlive];
+
+      enemyActs.push({
+        type: 'move',
+        pokemonId: enemyId,
+        side: 'enemy',
+        payload: moveData,
+        defenderIds
+      });
+    }
+
+    return enemyActs;
+  };
+
+  const handleMultiFaintsAndRefill = (state, turnLog) => {
+    const hpMap = state.hpMap || {};
+    const isAlive = (id) => (hpMap[id] ?? 0) > 0;
+
+    const logSys = (msg) => turnLog.push({
+      turn: state.turnNumber,
+      actor: 'System',
+      action: msg,
+      result: '',
+      synergyTriggered: false
+    });
+
+    for (const id of [...(state.playerActive || [])]) {
+      if (!isAlive(id)) {
+        removeFainted(state, id, 'player');
+        logSys(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'A Pokémon'} fainted!`);
+      }
+    }
+    for (const id of [...(state.enemyActive || [])]) {
+      if (!isAlive(id)) {
+        removeFainted(state, id, 'enemy');
+        logSys(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'Enemy'} fainted!`);
+      }
+    }
+
+    while ((state.playerActive || []).length < (state.activeSlots || 1)) {
+      const nextId = (state.playerBench || []).find(isAlive);
+      if (!nextId) break;
+      const sent = sendNextFromBench(state, 'player');
+      if (!sent) break;
+      if (!isAlive(sent)) continue;
+      logSys(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'A Pokémon'} enters the fight!`);
+    }
+
+    while ((state.enemyActive || []).length < (state.activeSlots || 1)) {
+      const nextId = (state.enemyBench || []).find(isAlive);
+      if (!nextId) break;
+      const sent = sendNextFromBench(state, 'enemy');
+      if (!sent) break;
+      if (!isAlive(sent)) continue;
+      logSys(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'Enemy'} enters the fight!`);
+    }
+
+    return state;
+  };
+
+  const runMultiTurn = (playerActions) => {
+    setBattleState((prev) => {
+      if (!prev) return prev;
+
+      const enemyActions = buildEnemyActionsBasic(prev);
+      const combined = [
+        ...playerActions.map((a) => ({ ...a, side: 'player' })),
+        ...enemyActions
+      ];
+
+      const sorted = sortActionQueue(combined, pokemonMap, `turn:${prev.turnNumber || 1}`);
+      const turnLog = [];
+
+      const remaining = [];
+      for (const action of sorted) {
+        if (action.type !== 'switch') {
+          remaining.push(action);
+          continue;
+        }
+        const { outId, inId } = action.payload || {};
+        if (!outId || !inId) continue;
+        switchIn(prev, action.side, outId, inId);
+        const inMon = pokemonMap[inId];
+        turnLog.push({
+          turn: prev.turnNumber,
+          actor: 'System',
+          action: 'Switch',
+          result: `${inMon?.nickname || inMon?.species || 'A Pokémon'} switched in!`,
+          synergyTriggered: false
+        });
+      }
+
+      const hpMap = prev.hpMap || {};
+      const isAlive = (id) => (hpMap[id] ?? 0) > 0;
+
+      const cleaned = remaining
+        .map((a) => {
+          if (a.type !== 'move') return a;
+          if (!isAlive(a.pokemonId)) return null;
+
+          const targetClass = a.payload?.target || 'single-opponent';
+          if (targetClass === 'all-opponents') {
+            const pool = a.side === 'player' ? prev.enemyActive : prev.playerActive;
+            const alive = (pool || []).filter(isAlive);
+            return { ...a, defenderIds: alive };
+          }
+
+          if (Array.isArray(a.defenderIds) && a.defenderIds.length) {
+            const aliveChosen = a.defenderIds.filter(isAlive);
+            if (aliveChosen.length) return { ...a, defenderIds: aliveChosen };
+            const pool = a.side === 'player' ? prev.enemyActive : prev.playerActive;
+            const fallback = (pool || []).find(isAlive);
+            return fallback ? { ...a, defenderIds: [fallback] } : null;
+          }
+
+          const pool = a.side === 'player' ? prev.enemyActive : prev.playerActive;
+          const fallback = (pool || []).find(isAlive);
+          return fallback ? { ...a, defenderIds: [fallback] } : null;
+        })
+        .filter(Boolean)
+        .filter((a) => a.type !== 'move' || (a.defenderIds?.length ?? 0) > 0);
+
+      const engine = new BattleEngine(
+        pokemonMap[prev.playerActive?.[0]] || prev.playerPokemon,
+        pokemonMap[prev.enemyActive?.[0]] || prev.enemyPokemon,
+        pokemonMap
+      );
+
+      const engineLog = engine.executeTurnQueue(cleaned, prev, pokemonMap);
+      const after = handleMultiFaintsAndRefill(prev, engineLog);
+
+      if (isSideDefeated(after, 'enemy')) after.status = 'won';
+      if (isSideDefeated(after, 'player')) after.status = 'lost';
+
+      after.turnNumber = (after.turnNumber || 1) + 1;
+      after.battleLog = [...(after.battleLog || []), ...turnLog, ...engineLog];
+
+      after.playerPokemon = pokemonMap[after.playerActive?.[0]] || after.playerPokemon;
+      after.enemyPokemon = pokemonMap[after.enemyActive?.[0]] || after.enemyPokemon;
+      after.pokemonMap = pokemonMap;
+      syncLegacyFields(after);
+
+      return { ...after };
+    });
+  };
+
+  const performMove = async (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
 
     // Initialize battle engine
@@ -489,6 +784,37 @@ export default function BattlePage() {
 
     // Check for victory/defeat
     if (newBattleState.enemyHP <= 0) {
+      const defeatedEnemy = newBattleState.enemyPokemon;
+      const updatedFaintedEnemyIds = Array.from(new Set([...(newBattleState.faintedEnemyIds || []), defeatedEnemy.id]));
+      newBattleState.faintedEnemyIds = updatedFaintedEnemyIds;
+
+      const nextTrainerPokemon = getNextTrainerPokemon({
+        ...newBattleState,
+        faintedEnemyIds: updatedFaintedEnemyIds
+      });
+
+      if (nextTrainerPokemon) {
+        const nextStatsResult = getPokemonStats(nextTrainerPokemon);
+        const nextStats = nextStatsResult?.stats || nextTrainerPokemon.stats || { maxHp: 100 };
+        const nextMaxHp = nextStats.maxHp || 100;
+
+        newBattleState.enemyPokemon = nextTrainerPokemon;
+        newBattleState.enemyHP = nextTrainerPokemon.currentHp ?? nextMaxHp;
+        newBattleState.currentTurn = 'player';
+        newBattleState.enemyStatus = { conditions: [], buffs: [] };
+        const remainingOpponents = getRemainingTrainerPokemonCount({ ...newBattleState, enemyPokemon: nextTrainerPokemon });
+        newBattleState.battleLog.push({
+          turn: newBattleState.turnNumber,
+          actor: 'System',
+          action: defeatedEnemy.trainerName || 'Trainer',
+          result: `${nextTrainerPokemon.nickname || nextTrainerPokemon.species} was sent out! (${remainingOpponents} remaining)`,
+          synergyTriggered: false
+        });
+
+        setBattleState(newBattleState);
+        return;
+      }
+
       newBattleState.status = 'won';
       newBattleState.currentTurn = 'ended';
       newBattleState.battleLog.push({
@@ -501,16 +827,20 @@ export default function BattlePage() {
 
       // Award XP to all team members
       const speciesData = wildPokemonData[newBattleState.enemyPokemon.species];
-      const baseXpGained = speciesData 
-        ? calculateWildXP(speciesData, newBattleState.enemyPokemon.level, false)
-        : Math.floor(newBattleState.enemyPokemon.level * 25);
+      const trainerTeam = Array.isArray(newBattleState.enemyTeam) && newBattleState.enemyTeam.length > 0 ? newBattleState.enemyTeam : trainerRoster;
+      const trainerTeamLevelTotal = trainerTeam.reduce((sum, mon) => sum + (mon?.level || 0), 0);
+      const trainerAvgLevel = trainerTeam.length > 0 ? Math.floor(trainerTeamLevelTotal / trainerTeam.length) : (newBattleState.enemyPokemon.level || 1);
+      const trainerBattleXpBase = Math.floor((trainerAvgLevel * 24) + (trainerTeam.length * 18));
+      const baseXpGained = newBattleState.enemyPokemon.isTrainerNPC
+        ? trainerBattleXpBase
+        : (speciesData
+          ? calculateWildXP(speciesData, newBattleState.enemyPokemon.level, Boolean(newBattleState.enemyPokemon.isTrainerNPC))
+          : Math.floor(newBattleState.enemyPokemon.level * 25));
       const xpResults = [];
       const pokemonToUpdate = [];
 
       // Process each team member
       for (const teamMember of playerPokemon) {
-        const pokemonStats = getPokemonStats(teamMember);
-        const maxHp = pokemonStats?.stats?.maxHp || teamMember.stats?.maxHp || 100;
         // Check if this Pokemon fainted during battle (use battle session tracking)
         const isFainted = faintedIds.includes(teamMember.id);
 
@@ -617,8 +947,46 @@ export default function BattlePage() {
           }
         }
       } else {
-        // Practice battles still give gold
-        goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
+        // Trainer battles award registry-driven rewards.
+        if (newBattleState.enemyPokemon?.isTrainerNPC) {
+          const payout = rollTrainerRewards(trainerData);
+
+          const gold = payout?.gold || 0;
+          if (gold > 0 && player?.id) {
+            await base44.entities.Player.update(player.id, { gold: (player.gold || 0) + gold });
+            queryClient.invalidateQueries({ queryKey: ['player'] });
+          }
+
+          if (Array.isArray(payout?.items) && payout.items.length) {
+            for (const name of payout.items) {
+              const existing = await base44.entities.Item.filter({ name });
+              if (existing?.length) {
+                const it = existing[0];
+                await base44.entities.Item.update(it.id, { quantity: (it.quantity || 1) + 1 });
+              } else {
+                await base44.entities.Item.create({
+                  name,
+                  quantity: 1,
+                  stackable: true,
+                  type: 'Material',
+                  rarity: 'Uncommon',
+                  description: `Taken from ${trainerData?.name || 'a trainer'}.`,
+                  sellValue: 10
+                });
+              }
+            }
+            queryClient.invalidateQueries({ queryKey: ['items'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          }
+
+          goldGained = gold;
+          materialsDropped.push(...(payout?.items || []));
+        } else {
+          const trainerTeam = Array.isArray(newBattleState.enemyTeam) && newBattleState.enemyTeam.length > 0 ? newBattleState.enemyTeam : trainerRoster;
+          const trainerTeamLevelTotal = trainerTeam.reduce((sum, mon) => sum + (mon?.level || 0), 0);
+          const baseTrainerGold = Math.floor((trainerTeamLevelTotal * 5) + (trainerTeam.length * 16));
+          goldGained = baseTrainerGold;
+        }
       }
 
       newBattleState.rewards = {
@@ -741,23 +1109,17 @@ export default function BattlePage() {
   // Flee from battle
   const fleeBattle = async () => {
     if (!battleState || !battleState.isWildBattle) return;
-    
-    // Delete the wild Pokemon when fleeing
-    if (wildPokemonId) {
-      try {
-        await base44.entities.Pokemon.delete(wildPokemonId);
-        queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
-      } catch (err) {
-        console.error('Failed to delete wild Pokemon:', err);
-      }
-    }
-    
-    // Navigate back to zone using React Router
+
+    await cleanupEncounterPokemon();
+
+    // Navigate back to zone using React Router (wild flee always succeeds)
     if (returnTo) {
       navigate(`/${returnTo}`);
     } else {
       setBattleState(null);
       setWildPokemonId(null);
+      setEncounterPokemonIds([]);
+      setTrainerRoster([]);
       setReturnTo(null);
     }
   };
@@ -826,7 +1188,7 @@ export default function BattlePage() {
 
     triggerTalent('onSwitchIn', {
       playerTeam: [newPokemon],
-      enemyTeam: [battleState.enemyPokemon],
+      enemyTeam: battleState.enemyTeam || [battleState.enemyPokemon],
       battleState: newBattleState,
       turnCount: newBattleState.turnNumber,
       weather: mappedWeather,
@@ -855,7 +1217,7 @@ export default function BattlePage() {
   };
 
   // Use battle item
-  const useItem = async (item) => {
+  const handleBattleItem = async (item) => {
     if (!battleState) return;
 
     let healAmount = 0;
@@ -1226,6 +1588,7 @@ export default function BattlePage() {
 
   const isPlayerTurn = battleState?.currentTurn === 'player';
   const isBattleEnded = battleState?.status === 'won' || battleState?.status === 'lost';
+  const isMulti = Boolean(battleState?.activeSlots && battleState.activeSlots > 1);
 
   return (
     <div>
@@ -1423,14 +1786,8 @@ export default function BattlePage() {
               summary={battleSummary}
               onClose={async () => {
                 // Clean up wild Pokémon if defeated (not captured)
-                if (wildPokemonId && battleState?.isWildBattle && battleState.status === 'won') {
-                  try {
-                    await base44.entities.Pokemon.delete(wildPokemonId);
-                    queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
-                    queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-                  } catch (err) {
-                    console.error('Failed to delete defeated wild Pokémon:', err);
-                  }
+                if (battleState?.isWildBattle && battleState.status === 'won') {
+                  await cleanupEncounterPokemon();
                 }
 
                 setBattleSummary(null);
@@ -1439,6 +1796,8 @@ export default function BattlePage() {
                 } else {
                   setBattleState(null);
                   setWildPokemonId(null);
+                  setEncounterPokemonIds([]);
+                  setTrainerRoster([]);
                   setReturnTo(null);
                   setItemsUsed([]);
                 }
@@ -1454,7 +1813,11 @@ export default function BattlePage() {
                         battleState.status === 'won' ? 'victory' : 'defeat',
                 enemyName: battleState.enemyPokemon.species,
                 xpGained: (battleState.status === 'won' || battleState.status === 'captured') ? (battleState.rewards?.xpGained || Math.floor(battleState.enemyPokemon.level * 25)) : 0,
-                goldGained: (battleState.status === 'won' || battleState.status === 'captured') ? (battleState.rewards?.goldGained || Math.floor(battleState.enemyPokemon.level * 15)) : 0,
+                goldGained: (battleState.status === 'won' || battleState.status === 'captured') ? (() => {
+                  const baseGold = battleState.rewards?.goldGained || Math.floor(battleState.enemyPokemon.level * 15);
+                  const poacherMult = poacherBattleMeta?.rewardTier ? (POACHER_REWARD_TIERS[poacherBattleMeta.rewardTier]?.goldMultiplier || 1) : 1;
+                  return Math.floor(baseGold * poacherMult);
+                })() : 0,
                 synergyChains: battleState.synergyChains || 0,
                 itemsReceived: battleState.rewards?.materialsDropped || [],
                 canCapture: false,
@@ -1463,22 +1826,27 @@ export default function BattlePage() {
               }}
               onClose={async () => {
                  // Clean up wild Pokémon only if NOT captured
-                 if (wildPokemonId && battleState.isWildBattle && battleState.status !== 'captured') {
-                   try {
-                     await base44.entities.Pokemon.delete(wildPokemonId);
-                     queryClient.invalidateQueries({ queryKey: ['wildPokemon'] });
-                     queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
-                   } catch (err) {
-                     console.error('Failed to delete wild Pokémon:', err);
-                   }
+                 if (battleState.isWildBattle && battleState.status !== 'captured') {
+                   await cleanupEncounterPokemon();
                  }
 
-               // Return to exploration if this was a wild battle
-               if (returnTo && battleState.isWildBattle) {
-                 navigate(`/${returnTo}`);
+               if (returnTo) {
+                 const separator = returnTo.includes('?') ? '&' : '?';
+                 const battleOutcome = battleState.status === 'won' || battleState.status === 'captured'
+                   ? 'victory'
+                   : 'defeat';
+                 const metaParams = buildPoacherReturnMetaParams({
+                   poacherBattleMeta,
+                   battleRewards: battleState.rewards
+                 });
+                 const metaSuffix = metaParams.toString();
+                 navigate(`/${returnTo}${separator}battleOutcome=${battleOutcome}${metaSuffix ? `&${metaSuffix}` : ''}`);
+                 return;
                } else {
                  setBattleState(null);
                  setWildPokemonId(null);
+                 setEncounterPokemonIds([]);
+                 setTrainerRoster([]);
                  setReturnTo(null);
                }
               }}
@@ -1487,6 +1855,17 @@ export default function BattlePage() {
 
           {/* Action Menu */}
           {!isBattleEnded && (
+            isMulti ? (
+              <ActionQueuePanel
+                playerActive={battleState.playerActive || []}
+                pokemonMap={pokemonMap}
+                battleState={battleState}
+                inventory={inventory}
+                isWildBattle={false}
+                pokeballCount={totalPokeballCount}
+                onQueueReady={(playerActions) => runMultiTurn(playerActions)}
+              />
+            ) : (
             <div className="space-y-4">
               {/* Main Action Menu */}
               {actionMenu === 'main' && (
@@ -1570,7 +1949,7 @@ export default function BattlePage() {
                            move={moveData}
                            pokemon={battleState.playerPokemon}
                            onUse={(m) => {
-                             useMove(m);
+                             performMove(m);
                              setActionMenu('main');
                            }}
                            disabled={!isPlayerTurn}
@@ -1645,7 +2024,7 @@ export default function BattlePage() {
                             <Button
                               key={item.id}
                               onClick={() => {
-                                useItem(item);
+                                handleBattleItem(item);
                                 setActionMenu('main');
                               }}
                               disabled={!isPlayerTurn}
@@ -1752,6 +2131,7 @@ export default function BattlePage() {
                 </div>
               )}
             </div>
+            )
           )}
         </div>
 

@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, CheckCircle, RefreshCcw } from 'lucide-react';
-import { PokemonRegistry } from '@/components/data/PokemonRegistry';
+import { getPokemonData } from '@/components/data/PokemonRegistry';
 import { TalentRegistry } from '@/components/data/TalentRegistry';
 import ResearchQuestCard from './ResearchQuestCard';
 import ResearchSubmitModal from './ResearchSubmitModal';
@@ -155,7 +155,7 @@ function pickRandom(items) {
 }
 
 function getTalentPool(speciesName) {
-  const speciesData = PokemonRegistry[speciesName.toLowerCase()];
+  const speciesData = getPokemonData(speciesName);
   const pool = speciesData?.talentPool;
   if (Array.isArray(pool)) return pool;
   if (pool?.options && Array.isArray(pool.options)) return pool.options;
