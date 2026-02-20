@@ -174,7 +174,7 @@ export default function ZonesPage() {
         </motion.div>
       ) : (
         <div className="glass rounded-xl p-12 text-center">
-          <Map className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+          <MapIcon className="w-16 h-16 mx-auto mb-4 text-slate-600" />
           <h3 className="text-xl font-semibold text-white mb-2">No Zones Found</h3>
           <p className="text-slate-400">Try a different search term</p>
         </div>
