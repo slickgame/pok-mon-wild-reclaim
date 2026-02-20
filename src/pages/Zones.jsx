@@ -3057,7 +3057,7 @@ function ZoneDetailView({ zone, onBack }) {
             </div>
         }
 
-          {zone.nodelets && zone.nodelets.filter((n) => !n.eclipseControlled).length > 0 ?
+          {zone.nodelets && zone.nodelets.filter((n) => !n.eclipseControlled).length > 0 ? (
         <div className="glass rounded-xl p-4">
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                 <MapIcon className="w-4 h-4 text-amber-400" /> Points of Interest
