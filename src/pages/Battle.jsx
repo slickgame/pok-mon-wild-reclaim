@@ -1396,35 +1396,92 @@ export default function BattlePage() {
     setEvolutionState(null);
   };
 
-  const buildEnemyActionsBasic = (state) => {
+  const buildEnemyActionsSmart = (state) => {
     const enemyActs = [];
+    const hpMap = state.hpMap || {};
     const enemyActive = state.enemyActive || [];
     const playerActive = state.playerActive || [];
-    const hpMap = state.hpMap || {};
-    const firstAlivePlayer = playerActive.find(id => (hpMap[id] ?? 0) > 0);
+
+    const alivePlayers = playerActive.filter(id => (hpMap[id] ?? 0) > 0);
+    if (alivePlayers.length === 0) return enemyActs;
+
+    const engine = new BattleEngine(
+      pokemonMap[state.playerActive?.[0]] || state.playerPokemon,
+      pokemonMap[state.enemyActive?.[0]] || state.enemyPokemon,
+      pokemonMap
+    );
+
+    const scoreMoveVsTarget = (attMon, moveData, targetMonId) => {
+      const tgt = pokemonMap[targetMonId];
+      if (!tgt) return -Infinity;
+      const moveType = moveData?.type || 'Normal';
+      const defenderTypes = tgt.types || (tgt.type1 ? [tgt.type1, tgt.type2].filter(Boolean) : []);
+      const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(moveType, defenderTypes) : 1;
+      const power = typeof moveData?.power === 'number' ? moveData.power : 0;
+      const base = power > 0 ? power : 10;
+      const stab = (attMon.types || [tgt.type1, tgt.type2].filter(Boolean)).includes(moveType) ? 1.2 : 1.0;
+      return base * eff * stab;
+    };
 
     for (const enemyId of enemyActive) {
       const mon = pokemonMap[enemyId];
       if (!mon) continue;
       if ((hpMap[enemyId] ?? 0) <= 0) continue;
 
-      const moveName = (mon.abilities || []).find(mn => {
-        const md = getMoveData(mn, mon);
-        if (!md) return false;
+      const moves = (mon.abilities || []).map(name => {
+        const md = getMoveData(name, mon);
+        if (!md) return null;
         const maxPP = md.pp || 10;
-        const curPP = mon.movePP?.[mn] !== undefined ? mon.movePP[mn] : maxPP;
-        return curPP > 0;
-      }) || (mon.abilities?.[0] || 'Tackle');
+        const curPP = mon.movePP?.[name] !== undefined ? mon.movePP[name] : maxPP;
+        if (curPP <= 0) return null;
+        return { name, data: md };
+      }).filter(Boolean);
 
-      const moveData = getMoveData(moveName, mon);
-      const targetClass = moveData?.target || 'single-opponent';
+      if (moves.length === 0) {
+        const fallback = getMoveData('Tackle', mon) || { name: 'Tackle', type: 'Normal', power: 40, target: 'single-opponent' };
+        enemyActs.push({ type: 'move', pokemonId: enemyId, side: 'enemy', payload: fallback, defenderIds: [alivePlayers[0]] });
+        continue;
+      }
 
-      let defenderIds = [];
-      if (targetClass === 'all-opponents') defenderIds = playerActive.filter(id => (hpMap[id] ?? 0) > 0);
-      else if (targetClass === 'self') defenderIds = [enemyId];
-      else defenderIds = firstAlivePlayer ? [firstAlivePlayer] : [];
+      let best = null;
+      for (const mv of moves) {
+        const md = mv.data;
+        const targetClass = md?.target || 'single-opponent';
 
-      enemyActs.push({ type: 'move', pokemonId: enemyId, side: 'enemy', payload: moveData, defenderIds });
+        if (targetClass === 'all-opponents') {
+          const scores = alivePlayers.map(pid => scoreMoveVsTarget(mon, md, pid));
+          const avgScore = scores.reduce((a, b) => a + b, 0) / Math.max(1, scores.length);
+          if (!best || avgScore > best.score) {
+            best = { moveData: md, defenderIds: [...alivePlayers], score: avgScore };
+          }
+        } else if (targetClass === 'self') {
+          const selfScore = 15;
+          if (!best || selfScore > best.score) {
+            best = { moveData: md, defenderIds: [enemyId], score: selfScore };
+          }
+        } else {
+          let bestTarget = alivePlayers[0];
+          let bestScore = -Infinity;
+          for (const pid of alivePlayers) {
+            const s = scoreMoveVsTarget(mon, md, pid);
+            if (s > bestScore || (s === bestScore && (hpMap[pid] ?? 0) < (hpMap[bestTarget] ?? 0))) {
+              bestScore = s;
+              bestTarget = pid;
+            }
+          }
+          if (!best || bestScore > best.score || (bestScore === best.score && (hpMap[bestTarget] ?? 0) < (hpMap[best.defenderIds?.[0]] ?? 0))) {
+            best = { moveData: md, defenderIds: [bestTarget], score: bestScore };
+          }
+        }
+      }
+
+      enemyActs.push({
+        type: 'move',
+        pokemonId: enemyId,
+        side: 'enemy',
+        payload: best?.moveData || moves[0].data,
+        defenderIds: best?.defenderIds?.length ? best.defenderIds : [alivePlayers[0]]
+      });
     }
     return enemyActs;
   };
