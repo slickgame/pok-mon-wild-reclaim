@@ -602,7 +602,7 @@ function ZoneDetailView({ zone, onBack }) {
       setShowIrisShop(true);
       setExplorationEvents((prev) => [{
         title: "🛒 Iris's Shop",
-        description: 'Browse Iris's selection of berry seeds and gardening supplies.',
+        description: "Browse Iris's selection of berry seeds and gardening supplies.",
         type: 'special',
         rarity: 'common'
       }, ...prev].slice(0, 10));
