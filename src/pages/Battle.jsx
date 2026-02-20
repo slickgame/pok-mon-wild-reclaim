@@ -786,7 +786,7 @@ export default function BattlePage() {
         goldGained = Math.floor(newBattleState.enemyPokemon.level * 15);
 
       } else if (newBattleState.enemyPokemon?.isTrainerNPC) {
-        // NPC trainer rewards
+        // NPC trainer rewards — roll once, reuse for summary
         const payout = rollTrainerRewards(trainerData);
         goldGained = payout.gold || 0;
         trainerItems = payout.items || [];
@@ -801,7 +801,7 @@ export default function BattlePage() {
         for (const itemName of trainerItems) {
           await upsertRewardItem(itemName, 1, {
             type: 'Material',
-            rarity: 'Uncommon',
+            rarity: trainerData?.isBoss ? 'Rare' : trainerData?.isNamed ? 'Uncommon' : 'Common',
             description: `Taken from ${trainerData?.name || 'a trainer'}`
           });
         }
