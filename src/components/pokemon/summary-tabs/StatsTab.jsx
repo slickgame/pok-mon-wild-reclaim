@@ -4,7 +4,6 @@ import { TrendingUp, Award, Star } from 'lucide-react';
 import { getPokemonStats } from '../usePokemonStats';
 import { getNatureDescription } from '../statCalculations';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { motion } from 'framer-motion';
 
 // XP needed to level up FROM level N = N * 100
 // The game stores leftover XP within the current level (post-level-up remainder)

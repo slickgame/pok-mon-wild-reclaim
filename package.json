@@ -9,7 +9,12 @@
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:harvest-txn": "node scripts/harvestTxnFlow.check.mjs",
+    "test:poacher-registry": "node scripts/poacherRewardsAndPools.check.mjs",
+    "audit:poacher-nodelets": "node scripts/auditPoacherNodeletPools.mjs",
+    "test:poacher-handoff": "node scripts/poacherHandoff.integration.check.mjs",
+    "test:poacher-migration": "node scripts/poacherMigration.check.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.3",

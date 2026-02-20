@@ -278,10 +278,11 @@ export class BattleEngine {
         const healedHp = Math.min(maxHp, currentHp + healAmount);
         if (healedHp > currentHp) {
           pokemon.currentHp = healedHp;
-          // Update hpMap (multi-active) and legacy aliases
-          if (battleState.hpMap && pokemon.id) battleState.hpMap[pokemon.id] = healedHp;
-          if (pokemon === this.playerPokemon) battleState.playerHP = healedHp;
-          else if (pokemon === this.enemyPokemon) battleState.enemyHP = healedHp;
+          if (pokemon === this.playerPokemon) {
+            battleState.playerHP = healedHp;
+          } else if (pokemon === this.enemyPokemon) {
+            battleState.enemyHP = healedHp;
+          }
           consumed = true;
           resultText = `${pokemon.nickname || pokemon.species} consumed ${berry.name} and restored HP!`;
         }
@@ -1445,6 +1446,61 @@ export class BattleEngine {
     battleState.lastTurnStatChanges = battleState.currentTurnStatChanges;
     battleState.playerPokemon = this.playerPokemon;
     battleState.enemyPokemon = this.enemyPokemon;
+
+    return turnLog;
+  }
+
+
+  executeTurnQueue(actionQueue = [], battleState, pokemonMap = {}) {
+    const turnLog = [];
+    const addLog = (message, actor = 'System') => turnLog.push({
+      turn: battleState.turnNumber,
+      actor,
+      action: message,
+      result: '',
+      synergyTriggered: false
+    });
+
+    this.processBattlefieldTurnStart(battleState, turnLog);
+
+    actionQueue.forEach((action) => {
+      if (action?.type !== 'move') return;
+      const attackerMon = pokemonMap[action.pokemonId];
+      if (!attackerMon) return;
+      if ((battleState.hpMap?.[action.pokemonId] ?? 0) <= 0) return;
+
+      const defenderIds = Array.isArray(action.defenderIds) ? action.defenderIds : [];
+      if (defenderIds.length === 0) return;
+
+      defenderIds.forEach((defenderId) => {
+        const defenderMon = pokemonMap[defenderId];
+        if (!defenderMon) return;
+        if ((battleState.hpMap?.[defenderId] ?? 0) <= 0) return;
+
+        const attackerKey = (battleState.playerActive || []).includes(action.pokemonId) ? 'player' : 'enemy';
+        const defenderKey = attackerKey === 'player' ? 'enemy' : 'player';
+
+        const moveResult = this.executeMove(
+          { pokemon: attackerMon, move: action.payload, key: attackerKey },
+          { pokemon: defenderMon, key: defenderKey },
+          {
+            ...battleState,
+            playerPokemon: attackerKey === 'player' ? attackerMon : defenderMon,
+            enemyPokemon: attackerKey === 'player' ? defenderMon : attackerMon,
+            playerHP: battleState.hpMap?.[attackerKey === 'player' ? action.pokemonId : defenderId] ?? 0,
+            enemyHP: battleState.hpMap?.[attackerKey === 'player' ? defenderId : action.pokemonId] ?? 0
+          }
+        );
+
+        turnLog.push(...moveResult.logs);
+
+        const estDamage = Math.max(1, Math.floor((action.payload?.power || 40) / 6));
+        battleState.hpMap[defenderId] = Math.max(0, (battleState.hpMap?.[defenderId] ?? 0) - estDamage);
+        if (battleState.hpMap[defenderId] <= 0) {
+          addLog(`${defenderMon.nickname || defenderMon.species} fainted!`);
+        }
+      });
+    });
 
     return turnLog;
   }
