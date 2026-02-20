@@ -1493,11 +1493,6 @@ function ZoneDetailView({ zone, onBack }) {
     prevNodeletIdRef.current = next;
   }, [activeNodelet?.id]); // eslint-disable-line
 
-  const handleLeaveNodelet = () => {
-    setActiveNodelet(null);
-    setActiveSection('places');
-  };
-
   const consumeItemByName = async (name, qty) => {
     const item = items.find((it) => it.name === name && (it.quantity || 0) > 0);
     if (!item) return false;

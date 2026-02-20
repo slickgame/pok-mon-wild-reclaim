@@ -1773,46 +1773,6 @@ export default function BattlePage() {
     return acts;
   };
 
-  const handleMultiFaintsAndRefill = (state, turnLog) => {
-    const hpMap = state.hpMap || {};
-    const log = (msg) => turnLog.push({
-      turn: state.turnNumber, actor: 'System', action: msg, result: '', synergyTriggered: false
-    });
-
-    for (const id of [...(state.playerActive || [])]) {
-      if ((hpMap[id] ?? 0) <= 0) {
-        removeFainted(state, id, 'player');
-        log(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'A Pokémon'} fainted!`);
-      }
-    }
-    for (const id of [...(state.enemyActive || [])]) {
-      if ((hpMap[id] ?? 0) <= 0) {
-        removeFainted(state, id, 'enemy');
-        log(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'An enemy Pokémon'} fainted!`);
-      }
-    }
-
-    while ((state.playerActive || []).length < (state.activeSlots || 1)) {
-      const nextId = (state.playerBench || []).find(pid => (hpMap[pid] ?? 0) > 0);
-      if (!nextId) break;
-      const sent = sendNextFromBench(state, 'player');
-      if (!sent) break;
-      if ((hpMap[sent] ?? 0) <= 0) continue;
-      log(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'A Pokémon'} enters the fight!`);
-    }
-
-    while ((state.enemyActive || []).length < (state.activeSlots || 1)) {
-      const nextId = (state.enemyBench || []).find(pid => (hpMap[pid] ?? 0) > 0);
-      if (!nextId) break;
-      const sent = sendNextFromBench(state, 'enemy');
-      if (!sent) break;
-      if ((hpMap[sent] ?? 0) <= 0) continue;
-      log(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'Enemy'} enters the fight!`);
-    }
-
-    return state;
-  };
-
   const runMultiTurn = (playerActions) => {
     setBattleState((prev) => {
       if (!prev) return prev;
