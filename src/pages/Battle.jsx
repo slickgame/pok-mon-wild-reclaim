@@ -221,7 +221,7 @@ export default function BattlePage() {
       battleStartedRef.current = true;
       startWildBattle(wildPokemon);
     }
-  }, [wildPokemon?.id, playerPokemon.length, battleReady]);
+  }, [wildPokemon?.id, playerPokemon.length]);
 
   // Start wild encounter battle
   const startWildBattle = (wildMon) => {
