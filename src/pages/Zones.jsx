@@ -622,9 +622,11 @@ function ZoneDetailView({ zone, onBack }) {
     const prev = prevNodeletIdRef.current;
     const next = activeNodelet?.id || null;
     if (prev === 'vh-brambleberry-thicket' && next !== 'vh-brambleberry-thicket') {
+      const bbNodelet = resolveNodeletConfig(zone?.nodelets?.find((n) => n.id === 'vh-brambleberry-thicket'));
+      const rules = getBrambleberryStreakDecayRules(bbNodelet || {});
       adjustNodeletHarvestStreak('vh-brambleberry-thicket', {
         mode: 'decay',
-        amount: BRAMBLEBERRY_STREAK_DECAY.leave,
+        amount: rules.leave,
         reason: 'leaving Brambleberry Thicket'
       });
     }
