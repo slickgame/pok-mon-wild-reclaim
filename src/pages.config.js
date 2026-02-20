@@ -47,6 +47,7 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import Battle from './pages/Battle';
 import Contests from './pages/Contests';
 import Crafting from './pages/Crafting';
 import Endgame from './pages/Endgame';
@@ -67,11 +68,11 @@ import StoryCutscene from './pages/StoryCutscene';
 import Town from './pages/Town';
 import TutorialLog from './pages/TutorialLog';
 import Zones from './pages/Zones';
-import Battle from './pages/Battle';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "Battle": Battle,
     "Contests": Contests,
     "Crafting": Crafting,
     "Endgame": Endgame,
@@ -92,7 +93,6 @@ export const PAGES = {
     "Town": Town,
     "TutorialLog": TutorialLog,
     "Zones": Zones,
-    "Battle": Battle,
 }
 
 export const pagesConfig = {
