@@ -616,6 +616,18 @@ function ZoneDetailView({ zone, onBack }) {
     setActiveSection('places');
   };
 
+  const consumeItemByName = async (name, qty) => {
+    const item = items.find((it) => it.name === name && (it.quantity || 0) > 0);
+    if (!item) return false;
+    const nextQty = (item.quantity || 0) - qty;
+    if (nextQty > 0) {
+      await base44.entities.Item.update(item.id, { quantity: nextQty });
+    } else {
+      await base44.entities.Item.delete(item.id);
+    }
+    return true;
+  };
+
   const upsertItem = async (name, quantity, overrides = {}) => {
     const existingItem = items.find((item) => item.name === name && item.stackable !== false);
 
