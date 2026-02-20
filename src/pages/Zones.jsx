@@ -1422,6 +1422,7 @@ function ZoneDetailView({ zone, onBack }) {
 
   const adjustNodeletHarvestStreak = async (nodeletId, { mode = 'decay', amount = 2, reason = 'decay' } = {}) => {
     if (!zone?.id || !nodeletId) return;
+    if (mode === 'decay' && amount <= 0) return;
     const updatedNodelets = (zone.nodelets || []).map((n) => {
       if (n.id !== nodeletId) return n;
       const cur = n.harvestStreak || 0;
