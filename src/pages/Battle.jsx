@@ -1666,22 +1666,23 @@ export default function BattlePage() {
             <BattleSummaryModal
               summary={battleSummary}
               onClose={async () => {
-                // Clean up wild Pokémon if defeated (not captured)
-                if (battleState?.isWildBattle && battleState.status === 'won') {
+                // Clean up all spawned encounter Pokémon unless captured
+                if (battleState?.status !== 'captured') {
                   await cleanupEncounterPokemon();
                 }
 
                 setBattleSummary(null);
-                if (returnTo && battleState?.isWildBattle) {
-                  navigate(`/${returnTo}`);
-                } else {
-                  setBattleState(null);
-                  setWildPokemonId(null);
-                  setEncounterPokemonIds([]);
-                  setTrainerRoster([]);
-                  setReturnTo(null);
-                  setItemsUsed([]);
+                if (returnTo) {
+                  const separator = returnTo.includes('?') ? '&' : '?';
+                  navigate(`/${returnTo}${separator}battleOutcome=victory`);
+                  return;
                 }
+                setBattleState(null);
+                setWildPokemonId(null);
+                setEncounterPokemonIds([]);
+                setTrainerRoster([]);
+                setReturnTo(null);
+                setItemsUsed([]);
               }}
             />
           )}
