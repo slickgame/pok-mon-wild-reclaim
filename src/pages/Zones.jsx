@@ -3111,10 +3111,10 @@ function ZoneDetailView({ zone, onBack }) {
 
         <div className="glass rounded-xl p-6 text-center text-slate-400">
               No places discovered yet.
-            </div>
-          )}
+                </div>
+              }
 
-          {activeNodelet && (
+              {activeNodelet && (
             <div className="glass rounded-xl p-4 border border-indigo-500/30">
               <div className="flex items-center justify-between gap-3">
                 <div>
