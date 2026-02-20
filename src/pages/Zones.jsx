@@ -1505,30 +1505,6 @@ function ZoneDetailView({ zone, onBack }) {
     return true;
   };
 
-  const upsertItem = async (name, quantity, overrides = {}) => {
-    const existingItem = items.find((item) => item.name === name && item.stackable !== false);
-
-    if (existingItem) {
-      await base44.entities.Item.update(existingItem.id, {
-        quantity: Math.max(0, (existingItem.quantity || 0) + quantity)
-      });
-      return;
-    }
-
-    if (quantity > 0) {
-      await base44.entities.Item.create({
-        name,
-        type: overrides.type || 'Material',
-        tier: overrides.tier || 1,
-        rarity: overrides.rarity || 'Common',
-        description: overrides.description || `Found in ${zone.name}`,
-        quantity,
-        stackable: true,
-        sellValue: overrides.sellValue || 10
-      });
-    }
-  };
-
   const applyNodeletAction = async (nodelet, action, opts = {}) => {
     nodelet = resolveNodeletConfig(nodelet);
     if (!zone?.id || !nodelet?.id) return;
@@ -1594,10 +1570,6 @@ function ZoneDetailView({ zone, onBack }) {
     setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
     setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
   };
-
-  const handleNodeletAction = async (nodelet, action) => {
-    nodelet = resolveNodeletConfig(nodelet);
-    if (!zone?.id || !nodelet?.id) return;
 
     const now = new Date().toISOString();
     const nowGameTs = getCurrentGameTimestamp();
@@ -3047,9 +3019,9 @@ function ZoneDetailView({ zone, onBack }) {
                   setIsExploring(false);
                 }
               }
-            }
-          }}
-          className={activeSection === section.id ? 'bg-indigo-500 text-white' : 'border-slate-700 text-slate-200'}>
+            }}
+            className={activeSection === section.id ? 'bg-indigo-500 text-white' : 'border-slate-700 text-slate-200'}
+          >
 
             {section.label}
           </Button>

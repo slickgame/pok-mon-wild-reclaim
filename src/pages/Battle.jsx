@@ -1773,93 +1773,14 @@ export default function BattlePage() {
     return acts;
   };
 
-  const runMultiTurn = (playerActions) => {
-    setBattleState((prev) => {
-      if (!prev) return prev;
-
-      const enemyActions = buildEnemyActionsSmartWithSwitch(prev);
-      const combined = [
-        ...playerActions.map(a => ({ ...a, side: 'player' })),
-        ...enemyActions
-      ];
-      const sorted = sortActionQueue(combined, pokemonMap, `turn:${prev.turnNumber || 1}`);
-
-      const turnLog = [];
-
-      // 1) Resolve switch actions first
-      const remaining = [];
-      for (const action of sorted) {
-        if (action.type !== 'switch') { remaining.push(action); continue; }
-        const { outId, inId } = action.payload || {};
-        if (!outId || !inId) continue;
-        switchIn(prev, action.side, outId, inId);
-        const inMon = pokemonMap[inId];
-        turnLog.push({
-          turn: prev.turnNumber, actor: 'System', action: 'Switch',
-          result: `${inMon?.nickname || inMon?.species || 'A Pokémon'} switched in!`,
-          synergyTriggered: false
-        });
-      }
-
-      // 2) Retarget / skip fainted actors before executing
-      const hpMap = prev.hpMap || {};
-      const isAlive = (id) => (hpMap[id] ?? 0) > 0;
-
-      const retargetIfNeeded = (action) => {
-        if (action.type !== 'move') return action;
-        if (!isAlive(action.pokemonId)) return null; // attacker fainted
-
-        const moveTarget = action.payload?.target || 'single-opponent';
-        if (moveTarget === 'all-opponents') {
-          const pool = action.side === 'player' ? prev.enemyActive : prev.playerActive;
-          const alive = (pool || []).filter(isAlive);
-          return alive.length ? { ...action, defenderIds: alive } : null;
-        }
-
-        const stillAlive = (action.defenderIds || []).filter(isAlive);
-        if (stillAlive.length) return { ...action, defenderIds: stillAlive };
-
-        const pool = action.side === 'player' ? prev.enemyActive : prev.playerActive;
-        const fallback = (pool || []).find(isAlive);
-        return fallback ? { ...action, defenderIds: [fallback] } : null;
-      };
-
-      const cleaned = remaining.map(retargetIfNeeded).filter(Boolean)
-        .filter(a => a.type !== 'move' || (a.defenderIds?.length ?? 0) > 0);
-
-      // 3) Execute remaining actions (moves/items)
-      const engine = new BattleEngine(
-        pokemonMap[prev.playerActive?.[0]] || prev.playerPokemon,
-        pokemonMap[prev.enemyActive?.[0]]  || prev.enemyPokemon,
-        pokemonMap
-      );
-      const engineLog = engine.executeTurnQueue(cleaned, prev, pokemonMap);
-
-      // 3) Post-turn faint/refill + win/loss
-      const after = handleMultiFaintsAndRefill(prev, engineLog);
-
-      if (isSideDefeated(after, 'enemy')) after.status = 'won';
-      if (isSideDefeated(after, 'player')) after.status = 'lost';
-
-      after.turnNumber = (after.turnNumber || 1) + 1;
-      after.battleLog = [...(after.battleLog || []), ...turnLog, ...engineLog];
-
-      after.playerPokemon = pokemonMap[after.playerActive?.[0]] || after.playerPokemon;
-      after.enemyPokemon  = pokemonMap[after.enemyActive?.[0]]  || after.enemyPokemon;
-      syncLegacyFields(after);
-
-      return { ...after };
-    });
-  };
-
   // isTrainer3v3: true only when trainerData + a real roster exist
-  const isTrainer3v3 = useMemo(() => {
+  const isTrainer3v3Computed = useMemo(() => {
     const st = location.state;
     return Boolean(st?.trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
   }, [location.state, trainerRoster]);
 
   // pokemonMap: all party + enemy roster mons with computed stats
-  const pokemonMap = useMemo(() => {
+  const pokemonMapComputed = useMemo(() => {
     const map = {};
     const all = [...(playerPokemon || []), ...(trainerRoster || [])];
     for (const mon of all) {
