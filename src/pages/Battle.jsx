@@ -1361,6 +1361,29 @@ export default function BattlePage() {
     setEvolutionState(null);
   };
 
+  // isTrainer3v3: true only when trainerData + a real roster exist
+  const isTrainer3v3 = useMemo(() => {
+    const st = location.state;
+    return Boolean(st?.trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
+  }, [location.state, trainerRoster]);
+
+  // pokemonMap: all party + enemy roster mons with computed stats
+  const pokemonMap = useMemo(() => {
+    const map = {};
+    const all = [...(playerPokemon || []), ...(trainerRoster || [])];
+    for (const mon of all) {
+      if (!mon?.id) continue;
+      const withStats = getPokemonStats(mon);
+      map[mon.id] = {
+        ...withStats,
+        abilities: withStats.abilities || mon.abilities || ['Tackle'],
+        movePP: withStats.movePP || mon.movePP || {},
+        statStages: withStats.statStages || createDefaultStatStages(),
+      };
+    }
+    return map;
+  }, [playerPokemon, trainerRoster]);
+
   // Compute latest talent triggers (must be called before any conditional returns)
   const latestTalentTriggers = useMemo(() => {
     if (!battleState?.battleLog?.length) {
