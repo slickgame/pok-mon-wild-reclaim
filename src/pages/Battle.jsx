@@ -90,6 +90,7 @@ export default function BattlePage() {
 
       // Reset battle ref so a new encounter can start
       battleStartedRef.current = false;
+      setIntroDismissed(false);
 
       // Show trainer intro modal for NPC trainer battles
       if (state.trainerData && roster.length > 0) {
