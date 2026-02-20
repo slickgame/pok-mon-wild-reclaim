@@ -243,7 +243,7 @@ export default function BattlePage() {
             enemyParty,
             activeSlots: 3,
             isWildBattle: false,
-            openingLog: `${trainerData?.name || 'Trainer'} challenges you to a 3v3 battle!`
+            openingLog: `${trainerDataRef.current?.name || 'Trainer'} challenges you to a 3v3 battle!`
           });
 
       // Keep legacy pointers pointing to first active slot objects
