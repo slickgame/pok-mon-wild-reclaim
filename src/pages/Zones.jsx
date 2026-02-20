@@ -16,6 +16,14 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
+import BerryFarmPanel from '@/components/zones/BerryFarmPanel';
+import ZoneInventoryPanel from '@/components/zones/ZoneInventoryPanel';
+import ZonePartyPanel from '@/components/zones/ZonePartyPanel';
+import ZoneBestiary from '@/components/zones/ZoneBestiary';
+import ZoneLogbook from '@/components/zones/ZoneLogbook';
+import PlantingPlotModal from '@/components/zones/PlantingPlotModal';
+import IrisShopModal from '@/components/zones/IrisShopModal';
+import MerraQuestsModal from '@/components/zones/MerraQuestsModal';
 import {
   Dialog,
   DialogContent,
@@ -191,6 +199,9 @@ function ZoneDetailView({ zone, onBack }) {
   const [zoneProgress, setZoneProgress] = useState(null);
   const [selectedNodelet, setSelectedNodelet] = useState(null);
   const [activeNodelet, setActiveNodelet] = useState(null);
+  const [showPlantingModal, setShowPlantingModal] = useState(false);
+  const [showIrisShop, setShowIrisShop] = useState(false);
+  const [showMerraQuests, setShowMerraQuests] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -228,6 +239,16 @@ function ZoneDetailView({ zone, onBack }) {
   const { data: allPokemon = [] } = useQuery({
     queryKey: ['allPokemon'],
     queryFn: () => base44.entities.Pokemon.list()
+  });
+
+  const { data: berryPlots = [] } = useQuery({
+    queryKey: ['berryPlots'],
+    queryFn: () => base44.entities.BerryPlot.list()
+  });
+
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => base44.auth.me()
   });
 
   useEffect(() => {
@@ -2832,6 +2853,33 @@ function ZoneDetailView({ zone, onBack }) {
 
   const getUnclaimedObjectiveRewards = (nodelet) =>
     (Array.isArray(nodelet?.objectiveHistory) ? nodelet.objectiveHistory : []).filter((entry) => !entry.claimedAt);
+
+  const getBrambleberryStreakDecayRules = (nodelet) => {
+    return BRAMBLEBERRY_STREAK_DECAY;
+  };
+
+  const getBrambleberryEncounterModifiers = (nodelet) => {
+    return {
+      poacherChanceBonus: 0,
+      rareWeightMultiplier: 1,
+      lootBonusMultiplier: 1
+    };
+  };
+
+  const adjustBrambleberryPoacherPresence = async (delta, reason) => {
+    if (!zone?.id) return;
+    const updated = (zone.nodelets || []).map((n) =>
+      n.id === BRAMBLE_ID ? { ...n, poacherPresence: clamp((n.poacherPresence || 0) + delta, 0, 100) } : n
+    );
+    await base44.entities.Zone.update(zone.id, { nodelets: updated });
+    queryClient.invalidateQueries({ queryKey: ['zones'] });
+  };
+
+  const maybeBankBrambleberryStreak = () => {};
+  const maybeDailyPoacherPresenceDecay = () => {};
+
+  const getBaseStats = (species) => null;
+  const calculateAllStats = (pokemon, baseStats) => ({ hp: pokemon.level * 10 });
 
 
   const currentTimeTotal = toTotalMinutes(normalizeGameTime(gameTime));
