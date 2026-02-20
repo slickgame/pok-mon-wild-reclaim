@@ -1349,6 +1349,13 @@ function ZoneDetailView({ zone, onBack }) {
           nextNodelet.lastChallengeOutcome = battleOutcome === 'victory' ? 'victory' : 'failed';
         }
 
+        if (nodeletBattleType === 'enemyNpc') {
+          const cur = nodelet.poacherPresence || 0;
+          const delta = battleOutcome === 'victory' ? -18 : 12;
+          nextNodelet.poacherPresence = clamp(cur + delta, 0, 100);
+          nextNodelet.poacherLastShift = now;
+        }
+
         return nextNodelet;
       });
       const updatedActiveNodelet = updatedNodelets.find((nodelet) => nodelet.id === nodeletId);
