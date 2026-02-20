@@ -216,7 +216,7 @@ export default function BattlePage() {
 
   // Auto-start battle with wild Pokémon
   useEffect(() => {
-    if (wildPokemon && playerPokemon.length > 0 && !battleState && !battleStartedRef.current && battleReady) {
+    if (wildPokemon && playerPokemon.length > 0 && !battleState && !battleStartedRef.current) {
       battleStartedRef.current = true;
       startWildBattle(wildPokemon);
     }
