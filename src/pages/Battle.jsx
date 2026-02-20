@@ -1941,8 +1941,21 @@ export default function BattlePage() {
             />
           )}
 
+          {/* Action Menu — 3v3 uses ActionQueuePanel, 1v1 uses classic menus */}
+          {!isBattleEnded && isMulti ? (
+            <ActionQueuePanel
+              playerActive={battleState.playerActive || []}
+              pokemonMap={pokemonMap}
+              battleState={battleState}
+              inventory={inventory}
+              isWildBattle={false}
+              pokeballCount={totalPokeballCount}
+              onQueueReady={(playerActions) => runMultiTurn(playerActions)}
+            />
+          ) : null}
+
           {/* Action Menu */}
-          {!isBattleEnded && (
+          {!isBattleEnded && !isMulti && (
             <div className="space-y-4">
               {/* Main Action Menu */}
               {actionMenu === 'main' && (
