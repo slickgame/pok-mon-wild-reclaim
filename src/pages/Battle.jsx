@@ -1396,6 +1396,61 @@ export default function BattlePage() {
     setEvolutionState(null);
   };
 
+  const getAlive = (ids, hpMap) => (ids || []).filter(id => (hpMap[id] ?? 0) > 0);
+
+  const pickBestEnemyBenchCounter = (state, enemyBenchAlive, playerAlive) => {
+    if (!enemyBenchAlive.length) return null;
+    const hpMap = state.hpMap || {};
+    const engine = new BattleEngine(
+      pokemonMap[state.playerActive?.[0]] || state.playerPokemon,
+      pokemonMap[state.enemyActive?.[0]] || state.enemyPokemon,
+      pokemonMap
+    );
+
+    const scoreCandidate = (candId) => {
+      const cand = pokemonMap[candId];
+      if (!cand) return -Infinity;
+      const candTypes = cand.types || [cand.type1, cand.type2].filter(Boolean);
+      const candMoves = (cand.abilities || []).map(name => getMoveData(name, cand)).filter(Boolean);
+
+      let off = 0;
+      for (const mv of candMoves) {
+        if (!(mv.power > 0)) continue;
+        const isSTAB = candTypes.includes(mv.type || 'Normal');
+        if (!isSTAB) continue;
+        for (const pid of playerAlive) {
+          const p = pokemonMap[pid];
+          const pTypes = p?.types || [p?.type1, p?.type2].filter(Boolean);
+          const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(mv.type || 'Normal', pTypes) : 1;
+          off = Math.max(off, eff);
+        }
+      }
+
+      let incoming = 0;
+      for (const pid of playerAlive) {
+        const p = pokemonMap[pid];
+        if (!p) continue;
+        const pTypes = p.types || [p.type1, p.type2].filter(Boolean);
+        let bestIn = 1.0;
+        for (const t of pTypes) {
+          const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(t, candTypes) : 1;
+          bestIn = Math.max(bestIn, eff);
+        }
+        incoming += bestIn;
+      }
+      incoming = incoming / Math.max(1, playerAlive.length);
+      return (off * 2.0) - (incoming * 1.25);
+    };
+
+    let bestId = enemyBenchAlive[0];
+    let bestScore = -Infinity;
+    for (const candId of enemyBenchAlive) {
+      const s = scoreCandidate(candId);
+      if (s > bestScore) { bestScore = s; bestId = candId; }
+    }
+    return bestId;
+  };
+
   const buildEnemyActionsSmart = (state) => {
     const enemyActs = [];
     const hpMap = state.hpMap || {};

@@ -242,21 +242,44 @@ export function createAction(type, pokemonId, payload = {}) {
  * Sort an action queue by initiative (priority → speed → tiebreak).
  * Requires pokemonMap: { [id]: pokemonObj with stats.spd }.
  */
-export function sortActionQueue(actions, pokemonMap) {
+export function sortActionQueue(actions, pokemonMap, seedKey = '') {
+  const typeRank = (a) => {
+    if (a.type === 'switch') return 0;
+    if (a.type === 'item')   return 1;
+    if (a.type === 'move')   return 2;
+    return 3;
+  };
+
+  const getPriority = (a) => (a.type === 'move' ? (a?.payload?.priority ?? 0) : 0);
+
+  const getSpeed = (id) => {
+    const mon = pokemonMap?.[id];
+    return mon?.stats?.spd ?? mon?.stats?.Speed ?? mon?.stats?.speed ?? 0;
+  };
+
+  const hash = (s) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
+  };
+
   return [...actions].sort((a, b) => {
-    const monA = pokemonMap[a.pokemonId];
-    const monB = pokemonMap[b.pokemonId];
+    const ta = typeRank(a);
+    const tb = typeRank(b);
+    if (ta !== tb) return ta - tb;
 
-    const prioA = (a.type === 'switch' || a.type === 'item') ? 10 : (a.payload?.priority || 0);
-    const prioB = (b.type === 'switch' || b.type === 'item') ? 10 : (b.payload?.priority || 0);
+    const pa = getPriority(a);
+    const pb = getPriority(b);
+    if (pa !== pb) return pb - pa;
 
-    if (prioA !== prioB) return prioB - prioA; // higher priority first
+    const sa = getSpeed(a.pokemonId);
+    const sb = getSpeed(b.pokemonId);
+    if (sa !== sb) return sb - sa;
 
-    const spdA = monA?.stats?.spd ?? 0;
-    const spdB = monB?.stats?.spd ?? 0;
-    if (spdA !== spdB) return spdB - spdA; // higher speed first
-
-    return Math.random() < 0.5 ? -1 : 1; // random tiebreak
+    // Deterministic tie-break using seed + ids
+    const ha = hash(`${seedKey}|${a.pokemonId}|${a.type}|${a.payload?.name || ''}`);
+    const hb = hash(`${seedKey}|${b.pokemonId}|${b.type}|${b.payload?.name || ''}`);
+    return ha - hb;
   });
 }
 
