@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map, Search, Compass, Eye, Sparkles, ChevronRight, Map as MapIcon } from 'lucide-react';
+import { Search, Compass, Eye, Sparkles, ChevronRight, Map as MapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -134,7 +134,7 @@ export default function ZonesPage() {
       <PageHeader
         title="Zone Exploration"
         subtitle="Discover new areas and catch wild Pokémon"
-        icon={Map}
+        icon={MapIcon}
         action={
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -3316,7 +3316,7 @@ function ZoneDetailView({ zone, onBack }) {
             <>
               <DialogHeader>
                 <DialogTitle className="text-white flex items-center gap-2">
-                  <Map className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
+                  <MapIcon className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
                 </DialogTitle>
                 <DialogDescription className="text-slate-300">
                   {selectedNodelet.description || 'A location within Verdant Hollow.'}
