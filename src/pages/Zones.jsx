@@ -598,9 +598,10 @@ function ZoneDetailView({ zone, onBack }) {
     }
 
     if (npcName.toLowerCase().includes('iris')) {
+      setShowIrisShop(true);
       setExplorationEvents((prev) => [{
-        title: "🌿 Iris's Tip",
-        description: 'Iris suggests harvesting now and replanting for a bonus yield cycle.',
+        title: "🛒 Iris's Shop",
+        description: 'Browse Iris's selection of berry seeds and gardening supplies.',
         type: 'special',
         rarity: 'common'
       }, ...prev].slice(0, 10));
@@ -3601,14 +3602,14 @@ function ZoneDetailView({ zone, onBack }) {
         </div>
       )}
 
-      {/* Details dialog — streamlined, no verbose info dump */}
+      {/* Details dialog with location info */}
       <Dialog
         open={Boolean(selectedNodelet)}
         onOpenChange={(open) => {
           if (!open) setSelectedNodelet(null);
         }}>
 
-        <DialogContent className="bg-slate-900 border-slate-800 max-w-md">
+        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl">
           {selectedNodelet &&
           <>
               <DialogHeader>
@@ -3620,7 +3621,27 @@ function ZoneDetailView({ zone, onBack }) {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InfoPills title="Wild Pokémon" values={selectedNodelet.wildPokemon} />
+                  <InfoPills title="NPCs" values={selectedNodelet.npcs} />
+                  <InfoPills title="Items" values={selectedNodelet.items} />
+                  <InfoPills title="Enemy NPCs" values={selectedNodelet.enemyNPCs} />
+                </div>
+
+                {selectedNodelet.gameplayFeatures?.length > 0 && (
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Gameplay Features</h4>
+                    <ul className="list-disc pl-5 space-y-1 text-slate-300">
+                      {selectedNodelet.gameplayFeatures.map((feature, idx) => (
+                        <li key={idx}>{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-4">
                 <Button
                 size="sm"
                 className="bg-indigo-600 hover:bg-indigo-700"
@@ -3629,7 +3650,6 @@ function ZoneDetailView({ zone, onBack }) {
                   setActiveSection('nodelet');
                   setSelectedNodelet(null);
                 }}>
-
                   Enter Location
                 </Button>
 
@@ -3644,7 +3664,6 @@ function ZoneDetailView({ zone, onBack }) {
                   setSelectedNodelet(null);
                   setShowPlantingModal(true);
                 }}>
-
                     🌱 Plant Seeds
                   </Button>
               }
@@ -3654,7 +3673,6 @@ function ZoneDetailView({ zone, onBack }) {
                 size="sm"
                 className="border-slate-700 text-slate-200"
                 onClick={() => setSelectedNodelet(null)}>
-
                   Close
                 </Button>
               </div>
