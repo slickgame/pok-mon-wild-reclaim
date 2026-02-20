@@ -3149,8 +3149,8 @@ function ZoneDetailView({ zone, onBack }) {
                     <Badge className="bg-slate-700/50 text-slate-400 text-xs">Hidden</Badge>
                     }
                       </div>
-                    </button>);
-
+                    </button>
+                  );
             })}
               </div>
             </div>
@@ -3188,7 +3188,7 @@ function ZoneDetailView({ zone, onBack }) {
             </div>
           )}
         </div>
-      )}
+      }
 
       {activeSection === 'nodelet' && activeNodelet && (
         <div className="space-y-4">
