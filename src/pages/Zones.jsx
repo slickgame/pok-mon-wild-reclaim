@@ -3472,8 +3472,8 @@ function ZoneDetailView({ zone, onBack }) {
         </div>
       )}
 
-
-
+      {activeSection === 'nodelet' && activeNodelet?.id === 'vh-brambleberry-thicket' && (
+        <div className="space-y-4">
 
 
 
