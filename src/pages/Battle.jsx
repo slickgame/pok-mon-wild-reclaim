@@ -1530,27 +1530,46 @@ export default function BattlePage() {
     setBattleState((prev) => {
       if (!prev) return prev;
 
-      const enemyActions = buildEnemyActionsBasic(prev);
+      const enemyActions = buildEnemyActionsSmart(prev);
       const combined = [
         ...playerActions.map(a => ({ ...a, side: 'player' })),
         ...enemyActions
       ];
       const sorted = sortActionQueue(combined, pokemonMap);
 
+      const turnLog = [];
+
+      // 1) Resolve switch actions first
+      const remaining = [];
+      for (const action of sorted) {
+        if (action.type !== 'switch') { remaining.push(action); continue; }
+        const { outId, inId } = action.payload || {};
+        if (!outId || !inId) continue;
+        switchIn(prev, action.side, outId, inId);
+        const inMon = pokemonMap[inId];
+        turnLog.push({
+          turn: prev.turnNumber, actor: 'System', action: 'Switch',
+          result: `${inMon?.nickname || inMon?.species || 'A Pokémon'} switched in!`,
+          synergyTriggered: false
+        });
+      }
+
+      // 2) Execute remaining actions (moves/items)
       const engine = new BattleEngine(
         pokemonMap[prev.playerActive?.[0]] || prev.playerPokemon,
         pokemonMap[prev.enemyActive?.[0]]  || prev.enemyPokemon,
         pokemonMap
       );
+      const engineLog = engine.executeTurnQueue(remaining, prev, pokemonMap);
 
-      const turnLog = engine.executeTurnQueue(sorted, prev, pokemonMap);
-      const after = handleMultiFaintsAndRefill(prev, turnLog);
+      // 3) Post-turn faint/refill + win/loss
+      const after = handleMultiFaintsAndRefill(prev, engineLog);
 
       if (isSideDefeated(after, 'enemy')) after.status = 'won';
       if (isSideDefeated(after, 'player')) after.status = 'lost';
 
       after.turnNumber = (after.turnNumber || 1) + 1;
-      after.battleLog = [...(after.battleLog || []), ...turnLog];
+      after.battleLog = [...(after.battleLog || []), ...turnLog, ...engineLog];
 
       after.playerPokemon = pokemonMap[after.playerActive?.[0]] || after.playerPokemon;
       after.enemyPokemon  = pokemonMap[after.enemyActive?.[0]]  || after.enemyPokemon;
