@@ -235,7 +235,7 @@ export default function BattlePage() {
     const initialEnemyTeam = enemyParty;
 
     // 3v3 trainer battle path
-    if (trainerRosterRef.current.length > 0 && location.state?.trainerData) {
+      if (trainerRosterRef.current.length > 0 && trainerData) {
       const multiState = createBattleState({
         playerParty: playerPokemon,
         enemyParty,
@@ -260,6 +260,7 @@ export default function BattlePage() {
       multiState.playerPokemon = pMap[multiState.playerActive[0]] || playerPokemon[0];
       multiState.enemyPokemon  = pMap[multiState.enemyActive[0]]  || enemyParty[0];
       multiState.enemyTeam = enemyParty;
+      multiState.isTrainerBattle = true;
       syncLegacyFields(multiState);
 
       setBattleState(multiState);
@@ -1879,7 +1880,7 @@ export default function BattlePage() {
         }
         icon={Swords}
         action={
-          isBattleEnded && !battleState?.enemyPokemon?.isTrainerNPC && (
+          isBattleEnded && !battleState?.isTrainerBattle && !battleState?.enemyPokemon?.isTrainerNPC && (
             <Button 
               onClick={() => setBattleState(null)}
               className="bg-indigo-600 hover:bg-indigo-700"
