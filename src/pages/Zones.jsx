@@ -1483,6 +1483,14 @@ function ZoneDetailView({ zone, onBack }) {
       setActiveNodelet(resolveNodeletConfig(refreshed) || null);
       setSelectedNodelet(resolveNodeletConfig(refreshed) || null);
     }
+    if (bankSpent) {
+      setExplorationEvents((prev) => [{
+        title: '🏦 Streak Insurance Spent',
+        description: `Contract III prevented your harvest streak from dropping to 0. (Bank: ${bankSpentPrevBank} → ${bankSpentNextBank})`,
+        type: 'special',
+        rarity: 'uncommon'
+      }, ...prev].slice(0, 10));
+    }
     setExplorationEvents((prev) => [{
       title: mode === 'reset' ? '🍃 Harvest Streak Reset' : '🍂 Harvest Streak Decayed',
       description: mode === 'reset'
