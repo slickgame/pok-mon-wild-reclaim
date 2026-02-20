@@ -588,9 +588,10 @@ function ZoneDetailView({ zone, onBack }) {
     if (!resolvedNodelet || !npcName) return;
 
     if (npcName.toLowerCase().includes('merra')) {
+      setShowMerraQuests(true);
       setExplorationEvents((prev) => [{
-        title: "🧾 Merra's Request",
-        description: 'Merra asks for berry bundles. Try Deliver Berries when you have enough stock.',
+        title: "🧾 Merra's Contracts",
+        description: 'View available berry delivery quests from Merra.',
         type: 'special',
         rarity: 'common'
       }, ...prev].slice(0, 10));
