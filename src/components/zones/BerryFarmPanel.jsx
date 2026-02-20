@@ -56,7 +56,7 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
       // Harvest this single plot
       setHarvesting(true);
       try {
-        await onHarvest(plotStatus.plot);
+        await onHarvest({ plot: plotStatus.plot, plotNumber: idx });
         await queryClient.refetchQueries({ queryKey: ['berryPlots', zone?.id, playerEmail] });
       } finally {
         setHarvesting(false);
@@ -78,7 +78,7 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
         queryClient.invalidateQueries({ queryKey: ['berryPlots', zone?.id, playerEmail] });
         queryClient.invalidateQueries({ queryKey: ['items'] });
         setSelectedSeed(null);
-        if (onPlant) onPlant();
+        if (onPlant) onPlant({ plotNumber: idx, seedName: selectedSeed.name });
       } catch (e) {
         console.error('Failed to plant seed:', e);
       }
