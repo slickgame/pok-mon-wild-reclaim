@@ -190,19 +190,19 @@ export default function ActionQueuePanel({
                             disabled={curPP <= 0}
                             onClick={() => {
                               if (!moveData) return;
-                              // If multiple enemies active, open target picker
                               const aliveEnemies = enemyActive.filter(eid => (hpMap[eid] ?? 0) > 0);
-                              if (aliveEnemies.length > 1 && (moveData.target || 'single-opponent') === 'single-opponent') {
-                                setTargetPicker({ pokemonId: id, move: moveData });
+                              const targetClass = moveData.target || 'single-opponent';
+
+                              if (targetClass === 'all-opponents') {
+                                lockAction(id, { type: 'move', pokemonId: id, side: 'player', payload: moveData, defenderIds: aliveEnemies });
+                              } else if (targetClass === 'self') {
+                                lockAction(id, { type: 'move', pokemonId: id, side: 'player', payload: moveData, defenderIds: [id] });
+                              } else if (aliveEnemies.length === 1) {
+                                // Only one target — auto-select, no modal needed
+                                lockAction(id, { type: 'move', pokemonId: id, side: 'player', payload: moveData, defenderIds: [aliveEnemies[0]] });
                               } else {
-                                // Auto-target first alive enemy (or AoE)
-                                lockAction(id, {
-                                  type: 'move',
-                                  pokemonId: id,
-                                  side: 'player',
-                                  payload: moveData,
-                                  defenderIds: aliveEnemies.length > 0 ? [aliveEnemies[0]] : []
-                                });
+                                // Multiple targets — open picker
+                                setTargetPicker({ pokemonId: id, move: moveData });
                               }
                             }}
                             className={`text-left px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
