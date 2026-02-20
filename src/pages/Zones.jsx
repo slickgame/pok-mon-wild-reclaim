@@ -2288,6 +2288,48 @@ function ZoneDetailView({ zone, onBack }) {
     queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
   };
 
+  const maybeBankBrambleberryStreak = async () => {
+    // Daily banking logic for Brambleberry Thicket
+    if (!zone?.id) return;
+    const bbNodelet = zone.nodelets?.find((n) => n.id === 'vh-brambleberry-thicket');
+    if (!bbNodelet) return;
+    // Placeholder for daily streak banking
+  };
+
+  const maybeDailyPoacherPresenceDecay = async () => {
+    // Daily poacher presence decay for Brambleberry Thicket
+    if (!zone?.id) return;
+    const bbNodelet = zone.nodelets?.find((n) => n.id === 'vh-brambleberry-thicket');
+    if (!bbNodelet) return;
+    // Placeholder for daily poacher presence decay
+  };
+
+  const adjustBrambleberryPoacherPresence = async (delta, reason = 'travel') => {
+    // Adjust poacher presence in Brambleberry Thicket
+    if (!zone?.id) return;
+    const bbNodelet = zone.nodelets?.find((n) => n.id === 'vh-brambleberry-thicket');
+    if (!bbNodelet) return;
+    // Placeholder for poacher presence adjustment
+  };
+
+  const getBrambleberryEncounterModifiers = (nodelet) => {
+    // Get encounter modifiers for Brambleberry Thicket
+    return {
+      poacherChanceBonus: 0,
+      rareWeightMultiplier: 1,
+      lootBonusMultiplier: 1
+    };
+  };
+
+  const getBrambleberryStreakDecayRules = (nodelet) => {
+    // Get streak decay rules for Brambleberry Thicket
+    return {
+      leave: 2,
+      travel: 2,
+      nap: 3
+    };
+  };
+
   const adjustNodeletHarvestStreak = async (nodeletId, { mode = 'decay', amount = 2, reason = 'decay' } = {}) => {
     if (!zone?.id || !nodeletId) return;
     if (mode === 'decay' && amount <= 0) return;
