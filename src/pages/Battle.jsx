@@ -76,6 +76,7 @@ export default function BattlePage() {
   const [faintedIds, setFaintedIds] = useState([]); // Track which Pokemon fainted in battle
   const [poacherBattleMeta, setPoacherBattleMeta] = useState(null);
   const [trainerData, setTrainerData] = useState(null);
+  const battleStartedRef = React.useRef(false);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
