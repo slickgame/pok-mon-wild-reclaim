@@ -1417,7 +1417,8 @@ function ZoneDetailView({ zone, onBack }) {
     setCurrentEncounter(null);
   };
 
-  const handleReturnToTown = () => {
+  const handleReturnToTown = async () => {
+    await adjustBrambleberryPoacherPresence(-6, 'traveling');
     navigate('/Town');
   };
 
