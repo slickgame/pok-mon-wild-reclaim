@@ -2475,13 +2475,16 @@ function ZoneDetailView({ zone, onBack }) {
 
           }
 
-            {activeNodelet.gameplayFeatures?.length > 0 &&
-          <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300">
-                {activeNodelet.gameplayFeatures.map((feature) => null
-
-            )}
-              </ul>
-          }
+            {Array.isArray(activeNodelet.gameplayFeatures) && activeNodelet.gameplayFeatures.length > 0 && (
+            <ul className="mt-2 space-y-1 text-sm text-emerald-100/80">
+              {activeNodelet.gameplayFeatures.map((feature, idx) => (
+                <li key={`feature-${idx}`} className="flex gap-2">
+                  <span className="text-emerald-300">•</span>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           </div>
         </div>
       }
