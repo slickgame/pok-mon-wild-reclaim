@@ -3326,14 +3326,6 @@ function ZoneDetailView({ zone, onBack }) {
 
 
 
-      {activeSection === 'items' &&
-      <ZoneInventoryPanel items={items} />
-      }
-
-      {activeSection === 'pokemon' &&
-      <ZonePartyPanel player={player} allPokemon={allPokemon} />
-      }
-
       {activeSection === 'bestiary' &&
       <ZoneBestiary
         zone={zone}
