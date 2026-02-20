@@ -1461,6 +1461,9 @@ function ZoneDetailView({ zone, onBack }) {
           if (contract?.tier3Unlocked && cur > 0 && nextCandidate === 0 && bank > 0) {
             nextCandidate = 1;
             nextNodelet.harvestStreakBank = bank - 1;
+            bankSpent = true;
+            bankSpentPrevBank = bank;
+            bankSpentNextBank = bank - 1;
           }
         }
 
