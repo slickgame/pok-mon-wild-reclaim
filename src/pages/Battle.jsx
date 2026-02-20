@@ -41,6 +41,16 @@ import { calculateAllStats } from '@/components/pokemon/statCalculations';
 import { getBaseStats } from '@/components/pokemon/baseStats';
 import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zones/wildPokemonData';
 import { getMoveData } from '@/components/utils/getMoveData';
+import ActionQueuePanel from '@/components/battle/multi/ActionQueuePanel';
+import {
+  createBattleState,
+  syncLegacyFields,
+  isSideDefeated,
+  removeFainted,
+  sendNextFromBench,
+  sortActionQueue,
+  switchIn
+} from '@/components/battle/battleStateModel';
 import { rollTrainerRewards } from '@/components/data/TrainerRegistry';
 import { POACHER_REWARD_TIERS } from '@/components/zones/poacherTrainerRegistry';
 import { buildPoacherReturnMetaParams } from '@/components/zones/poacherOutcomeHandoff';
@@ -76,10 +86,6 @@ export default function BattlePage() {
   const [faintedIds, setFaintedIds] = useState([]); // Track which Pokemon fainted in battle
   const [poacherBattleMeta, setPoacherBattleMeta] = useState(null);
   const [trainerData, setTrainerData] = useState(null);
-  const [trainerIntro, setTrainerIntro] = useState(null);
-  const [introDismissed, setIntroDismissed] = useState(false);
-  const [battleReady, setBattleReady] = useState(false);
-  const battleStartedRef = React.useRef(false);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -220,11 +226,11 @@ export default function BattlePage() {
 
   // Auto-start battle with wild Pokémon
   useEffect(() => {
-    if (wildPokemon && playerPokemon.length > 0 && !battleState && !battleStartedRef.current) {
+    if (wildPokemon && playerPokemon.length > 0 && !battleState && !battleStartedRef.current && battleReady) {
       battleStartedRef.current = true;
       startWildBattle(wildPokemon);
     }
-  }, [wildPokemon?.id, playerPokemon.length]);
+  }, [wildPokemon?.id, playerPokemon.length, battleReady]);
 
   // Start wild encounter battle
   const startWildBattle = (wildMon) => {
@@ -1776,6 +1782,148 @@ export default function BattlePage() {
 
     return acts;
   };
+
+  const handleMultiFaintsAndRefill = (state, turnLog) => {
+    const hpMap = state.hpMap || {};
+    const log = (msg) => turnLog.push({
+      turn: state.turnNumber, actor: 'System', action: msg, result: '', synergyTriggered: false
+    });
+
+    for (const id of [...(state.playerActive || [])]) {
+      if ((hpMap[id] ?? 0) <= 0) {
+        removeFainted(state, id, 'player');
+        log(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'A Pokémon'} fainted!`);
+      }
+    }
+    for (const id of [...(state.enemyActive || [])]) {
+      if ((hpMap[id] ?? 0) <= 0) {
+        removeFainted(state, id, 'enemy');
+        log(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'An enemy Pokémon'} fainted!`);
+      }
+    }
+
+    while ((state.playerActive || []).length < (state.activeSlots || 1)) {
+      const nextId = (state.playerBench || []).find(pid => (hpMap[pid] ?? 0) > 0);
+      if (!nextId) break;
+      const sent = sendNextFromBench(state, 'player');
+      if (!sent) break;
+      if ((hpMap[sent] ?? 0) <= 0) continue;
+      log(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'A Pokémon'} enters the fight!`);
+    }
+
+    while ((state.enemyActive || []).length < (state.activeSlots || 1)) {
+      const nextId = (state.enemyBench || []).find(pid => (hpMap[pid] ?? 0) > 0);
+      if (!nextId) break;
+      const sent = sendNextFromBench(state, 'enemy');
+      if (!sent) break;
+      if ((hpMap[sent] ?? 0) <= 0) continue;
+      log(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'Enemy'} enters the fight!`);
+    }
+
+    return state;
+  };
+
+  const runMultiTurn = (playerActions) => {
+    setBattleState((prev) => {
+      if (!prev) return prev;
+
+      const enemyActions = buildEnemyActionsSmartWithSwitch(prev);
+      const combined = [
+        ...playerActions.map(a => ({ ...a, side: 'player' })),
+        ...enemyActions
+      ];
+      const sorted = sortActionQueue(combined, pokemonMap, `turn:${prev.turnNumber || 1}`);
+
+      const turnLog = [];
+
+      // 1) Resolve switch actions first
+      const remaining = [];
+      for (const action of sorted) {
+        if (action.type !== 'switch') { remaining.push(action); continue; }
+        const { outId, inId } = action.payload || {};
+        if (!outId || !inId) continue;
+        switchIn(prev, action.side, outId, inId);
+        const inMon = pokemonMap[inId];
+        turnLog.push({
+          turn: prev.turnNumber, actor: 'System', action: 'Switch',
+          result: `${inMon?.nickname || inMon?.species || 'A Pokémon'} switched in!`,
+          synergyTriggered: false
+        });
+      }
+
+      // 2) Retarget / skip fainted actors before executing
+      const hpMap = prev.hpMap || {};
+      const isAlive = (id) => (hpMap[id] ?? 0) > 0;
+
+      const retargetIfNeeded = (action) => {
+        if (action.type !== 'move') return action;
+        if (!isAlive(action.pokemonId)) return null; // attacker fainted
+
+        const moveTarget = action.payload?.target || 'single-opponent';
+        if (moveTarget === 'all-opponents') {
+          const pool = action.side === 'player' ? prev.enemyActive : prev.playerActive;
+          const alive = (pool || []).filter(isAlive);
+          return alive.length ? { ...action, defenderIds: alive } : null;
+        }
+
+        const stillAlive = (action.defenderIds || []).filter(isAlive);
+        if (stillAlive.length) return { ...action, defenderIds: stillAlive };
+
+        const pool = action.side === 'player' ? prev.enemyActive : prev.playerActive;
+        const fallback = (pool || []).find(isAlive);
+        return fallback ? { ...action, defenderIds: [fallback] } : null;
+      };
+
+      const cleaned = remaining.map(retargetIfNeeded).filter(Boolean)
+        .filter(a => a.type !== 'move' || (a.defenderIds?.length ?? 0) > 0);
+
+      // 3) Execute remaining actions (moves/items)
+      const engine = new BattleEngine(
+        pokemonMap[prev.playerActive?.[0]] || prev.playerPokemon,
+        pokemonMap[prev.enemyActive?.[0]]  || prev.enemyPokemon,
+        pokemonMap
+      );
+      const engineLog = engine.executeTurnQueue(cleaned, prev, pokemonMap);
+
+      // 3) Post-turn faint/refill + win/loss
+      const after = handleMultiFaintsAndRefill(prev, engineLog);
+
+      if (isSideDefeated(after, 'enemy')) after.status = 'won';
+      if (isSideDefeated(after, 'player')) after.status = 'lost';
+
+      after.turnNumber = (after.turnNumber || 1) + 1;
+      after.battleLog = [...(after.battleLog || []), ...turnLog, ...engineLog];
+
+      after.playerPokemon = pokemonMap[after.playerActive?.[0]] || after.playerPokemon;
+      after.enemyPokemon  = pokemonMap[after.enemyActive?.[0]]  || after.enemyPokemon;
+      syncLegacyFields(after);
+
+      return { ...after };
+    });
+  };
+
+  // isTrainer3v3: true only when trainerData + a real roster exist
+  const isTrainer3v3 = useMemo(() => {
+    const st = location.state;
+    return Boolean(st?.trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
+  }, [location.state, trainerRoster]);
+
+  // pokemonMap: all party + enemy roster mons with computed stats
+  const pokemonMap = useMemo(() => {
+    const map = {};
+    const all = [...(playerPokemon || []), ...(trainerRoster || [])];
+    for (const mon of all) {
+      if (!mon?.id) continue;
+      const withStats = getPokemonStats(mon);
+      map[mon.id] = {
+        ...withStats,
+        abilities: withStats.abilities || mon.abilities || ['Tackle'],
+        movePP: withStats.movePP || mon.movePP || {},
+        statStages: withStats.statStages || createDefaultStatStages(),
+      };
+    }
+    return map;
+  }, [playerPokemon, trainerRoster]);
 
   // Compute latest talent triggers (must be called before any conditional returns)
   const latestTalentTriggers = useMemo(() => {

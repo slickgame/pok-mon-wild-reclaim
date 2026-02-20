@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map as MapIcon, Search, Compass, Eye, Sparkles, ChevronRight } from 'lucide-react';
+import { Map, Search, Compass, Eye, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,14 +16,6 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
-import PlantingPlotModal from '@/components/zones/PlantingPlotModal';
-import IrisShopModal from '@/components/zones/IrisShopModal';
-import MerraQuestsModal from '@/components/zones/MerraQuestsModal';
-import BerryFarmPanel from '@/components/zones/BerryFarmPanel';
-import ZoneInventoryPanel from '@/components/zones/ZoneInventoryPanel';
-import ZonePartyPanel from '@/components/zones/ZonePartyPanel';
-import ZoneBestiary from '@/components/zones/ZoneBestiary';
-import ZoneLogbook from '@/components/zones/ZoneLogbook';
 import {
   Dialog,
   DialogContent,
@@ -136,17 +128,46 @@ export default function ZonesPage() {
         subtitle="Discover new areas and catch wild Pokémon"
         icon={MapIcon}
         action={
-          <div className="relative">
+        <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder="Search zones..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-slate-800/50 border-slate-700 w-48"
-            />
+            placeholder="Search zones..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-slate-800/50 border-slate-700 w-48" />
+
           </div>
-        }
-      />
+        } />
+
+
+      {isLoading ?
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) =>
+        <Skeleton key={i} className="h-64 bg-slate-800" />
+        )}
+        </div> :
+      selectedZone ?
+      <ZoneDetailView
+        zone={selectedZone}
+        onBack={() => setSearchParams({})} /> :
+
+      filteredZones.length > 0 ?
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}>
+
+          {filteredZones.map((zone, idx) =>
+        <motion.div
+          key={zone.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: idx * 0.05 }}>
+
+              <ZoneCard
+            zone={zone}
+            isDiscovered={discoveredZones.includes(zone.name)}
+            onClick={() => setSearchParams({ zoneId: zone.id })} />
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -160,7 +181,7 @@ export default function ZonesPage() {
           onBack={() => setSearchParams({})}
         />
       ) : filteredZones.length > 0 ? (
-        <motion.div
+        <motion.div 
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -172,7 +193,7 @@ export default function ZonesPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
             >
-              <ZoneCard
+              <ZoneCard 
                 zone={zone}
                 isDiscovered={discoveredZones.includes(zone.name)}
                 onClick={() => setSearchParams({ zoneId: zone.id })}
@@ -182,11 +203,12 @@ export default function ZonesPage() {
         </motion.div>
       ) : (
         <div className="glass rounded-xl p-12 text-center">
-          <MapIcon className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+          <Map className="w-16 h-16 mx-auto mb-4 text-slate-600" />
           <h3 className="text-xl font-semibold text-white mb-2">No Zones Found</h3>
           <p className="text-slate-400">Try a different search term</p>
         </div>
       )}
+
     </div>
   );
 }
@@ -199,9 +221,6 @@ function ZoneDetailView({ zone, onBack }) {
   const [zoneProgress, setZoneProgress] = useState(null);
   const [selectedNodelet, setSelectedNodelet] = useState(null);
   const [activeNodelet, setActiveNodelet] = useState(null);
-  const [showPlantingModal, setShowPlantingModal] = useState(false);
-  const [showIrisShop, setShowIrisShop] = useState(false);
-  const [showMerraQuests, setShowMerraQuests] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -239,16 +258,6 @@ function ZoneDetailView({ zone, onBack }) {
   const { data: allPokemon = [] } = useQuery({
     queryKey: ['allPokemon'],
     queryFn: () => base44.entities.Pokemon.list()
-  });
-
-  const { data: user } = useQuery({
-    queryKey: ['user'],
-    queryFn: () => base44.auth.me()
-  });
-
-  const { data: berryPlots = [] } = useQuery({
-    queryKey: ['berryPlots'],
-    queryFn: () => base44.entities.BerryPlot.list()
   });
 
   useEffect(() => {
@@ -291,13 +300,7 @@ function ZoneDetailView({ zone, onBack }) {
   const gradient = biomeColors[zone.biomeType] || 'from-indigo-500 to-purple-600';
 
   const nodeletTemplateMap = useMemo(
-    () => {
-      const map = new Map();
-      VERDANT_HOLLOW_NODELETS.forEach((nodelet) => {
-        map.set(nodelet.id, nodelet);
-      });
-      return map;
-    },
+    () => new Map(VERDANT_HOLLOW_NODELETS.map((nodelet) => [nodelet.id, nodelet])),
     []
   );
 
@@ -736,7 +739,7 @@ function ZoneDetailView({ zone, onBack }) {
     return { settled: true };
   };
 
-  const _unusedHandleNodeletActionLegacy = async (nodelet, action) => {
+  const handleNodeletAction = async (nodelet, action) => {
     nodelet = resolveNodeletConfig(nodelet);
     if (!zone?.id || !nodelet?.id) return;
 
@@ -1520,6 +1523,11 @@ function ZoneDetailView({ zone, onBack }) {
     prevNodeletIdRef.current = next;
   }, [activeNodelet?.id]); // eslint-disable-line
 
+  const handleLeaveNodelet = () => {
+    setActiveNodelet(null);
+    setActiveSection('places');
+  };
+
   const consumeItemByName = async (name, qty) => {
     const item = items.find((it) => it.name === name && (it.quantity || 0) > 0);
     if (!item) return false;
@@ -1530,6 +1538,30 @@ function ZoneDetailView({ zone, onBack }) {
       await base44.entities.Item.delete(item.id);
     }
     return true;
+  };
+
+  const upsertItem = async (name, quantity, overrides = {}) => {
+    const existingItem = items.find((item) => item.name === name && item.stackable !== false);
+
+    if (existingItem) {
+      await base44.entities.Item.update(existingItem.id, {
+        quantity: Math.max(0, (existingItem.quantity || 0) + quantity)
+      });
+      return;
+    }
+
+    if (quantity > 0) {
+      await base44.entities.Item.create({
+        name,
+        type: overrides.type || 'Material',
+        tier: overrides.tier || 1,
+        rarity: overrides.rarity || 'Common',
+        description: overrides.description || `Found in ${zone.name}`,
+        quantity,
+        stackable: true,
+        sellValue: overrides.sellValue || 10
+      });
+    }
   };
 
   const applyNodeletAction = async (nodelet, action, opts = {}) => {
@@ -2095,6 +2127,74 @@ function ZoneDetailView({ zone, onBack }) {
   };
 
 
+  const handleClaimNodeletRewards = async (nodelet) => {
+    const pending = getUnclaimedObjectiveRewards(nodelet);
+    if (!pending.length) {
+      setExplorationEvents((prev) => [{
+        title: '📘 No Rewards Pending',
+        description: `${nodelet.name} has no claimable rewards right now.`,
+        type: 'special',
+        rarity: 'common'
+      }, ...prev].slice(0, 10));
+      return;
+    }
+
+    try {
+      const latestPlayers = await base44.entities.Player.list();
+      const latestPlayer = latestPlayers?.[0] || player;
+      const totalGold = pending.reduce((sum, entry) => sum + (entry.reward?.gold || 0), 0);
+
+      if (totalGold > 0 && latestPlayer?.id) {
+        await base44.entities.Player.update(latestPlayer.id, {
+          gold: (latestPlayer.gold || 0) + totalGold
+        });
+        queryClient.invalidateQueries({ queryKey: ['player'] });
+      }
+
+      for (const entry of pending) {
+        if (Array.isArray(entry.reward?.items)) {
+          for (const rewardItem of entry.reward.items) {
+            await upsertItem(rewardItem.name, rewardItem.quantity || 1, {
+              type: 'Material',
+              rarity: 'Uncommon',
+              description: `Objective reward from ${nodelet.name}`
+            });
+          }
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+
+      const claimTime = getCurrentGameTimestamp();
+      const updatedNodelets = (zone.nodelets || []).map((existingNodelet) => {
+        if (existingNodelet.id !== nodelet.id) return existingNodelet;
+        const updatedHistory = (existingNodelet.objectiveHistory || []).map((entry) =>
+        entry.claimedAt ? entry : { ...entry, claimedAt: claimTime }
+        );
+        return { ...existingNodelet, objectiveHistory: updatedHistory };
+      });
+
+      const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
+      queryClient.setQueryData(['zones'], (existingZones = []) =>
+      existingZones.map((existingZone) =>
+      existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
+      )
+      );
+
+      const refreshedNodelet = updatedNodelets.find((entry) => entry.id === nodelet.id);
+      setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
+      setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
+
+      setExplorationEvents((prev) => [{
+        title: '🎁 Rewards Claimed',
+        description: `Claimed ${pending.length} objective reward${pending.length > 1 ? 's' : ''}${totalGold ? ` (+${totalGold}g)` : ''}.`,
+        type: 'special',
+        rarity: 'rare'
+      }, ...prev].slice(0, 10));
+    } catch (error) {
+      console.error('Failed to claim nodelet rewards:', error);
+    }
+  };
+
   useEffect(() => {
     const nodeletBattle = searchParams.get('nodeletBattle');
     const nodeletId = searchParams.get('nodeletId');
@@ -2286,48 +2386,6 @@ function ZoneDetailView({ zone, onBack }) {
     }));
     queryClient.invalidateQueries({ queryKey: ['allPokemon'] });
     queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
-  };
-
-  const maybeBankBrambleberryStreak = async () => {
-    // Daily banking logic for Brambleberry Thicket
-    if (!zone?.id) return;
-    const bbNodelet = zone.nodelets?.find((n) => n.id === 'vh-brambleberry-thicket');
-    if (!bbNodelet) return;
-    // Placeholder for daily streak banking
-  };
-
-  const maybeDailyPoacherPresenceDecay = async () => {
-    // Daily poacher presence decay for Brambleberry Thicket
-    if (!zone?.id) return;
-    const bbNodelet = zone.nodelets?.find((n) => n.id === 'vh-brambleberry-thicket');
-    if (!bbNodelet) return;
-    // Placeholder for daily poacher presence decay
-  };
-
-  const adjustBrambleberryPoacherPresence = async (delta, reason = 'travel') => {
-    // Adjust poacher presence in Brambleberry Thicket
-    if (!zone?.id) return;
-    const bbNodelet = zone.nodelets?.find((n) => n.id === 'vh-brambleberry-thicket');
-    if (!bbNodelet) return;
-    // Placeholder for poacher presence adjustment
-  };
-
-  const getBrambleberryEncounterModifiers = (nodelet) => {
-    // Get encounter modifiers for Brambleberry Thicket
-    return {
-      poacherChanceBonus: 0,
-      rareWeightMultiplier: 1,
-      lootBonusMultiplier: 1
-    };
-  };
-
-  const getBrambleberryStreakDecayRules = (nodelet) => {
-    // Get streak decay rules for Brambleberry Thicket
-    return {
-      leave: 2,
-      travel: 2,
-      nap: 3
-    };
   };
 
   const adjustNodeletHarvestStreak = async (nodeletId, { mode = 'decay', amount = 2, reason = 'decay' } = {}) => {
@@ -3024,12 +3082,13 @@ function ZoneDetailView({ zone, onBack }) {
                   setIsExploring(false);
                 }
               }
-            }}
-            className={activeSection === section.id ? 'bg-indigo-500 text-white' : 'border-slate-700 text-slate-200'}>
+            }
+          }}
+          className={activeSection === section.id ? 'bg-indigo-500 text-white' : 'border-slate-700 text-slate-200'}>
 
             {section.label}
           </Button>
-        ))}
+        )}
       </div>
 
       {activeSection === 'explore' &&
@@ -3180,10 +3239,10 @@ function ZoneDetailView({ zone, onBack }) {
 
         <div className="glass rounded-xl p-6 text-center text-slate-400">
               No places discovered yet.
-                </div>
-              }
+            </div>
+          )}
 
-              {activeNodelet && (
+          {activeNodelet && (
             <div className="glass rounded-xl p-4 border border-indigo-500/30">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -3211,7 +3270,7 @@ function ZoneDetailView({ zone, onBack }) {
             </div>
           )}
         </div>
-      }
+      )}
 
       {activeSection === 'nodelet' && activeNodelet && (
         <div className="space-y-4">
@@ -3339,7 +3398,7 @@ function ZoneDetailView({ zone, onBack }) {
             <>
               <DialogHeader>
                 <DialogTitle className="text-white flex items-center gap-2">
-                  <MapIcon className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
+                  <Map className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
                 </DialogTitle>
                 <DialogDescription className="text-slate-300">
                   {selectedNodelet.description || 'A location within Verdant Hollow.'}
@@ -3472,6 +3531,36 @@ function ZoneDetailView({ zone, onBack }) {
           </div>
         </div>
       )}
+
+          {activeNodelet &&
+        <div className="glass rounded-xl p-4 border border-indigo-500/30">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-white">{activeNodelet.name}</h3>
+                  <p className="text-xs text-slate-400">{activeNodelet.type} Location</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700"
+                onClick={() => setActiveSection('nodelet')}>
+
+                    Open Location
+                  </Button>
+                  <Button
+                size="sm"
+                variant="outline"
+                className="border-slate-700 text-slate-200"
+                onClick={handleLeaveNodelet}>
+
+                    Leave
+                  </Button>
+                </div>
+              </div>
+            </div>
+        }
+        </div>
+      }
 
       {activeSection === 'nodelet' && activeNodelet &&
       <div className="space-y-4">
