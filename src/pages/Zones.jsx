@@ -3857,10 +3857,10 @@ function ZoneDetailView({ zone, onBack }) {
 
       }
 
-      {activeSection === 'quests' &&
+      {activeSection === 'quests' && (
       <div className="glass rounded-xl p-4">
           <h3 className="text-sm font-semibold text-white mb-3">Active Quests</h3>
-          {activeQuests.length > 0 ?
+          {activeQuests.length > 0 ? (
         <div className="space-y-3">
               {activeQuests.map((quest) => {
             const questProgress = quest.type === 'research' && quest.questId ?
@@ -3880,25 +3880,25 @@ function ZoneDetailView({ zone, onBack }) {
                   <div className="mt-1 text-xs text-slate-400">
                     Time Left: <span className="text-slate-200">{getQuestTimeLeft(quest)}</span>
                   </div>
-                  {quest.type === 'research' &&
+                  {quest.type === 'research' && (
                 <div className="mt-2 text-xs text-slate-400">
                       Fulfilling Pokémon: {matchingPokemon.length ?
                   matchingPokemon.map((pokemon) => pokemon.species).join(', ') :
                   'None in your roster'}
                     </div>
-                }
-                  {quest.type === 'research' &&
+                )}
+                  {quest.type === 'research' && (
                 <p className="mt-1 text-[11px] text-slate-500">Submit research quests only at Professor Maple.</p>
-                }
+                )}
                 </div>);
 
           })}
-            </div> :
-
+            </div>
+        ) : (
         <p className="text-slate-400">No active quests. Accept quests from NPCs to track them here.</p>
-        }
+        )}
         </div>
-      }
+      )}
 
       <PlantingPlotModal
         isOpen={showPlantingModal}
