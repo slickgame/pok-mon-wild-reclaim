@@ -241,6 +241,11 @@ function ZoneDetailView({ zone, onBack }) {
     queryFn: () => base44.entities.Pokemon.list()
   });
 
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => base44.auth.me()
+  });
+
   useEffect(() => {
     const migratePoacherNodeletData = async () => {
       const migration = migrateZoneNodeletsForPoacherData(zone);
