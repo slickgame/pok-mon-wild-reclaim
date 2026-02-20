@@ -3429,89 +3429,48 @@ function ZoneDetailView({ zone, onBack }) {
 
       }
 
-      {activeSection === 'quests' &&
+      {activeSection === 'quests' && (
       <div className="glass rounded-xl p-4">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div>
-                <h3 className="text-base font-semibold text-white">{activeNodelet.name}</h3>
-                <p className="text-xs text-slate-400">{zone.name} · {activeNodelet.type} Location</p>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="border-slate-700 text-slate-200" onClick={() => setActiveSection('places')}>
-                  Back to Places
-                </Button>
-                <Button size="sm" variant="outline" className="border-slate-700 text-slate-200" onClick={handleLeaveNodelet}>
-                  Leave
-                </Button>
-              </div>
+          <h3 className="text-sm font-semibold text-white mb-3">Active Quests</h3>
+          {activeQuests.length > 0 ? (
+        <div className="space-y-3">
+              {activeQuests.map((quest) => {
+            const questProgress = quest.type === 'research' && quest.questId ?
+            getSubmissionCount(quest.questId) :
+            quest.progress ?? 0;
+            const matchingPokemon = getMatchingPokemonForQuest(quest);
+            return (
+              <div key={quest.id} className="bg-slate-800/50 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-medium text-sm">{quest.name}</p>
+                    <Badge className="bg-indigo-500/20 text-indigo-200 text-xs">{quest.type || 'Quest'}</Badge>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">{quest.description}</p>
+                  <div className="mt-2 text-xs text-slate-300">
+                    Progress: {questProgress}/{quest.goal ?? 1}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Time Left: <span className="text-slate-200">{getQuestTimeLeft(quest)}</span>
+                  </div>
+                  {quest.type === 'research' && (
+                <div className="mt-2 text-xs text-slate-400">
+                      Fulfilling Pokémon: {matchingPokemon.length ?
+                  matchingPokemon.map((pokemon) => pokemon.species).join(', ') :
+                  'None in your roster'}
+                    </div>
+                )}
+                  {quest.type === 'research' && (
+                <p className="mt-1 text-[11px] text-slate-500">Submit research quests only at Professor Maple.</p>
+                )}
+                </div>);
+
+          })}
             </div>
-
-            {activeNodelet.description &&
-          <p className="text-sm text-slate-300 mb-3">{activeNodelet.description}</p>
-          }
-
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => handleExploreNodelet(activeNodelet)}>
-                Explore Location
-              </Button>
-              {activeNodelet.actions?.filter((a) => !['Harvest', 'Plant', 'Deliver Berries', 'Replant'].includes(a)).map((actionLabel) => {
-              const currentProgress = zoneProgress?.discoveryProgress || 0;
-              const unlockAt = activeNodelet.unlockDiscoveryProgress || 0;
-              const isLocked = currentProgress < unlockAt;
-              return (
-                <Button
-                  key={`nodelet-${actionLabel}`}
-                  size="sm"
-                  variant="outline"
-                  disabled={isLocked}
-                  className={`border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  onClick={() => handleNodeletAction(activeNodelet, actionLabel)}>
-
-                                {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                              </Button>);
-
-            })}
-              <Button size="sm" variant="outline" className="border-slate-700 text-slate-200" onClick={() => handleNodeletInspect(activeNodelet)}>
-                Details
-              </Button>
-            </div>
-
-            {explorationEvents[0] &&
-          <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3 mb-3">
-                <p className="text-xs font-semibold text-indigo-200">Latest Activity</p>
-                <p className="text-sm text-indigo-100">{explorationEvents[0].title}</p>
-                <p className="text-xs text-indigo-200/90">{explorationEvents[0].description}</p>
-              </div>
-          }
-
-            {Array.isArray(activeNodelet.npcs) && activeNodelet.npcs.length > 0 &&
-          <div className="rounded-lg border border-slate-700/80 bg-slate-900/40 p-3 mb-3">
-                <h4 className="text-xs font-semibold text-slate-200 mb-2">NPCs Here</h4>
-                <div className="flex flex-wrap gap-2">
-                  {activeNodelet.npcs.map((npc) =>
-              <Button
-                key={npc}
-                size="sm"
-                variant="outline"
-                className="border-slate-600 text-slate-200"
-                onClick={() => handleNodeletNpcInteract(activeNodelet, npc)}>
-
-                      {npc}
-                    </Button>
-              )}
-                </div>
-              </div>
-          }
-
-            {getUnclaimedObjectiveRewards(activeNodelet).length > 0 &&
-          <Button
-            size="sm"
-            className="bg-amber-600 hover:bg-amber-700 text-white mb-3"
-            onClick={() => handleClaimNodeletRewards(activeNodelet)}>
-
-                Claim Rewards ({getUnclaimedObjectiveRewards(activeNodelet).length})
-              </Button>
-          }
+        ) : (
+        <p className="text-slate-400">No active quests. Accept quests from NPCs to track them here.</p>
+        )}
+        </div>
+      )}
 
             {activeNodelet.id === 'vh-brambleberry-thicket' && (() => {
               const nodelet = resolveNodeletConfig(activeNodelet);
