@@ -230,7 +230,41 @@ export default function BattlePage() {
     const playerStats = playerStatsResult?.stats || playerMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     const wildStats = wildStatsResult?.stats || wildMon?.stats || { hp: 100, maxHp: 100, atk: 50, def: 50, spAtk: 50, spDef: 50, spd: 50 };
     
-    const initialEnemyTeam = trainerRosterRef.current.length > 0 ? trainerRosterRef.current : [wildMon];
+    const enemyParty = trainerRosterRef.current.length > 0 ? trainerRosterRef.current : [wildMon];
+    const initialEnemyTeam = enemyParty;
+
+    // 3v3 trainer battle path
+    if (trainerRosterRef.current.length > 0 && location.state?.trainerData) {
+      const multiState = createBattleState({
+        playerParty: playerPokemon,
+        enemyParty,
+        activeSlots: 3,
+        isWildBattle: false,
+        openingLog: `${location.state.trainerData?.name || 'Trainer'} challenges you to a 3v3 battle!`
+      });
+
+      // Keep legacy pointers pointing to first active slot objects
+      const pMap = {};
+      const all = [...playerPokemon, ...enemyParty];
+      for (const mon of all) {
+        if (!mon?.id) continue;
+        const ws = getPokemonStats(mon);
+        pMap[mon.id] = {
+          ...ws,
+          abilities: ws.abilities || mon.abilities || ['Tackle'],
+          movePP: ws.movePP || mon.movePP || {},
+          statStages: ws.statStages || createDefaultStatStages(),
+        };
+      }
+      multiState.playerPokemon = pMap[multiState.playerActive[0]] || playerPokemon[0];
+      multiState.enemyPokemon  = pMap[multiState.enemyActive[0]]  || enemyParty[0];
+      multiState.enemyTeam = enemyParty;
+      syncLegacyFields(multiState);
+
+      setBattleState(multiState);
+      setActionMenu('main');
+      return;
+    }
 
     // Use persisted HP if available, otherwise use max HP
     const startingPlayerHP = (playerMon.currentHp !== undefined && playerMon.currentHp !== null && playerMon.currentHp > 0)
