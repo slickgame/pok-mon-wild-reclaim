@@ -2322,12 +2322,11 @@ function ZoneDetailView({ zone, onBack }) {
                 rarity: 'uncommon'
               }, ...prev].slice(0, 10));
             }}
-            onHarvest={async (plot) => {
+            onHarvest={async ({ plot }) => {
               const BERRY_YIELDS = {
                 'Oran Berry Seed': [2, 4], 'Pecha Berry Seed': [2, 5],
                 'Cheri Berry Seed': [3, 6], 'Sitrus Berry Seed': [1, 3], 'Lum Berry Seed': [1, 2]
               };
-              const nowGameTs = getCurrentGameTimestamp();
 
               // Single-plot poacher check
               const poacherTriggered = await maybeTriggerEnemyNPCEncounter(
@@ -2343,9 +2342,10 @@ function ZoneDetailView({ zone, onBack }) {
               queryClient.invalidateQueries({ queryKey: ['berryPlots'] });
               queryClient.invalidateQueries({ queryKey: ['items'] });
 
+              await applyNodeletAction(activeNodelet, 'Harvest', { count: 1, incrementHarvestStreak: true });
+
               // Single-plot wild encounter check
-              const harvestEncounterChance = 0.25;
-              if (Math.random() < harvestEncounterChance) {
+              if (Math.random() < 0.25) {
                 const nodelet = resolveNodeletConfig(activeNodelet);
                 const encounter = getNodeletEncounter(nodelet, 'Harvest');
                 if (encounter?.species) {
