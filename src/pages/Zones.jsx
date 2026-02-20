@@ -1234,6 +1234,11 @@ function ZoneDetailView({ zone, onBack }) {
       console.error('Failed to update nodelet:', error);
     }
   };
+
+  const handleClaimNodeletRewards = async (nodelet) => {
+    const pending = getUnclaimedObjectiveRewards(nodelet);
+    if (!pending.length) {
+      setExplorationEvents((prev) => [{
         title: '📘 No Rewards Pending',
         description: `${nodelet.name} has no claimable rewards right now.`,
         type: 'special',
@@ -1564,6 +1569,10 @@ function ZoneDetailView({ zone, onBack }) {
     setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
     setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
   };
+
+  const handleNodeletActionLegacy = async (nodelet, action) => {
+    nodelet = resolveNodeletConfig(nodelet);
+    if (!zone?.id || !nodelet?.id) return;
 
     const now = new Date().toISOString();
     const nowGameTs = getCurrentGameTimestamp();
