@@ -54,8 +54,6 @@ const BRAMBLEBERRY_STREAK_DECAY = {
   nap: 3
 };
 
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-
 
 export default function ZonesPage() {
   const [searchQuery, setSearchQuery] = useState('');
