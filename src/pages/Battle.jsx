@@ -1451,10 +1451,10 @@ export default function BattlePage() {
     return bestId;
   };
 
-  const buildEnemyActionsSmart = (state) => {
+  const buildEnemyActionsSmart = (state, overrideEnemyActive = null) => {
     const enemyActs = [];
     const hpMap = state.hpMap || {};
-    const enemyActive = state.enemyActive || [];
+    const enemyActive = overrideEnemyActive || state.enemyActive || [];
     const playerActive = state.playerActive || [];
 
     const alivePlayers = playerActive.filter(id => (hpMap[id] ?? 0) > 0);
