@@ -1541,6 +1541,76 @@ export default function BattlePage() {
     return enemyActs;
   };
 
+  const buildEnemyActionsSmartWithSwitch = (state) => {
+    const hpMap = state.hpMap || {};
+    const enemyActive = state.enemyActive || [];
+    const playerAlive = getAlive(state.playerActive, hpMap);
+    const enemyBenchAlive = getAlive(state.enemyBench, hpMap);
+
+    if (playerAlive.length === 0) return [];
+
+    const engine = new BattleEngine(
+      pokemonMap[state.playerActive?.[0]] || state.playerPokemon,
+      pokemonMap[state.enemyActive?.[0]] || state.enemyPokemon,
+      pokemonMap
+    );
+
+    const switchedOut = new Set(); // track which bench slots are already claimed this turn
+    const acts = [];
+
+    for (const enemyId of enemyActive) {
+      const mon = pokemonMap[enemyId];
+      if (!mon) continue;
+      if ((hpMap[enemyId] ?? 0) <= 0) continue;
+
+      const moves = (mon.abilities || []).map(name => {
+        const md = getMoveData(name, mon);
+        if (!md) return null;
+        const maxPP = md.pp || 10;
+        const curPP = mon.movePP?.[name] !== undefined ? mon.movePP[name] : maxPP;
+        if (curPP <= 0) return null;
+        return { name, data: md };
+      }).filter(Boolean);
+
+      if (moves.length === 0) {
+        acts.push({ type: 'move', pokemonId: enemyId, side: 'enemy',
+          payload: getMoveData('Tackle', mon) || { name: 'Tackle', type: 'Normal', power: 40 },
+          defenderIds: [playerAlive[0]] });
+        continue;
+      }
+
+      // Check if walled (max effectiveness of any damaging move < 1.0)
+      let maxEff = 0;
+      for (const mv of moves) {
+        if (!(mv.data.power > 0)) continue;
+        for (const pid of playerAlive) {
+          const tgt = pokemonMap[pid];
+          const tgtTypes = tgt?.types || [tgt?.type1, tgt?.type2].filter(Boolean);
+          const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(mv.data.type || 'Normal', tgtTypes) : 1;
+          maxEff = Math.max(maxEff, eff);
+        }
+      }
+
+      const availableBench = enemyBenchAlive.filter(id => !switchedOut.has(id));
+      if (maxEff > 0 && maxEff < 1.0 && availableBench.length > 0) {
+        const bestBench = pickBestEnemyBenchCounter(state, availableBench, playerAlive);
+        if (bestBench) {
+          switchedOut.add(bestBench);
+          acts.push({ type: 'switch', pokemonId: enemyId, side: 'enemy', payload: { outId: enemyId, inId: bestBench } });
+          continue;
+        }
+      }
+
+      // Fall back to smart move selection for this single slot
+      const slotActs = buildEnemyActionsSmart(state, [enemyId]);
+      const my = slotActs.find(a => a.pokemonId === enemyId);
+      if (my) acts.push(my);
+      else acts.push({ type: 'move', pokemonId: enemyId, side: 'enemy', payload: moves[0].data, defenderIds: [playerAlive[0]] });
+    }
+
+    return acts;
+  };
+
   const handleMultiFaintsAndRefill = (state, turnLog) => {
     const hpMap = state.hpMap || {};
     const log = (msg) => turnLog.push({
