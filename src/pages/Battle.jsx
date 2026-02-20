@@ -208,9 +208,11 @@ export default function BattlePage() {
 
   // Auto-start battle — wait for battleReady (trainer intro dismissed) and roster loaded
   const battleStartedRef = React.useRef(false);
-  // Keep a ref to the latest trainerRoster so startWildBattle always sees it
+  // Keep refs to the latest trainerRoster/trainerData so startWildBattle always sees them
   const trainerRosterRef = React.useRef([]);
+  const trainerDataRef = React.useRef(null);
   useEffect(() => { trainerRosterRef.current = trainerRoster; }, [trainerRoster]);
+  useEffect(() => { trainerDataRef.current = trainerData; }, [trainerData]);
 
   useEffect(() => {
     if (wildPokemon && playerPokemon.length > 0 && !battleState && !battleStartedRef.current && battleReady) {
