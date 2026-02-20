@@ -45,6 +45,12 @@ import { VERDANT_HOLLOW_NODELETS, shouldSeedVerdantNodelets } from '@/components
 
 const EXPLORE_TIME_MINUTES = 10;
 
+const BRAMBLEBERRY_STREAK_DECAY = {
+  leave: 2,
+  travel: 2,
+  nap: 3
+};
+
 
 export default function ZonesPage() {
   const [searchQuery, setSearchQuery] = useState('');
