@@ -265,6 +265,25 @@ export default function BattlePage() {
     return team.find((pokemon) => !faintedEnemyIds.has(pokemon.id)) || null;
   };
 
+  const upsertRewardItem = async (name, qty = 1, meta = {}) => {
+    if (!name || qty <= 0) return;
+    const existing = await base44.entities.Item.filter({ name });
+    if (existing?.length) {
+      const it = existing[0];
+      await base44.entities.Item.update(it.id, { quantity: (it.quantity || 1) + qty });
+    } else {
+      await base44.entities.Item.create({
+        name,
+        quantity: qty,
+        stackable: true,
+        type: meta.type || 'Material',
+        rarity: meta.rarity || 'Common',
+        description: meta.description || 'Reward item.',
+        sellValue: meta.sellValue || 10
+      });
+    }
+  };
+
   const cleanupEncounterPokemon = async (excludeIds = []) => {
     const idsToDelete = (encounterPokemonIds || []).filter((id) => id && !excludeIds.includes(id));
     if (idsToDelete.length === 0) return;
