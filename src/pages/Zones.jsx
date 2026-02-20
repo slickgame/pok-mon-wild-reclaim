@@ -2960,7 +2960,7 @@ function ZoneDetailView({ zone, onBack }) {
 
             {section.label}
           </Button>
-        )}
+        ))}
       </div>
 
       {activeSection === 'explore' &&
