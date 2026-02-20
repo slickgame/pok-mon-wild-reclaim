@@ -2955,9 +2955,8 @@ function ZoneDetailView({ zone, onBack }) {
                   setIsExploring(false);
                 }
               }
-            }
-          }}
-          className={activeSection === section.id ? 'bg-indigo-500 text-white' : 'border-slate-700 text-slate-200'}>
+            }}
+            className={activeSection === section.id ? 'bg-indigo-500 text-white' : 'border-slate-700 text-slate-200'}>
 
             {section.label}
           </Button>
