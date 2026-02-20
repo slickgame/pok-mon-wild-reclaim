@@ -1953,6 +1953,14 @@ function ZoneDetailView({ zone, onBack }) {
     };
   };
 
+  const getBrambleberryStreakDecayRules = (nodelet) => {
+    const contract = getBrambleberryContractState(nodelet);
+    const rules = { leave: 2, travel: 2, nap: 3, sleepResets: true };
+    if (contract.tier2Unlocked) { rules.leave = 1; rules.travel = 1; rules.nap = 2; }
+    if (contract.tier3Unlocked) { rules.leave = 0; rules.travel = 0; rules.nap = 1; }
+    return rules;
+  };
+
   // Shared modifier helper — used by encounter engine AND UI display
   const getBrambleberryEncounterModifiers = (nodelet) => {
     const contract = getBrambleberryContractState(nodelet);
