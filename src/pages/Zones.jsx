@@ -3474,12 +3474,7 @@ function ZoneDetailView({ zone, onBack }) {
 
       {activeSection === 'nodelet' && activeNodelet?.id === 'vh-brambleberry-thicket' && (
         <div className="space-y-4">
-
-
-
-          {activeNodelet.id === 'vh-brambleberry-thicket' && (
-            <>
-              {(() => {
+          {(() => {
                 const nodelet = resolveNodeletConfig(activeNodelet);
                 const contractState = getBrambleberryContractState(nodelet);
                 const berryNames = ['Oran Berry','Pecha Berry','Cheri Berry','Sitrus Berry','Lum Berry'];
