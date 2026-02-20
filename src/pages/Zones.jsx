@@ -3688,12 +3688,13 @@ function ZoneDetailView({ zone, onBack }) {
                 description: `Harvested ${quantity}× ${berryName}!`,
                 type: 'material',
                 rarity: 'common'
-              }, ...prev].slice(0, 10));
-            }} />
+                }, ...prev].slice(0, 10));
+                }}
+                />
+                </>
+                )}
 
-          }
-
-            {Array.isArray(activeNodelet.gameplayFeatures) && activeNodelet.gameplayFeatures.length > 0 && (
+                {Array.isArray(activeNodelet.gameplayFeatures) && activeNodelet.gameplayFeatures.length > 0 && (
             <ul className="mt-2 space-y-1 text-sm text-emerald-100/80">
               {activeNodelet.gameplayFeatures.map((feature, idx) => (
                 <li key={`feature-${idx}`} className="flex gap-2">
