@@ -1666,43 +1666,78 @@ export default function BattlePage() {
         {/* Battle Field */}
         <div className="lg:col-span-2 space-y-4">
           <BattlefieldStatus battlefield={battleState.battlefield} />
-          {/* Enemy Pokemon */}
-          <BattleHUD
-            pokemon={battleState.enemyPokemon}
-            hp={battleState.enemyHP}
-            maxHp={(() => {
-              const result = getPokemonStats(battleState.enemyPokemon);
-              return result?.stats?.maxHp || battleState.enemyPokemon?.stats?.maxHp || 100;
-            })()}
-            status={battleState.enemyStatus}
-            roles={battleState.enemyPokemon.roles || []}
-            activeTalentIndicator={latestTalentTriggers.enemy}
-          />
 
-          {/* VS Indicator */}
-          <div className="flex justify-center">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center"
-            >
-              <Swords className="w-8 h-8 text-white" />
-            </motion.div>
-          </div>
+          {/* HUDs — 3v3 or 1v1 */}
+          {isMulti ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Enemy side */}
+              <div className="space-y-2">
+                {(battleState.enemyActive || []).map((id) => {
+                  const mon = pokemonMap[id];
+                  if (!mon) return null;
+                  const hp = battleState.hpMap?.[id] ?? mon.currentHp ?? 0;
+                  const maxHp = battleState.maxHpMap?.[id] ?? mon.stats?.maxHp ?? 100;
+                  const status = battleState.statusMap?.[id];
+                  return (
+                    <BattleHUD key={id} pokemon={mon} hp={hp} maxHp={maxHp} status={status} isPlayer={false} roles={mon.roles || []} />
+                  );
+                })}
+              </div>
+              {/* Player side */}
+              <div className="space-y-2">
+                {(battleState.playerActive || []).map((id) => {
+                  const mon = pokemonMap[id];
+                  if (!mon) return null;
+                  const hp = battleState.hpMap?.[id] ?? mon.currentHp ?? 0;
+                  const maxHp = battleState.maxHpMap?.[id] ?? mon.stats?.maxHp ?? 100;
+                  const status = battleState.statusMap?.[id];
+                  return (
+                    <BattleHUD key={id} pokemon={mon} hp={hp} maxHp={maxHp} status={status} isPlayer={true} roles={mon.roles || []} />
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Enemy Pokemon */}
+              <BattleHUD
+                pokemon={battleState.enemyPokemon}
+                hp={battleState.enemyHP}
+                maxHp={(() => {
+                  const result = getPokemonStats(battleState.enemyPokemon);
+                  return result?.stats?.maxHp || battleState.enemyPokemon?.stats?.maxHp || 100;
+                })()}
+                status={battleState.enemyStatus}
+                roles={battleState.enemyPokemon.roles || []}
+                activeTalentIndicator={latestTalentTriggers.enemy}
+              />
 
-          {/* Player Pokemon */}
-          <BattleHUD
-            pokemon={battleState.playerPokemon}
-            hp={battleState.playerHP}
-            maxHp={(() => {
-              const result = getPokemonStats(battleState.playerPokemon);
-              return result?.stats?.maxHp || battleState.playerPokemon?.stats?.maxHp || 100;
-            })()}
-            status={battleState.playerStatus}
-            roles={battleState.playerPokemon.roles || []}
-            isPlayer
-            activeTalentIndicator={latestTalentTriggers.player}
-          />
+              {/* VS Indicator */}
+              <div className="flex justify-center">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center"
+                >
+                  <Swords className="w-8 h-8 text-white" />
+                </motion.div>
+              </div>
+
+              {/* Player Pokemon */}
+              <BattleHUD
+                pokemon={battleState.playerPokemon}
+                hp={battleState.playerHP}
+                maxHp={(() => {
+                  const result = getPokemonStats(battleState.playerPokemon);
+                  return result?.stats?.maxHp || battleState.playerPokemon?.stats?.maxHp || 100;
+                })()}
+                status={battleState.playerStatus}
+                roles={battleState.playerPokemon.roles || []}
+                isPlayer
+                activeTalentIndicator={latestTalentTriggers.player}
+              />
+            </>
+          )}
 
           {/* Evolution Modal */}
           {evolutionState && (
