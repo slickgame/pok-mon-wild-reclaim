@@ -1571,7 +1571,7 @@ function ZoneDetailView({ zone, onBack }) {
     setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
   };
 
-  const handleNodeletActionV2 = async (nodelet, action) => {
+  const handleNodeletAction = async (nodelet, action) => {
     nodelet = resolveNodeletConfig(nodelet);
     if (!zone?.id || !nodelet?.id) return;
 
