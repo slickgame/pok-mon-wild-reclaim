@@ -464,6 +464,9 @@ function ZoneDetailView({ zone, onBack }) {
             faction: resolvedTrainer.faction,
             archetype: resolvedTrainer.archetype,
             aiTier: resolvedTrainer.aiTier,
+            isBoss: resolvedTrainer.isBoss || false,
+            isNamed: resolvedTrainer.isNamed || false,
+            signatureDrop: resolvedTrainer.signatureDrop || null,
           } : undefined,
           encounterPokemonIds: rosterInstances.map((pokemon) => pokemon.id),
           ...extraState
