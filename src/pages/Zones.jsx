@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -470,10 +470,9 @@ function ZoneDetailView({ zone, onBack }) {
 
   const maybeTriggerEnemyNPCEncounter = async (nodelet, chance = 0.2) => {
     nodelet = resolveNodeletConfig(nodelet);
-    const contractState = getBrambleberryContractState(nodelet);
-    const scaledChance = nodelet?.id === 'vh-brambleberry-thicket' ?
-    chance + (contractState.tier1Completed ? 0.06 : 0) + (contractState.tier2Completed ? 0.08 : 0) :
-    chance;
+    const scaledChance = nodelet?.id === 'vh-brambleberry-thicket'
+      ? Math.min(0.95, chance + getBrambleberryEncounterModifiers(nodelet).poacherChanceBonus)
+      : chance;
 
     if (!nodelet?.enemyNPCs?.length || Math.random() > scaledChance) {
       return false;
@@ -610,6 +609,17 @@ function ZoneDetailView({ zone, onBack }) {
     setActiveNodelet(resolveNodeletConfig(nodelet));
     setActiveSection('nodelet');
   };
+
+  // Track nodelet changes to reset harvest streak on leave
+  const prevNodeletIdRef = useRef(null);
+  useEffect(() => {
+    const prev = prevNodeletIdRef.current;
+    const next = activeNodelet?.id || null;
+    if (prev === 'vh-brambleberry-thicket' && next !== 'vh-brambleberry-thicket') {
+      resetNodeletHarvestStreak('vh-brambleberry-thicket', 'leaving Brambleberry Thicket');
+    }
+    prevNodeletIdRef.current = next;
+  }, [activeNodelet?.id]); // eslint-disable-line
 
   const handleLeaveNodelet = () => {
     setActiveNodelet(null);
@@ -1400,14 +1410,40 @@ function ZoneDetailView({ zone, onBack }) {
     queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
   };
 
+  const resetNodeletHarvestStreak = async (nodeletId, reason = 'reset') => {
+    if (!zone?.id || !nodeletId) return;
+    const updatedNodelets = (zone.nodelets || []).map((n) => {
+      if (n.id !== nodeletId) return n;
+      if (!n.harvestStreak || n.harvestStreak <= 0) return n;
+      return { ...n, harvestStreak: 0 };
+    });
+    const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
+    queryClient.setQueryData(['zones'], (existingZones = []) =>
+      existingZones.map((z) => (z.id === zone.id ? { ...z, nodelets: updatedZone.nodelets } : z))
+    );
+    if (activeNodelet?.id === nodeletId) {
+      const refreshed = (updatedZone.nodelets || []).find((n) => n.id === nodeletId);
+      setActiveNodelet(resolveNodeletConfig(refreshed) || null);
+      setSelectedNodelet(resolveNodeletConfig(refreshed) || null);
+    }
+    setExplorationEvents((prev) => [{
+      title: '🍃 Harvest Streak Reset',
+      description: `Your harvest streak was reset (${reason}).`,
+      type: 'special',
+      rarity: 'common'
+    }, ...prev].slice(0, 10));
+  };
+
   const handleCampRest = async () => {
     await healParty(0.1, false);
     await advanceTime(60);
+    await resetNodeletHarvestStreak('vh-brambleberry-thicket', 'resting');
   };
 
   const handleCampSleep = async () => {
     await healParty(1.0, true); // Full HP + full PP restore
     await advanceTime(480);
+    await resetNodeletHarvestStreak('vh-brambleberry-thicket', 'sleeping');
   };
 
   const movePartyMember = async (index, direction) => {
@@ -1875,15 +1911,55 @@ function ZoneDetailView({ zone, onBack }) {
     const history = Array.isArray(nodelet?.objectiveHistory) ? nodelet.objectiveHistory : [];
     const isClaimed = (id) => history.some((entry) => entry.id === id && Boolean(entry.claimedAt));
     const completed = (id) => history.filter((entry) => entry.id === id).length;
+    const tier1Runs = completed('merra-contract-tier1');
+    const tier2Runs = completed('merra-contract-tier2');
 
     return {
-      tier1Completed: completed('merra-contract-tier1') > 0,
-      tier2Completed: completed('merra-contract-tier2') > 0,
+      tier1Completed: tier1Runs > 0,
+      tier2Completed: tier2Runs > 0,
       tier1Claimed: isClaimed('merra-contract-tier1'),
       tier2Claimed: isClaimed('merra-contract-tier2'),
-      tier1Runs: completed('merra-contract-tier1'),
-      tier2Runs: completed('merra-contract-tier2')
+      tier1Runs,
+      tier2Runs,
+      // "Unlocked" = has been completed at least once (active effect tier)
+      tier1Unlocked: tier1Runs > 0,
+      tier2Unlocked: tier2Runs > 0,
+      tier3Unlocked: tier1Runs >= 3 && tier2Runs >= 3, // repeatable milestone
     };
+  };
+
+  // Shared modifier helper — used by encounter engine AND UI display
+  const getBrambleberryEncounterModifiers = (nodelet) => {
+    const contract = getBrambleberryContractState(nodelet);
+    const streak = nodelet?.harvestStreak || 0;
+
+    let poacherChanceBonus = 0;
+    let rareWeightMultiplier = 1.0;
+    let lootBonusMultiplier = 1.0;
+
+    if (contract.tier1Unlocked) {
+      poacherChanceBonus -= 0.03;
+      rareWeightMultiplier *= 1.05;
+    }
+    if (contract.tier2Unlocked) {
+      poacherChanceBonus += 0.04;
+      rareWeightMultiplier *= 1.10;
+    }
+    if (contract.tier3Unlocked) {
+      poacherChanceBonus += 0.06;
+      rareWeightMultiplier *= 1.18;
+      lootBonusMultiplier *= 1.10;
+    }
+    if (streak >= 3) {
+      poacherChanceBonus += 0.02;
+      rareWeightMultiplier *= 1.05;
+    }
+    if (streak >= 6) {
+      poacherChanceBonus += 0.03;
+      rareWeightMultiplier *= 1.08;
+    }
+
+    return { poacherChanceBonus, rareWeightMultiplier, lootBonusMultiplier };
   };
 
   const getUnclaimedObjectiveRewards = (nodelet) =>
@@ -2333,20 +2409,40 @@ function ZoneDetailView({ zone, onBack }) {
                   rarity: 'uncommon'
                 }, ...prev].slice(0, 10));
               };
+              const mods = getBrambleberryEncounterModifiers(nodelet);
+              const pct = (x) => `${x >= 0 ? '+' : ''}${Math.round(x * 100)}%`;
+              const mult = (x) => `${Math.round(x * 100)}%`;
               return (
                 <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-emerald-100 font-semibold">📜 Brambleberry Contracts</div>
-                      <div className="text-xs text-emerald-100/70">
-                        Harvest streak: <span className="text-emerald-200 font-semibold">{nodelet.harvestStreak || 0}</span>
-                        {contractState.tier1Completed && <span className="ml-2 text-emerald-200/80">• Contract I cleared</span>}
-                        {contractState.tier2Completed && <span className="ml-2 text-emerald-200/80">• Contract II cleared</span>}
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {[
+                          { label: 'I', unlocked: contractState.tier1Unlocked },
+                          { label: 'II', unlocked: contractState.tier2Unlocked },
+                          { label: 'III', unlocked: contractState.tier3Unlocked },
+                        ].map(({ label, unlocked }) => (
+                          <Badge key={label} className={`border ${unlocked ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                            {label} {unlocked ? 'Unlocked' : 'Locked'}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                     <Button size="sm" variant="outline" className="border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20" onClick={() => handleClaimNodeletRewards(nodelet)}>
                       🎁 Claim Rewards
                     </Button>
+                  </div>
+
+                  <div className="rounded-md border border-emerald-500/20 bg-black/20 p-3">
+                    <div className="text-sm text-emerald-100 font-semibold mb-2">✨ Active Effects</div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">🐍 Poacher odds: {pct(mods.poacherChanceBonus)}</Badge>
+                      <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">⭐ Rare bias: {mult(mods.rareWeightMultiplier)}</Badge>
+                      <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">🎁 Loot bonus: {mult(mods.lootBonusMultiplier)}</Badge>
+                      <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">🔥 Streak: {nodelet.harvestStreak || 0}</Badge>
+                    </div>
+                    <div className="mt-2 text-xs text-emerald-100/60">Same modifiers used by Brambleberry's encounter roll logic.</div>
                   </div>
                   <div className="rounded-md border border-emerald-500/20 bg-black/20 p-3">
                     <div className="text-sm text-emerald-100 font-semibold mb-2">📦 Delivery</div>
