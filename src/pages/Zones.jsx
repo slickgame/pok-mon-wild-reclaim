@@ -1234,12 +1234,6 @@ function ZoneDetailView({ zone, onBack }) {
       console.error('Failed to update nodelet:', error);
     }
   };
-
-
-  const handleClaimNodeletRewards = async (nodelet) => {
-    const pending = getUnclaimedObjectiveRewards(nodelet);
-    if (!pending.length) {
-      setExplorationEvents((prev) => [{
         title: '📘 No Rewards Pending',
         description: `${nodelet.name} has no claimable rewards right now.`,
         type: 'special',
@@ -2060,75 +2054,6 @@ function ZoneDetailView({ zone, onBack }) {
       }
     } catch (error) {
       console.error('Failed to update nodelet:', error);
-    }
-  };
-
-
-  const handleClaimNodeletRewards = async (nodelet) => {
-    const pending = getUnclaimedObjectiveRewards(nodelet);
-    if (!pending.length) {
-      setExplorationEvents((prev) => [{
-        title: '📘 No Rewards Pending',
-        description: `${nodelet.name} has no claimable rewards right now.`,
-        type: 'special',
-        rarity: 'common'
-      }, ...prev].slice(0, 10));
-      return;
-    }
-
-    try {
-      const latestPlayers = await base44.entities.Player.list();
-      const latestPlayer = latestPlayers?.[0] || player;
-      const totalGold = pending.reduce((sum, entry) => sum + (entry.reward?.gold || 0), 0);
-
-      if (totalGold > 0 && latestPlayer?.id) {
-        await base44.entities.Player.update(latestPlayer.id, {
-          gold: (latestPlayer.gold || 0) + totalGold
-        });
-        queryClient.invalidateQueries({ queryKey: ['player'] });
-      }
-
-      for (const entry of pending) {
-        if (Array.isArray(entry.reward?.items)) {
-          for (const rewardItem of entry.reward.items) {
-            await upsertItem(rewardItem.name, rewardItem.quantity || 1, {
-              type: 'Material',
-              rarity: 'Uncommon',
-              description: `Objective reward from ${nodelet.name}`
-            });
-          }
-        }
-      }
-      queryClient.invalidateQueries({ queryKey: ['items'] });
-
-      const claimTime = getCurrentGameTimestamp();
-      const updatedNodelets = (zone.nodelets || []).map((existingNodelet) => {
-        if (existingNodelet.id !== nodelet.id) return existingNodelet;
-        const updatedHistory = (existingNodelet.objectiveHistory || []).map((entry) =>
-        entry.claimedAt ? entry : { ...entry, claimedAt: claimTime }
-        );
-        return { ...existingNodelet, objectiveHistory: updatedHistory };
-      });
-
-      const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
-      queryClient.setQueryData(['zones'], (existingZones = []) =>
-      existingZones.map((existingZone) =>
-      existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
-      )
-      );
-
-      const refreshedNodelet = updatedNodelets.find((entry) => entry.id === nodelet.id);
-      setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
-      setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
-
-      setExplorationEvents((prev) => [{
-        title: '🎁 Rewards Claimed',
-        description: `Claimed ${pending.length} objective reward${pending.length > 1 ? 's' : ''}${totalGold ? ` (+${totalGold}g)` : ''}.`,
-        type: 'special',
-        rarity: 'rare'
-      }, ...prev].slice(0, 10));
-    } catch (error) {
-      console.error('Failed to claim nodelet rewards:', error);
     }
   };
 
