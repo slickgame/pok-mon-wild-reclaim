@@ -1369,6 +1369,17 @@ function ZoneDetailView({ zone, onBack }) {
         );
         setActiveNodelet(resolveNodeletConfig(updatedActiveNodelet) || null);
 
+        if (nodeletBattleType === 'enemyNpc') {
+          setExplorationEvents((prev) => [{
+            title: battleOutcome === 'victory' ? '🛡️ Poachers Driven Off' : '⚠️ Poachers Emboldened',
+            description: battleOutcome === 'victory'
+              ? 'Poacher presence decreased in Brambleberry Thicket.'
+              : 'Poacher presence increased in Brambleberry Thicket.',
+            type: 'special',
+            rarity: battleOutcome === 'victory' ? 'uncommon' : 'common'
+          }, ...prev].slice(0, 10));
+        }
+
         if (nodeletBattleType === 'eclipse') {
           setExplorationEvents((prev) => [{
             title: battleOutcome === 'victory' ? '✅ Revenant Defeated' : '❌ Revenant Withstood',
