@@ -270,7 +270,7 @@ function ZoneDetailView({ zone, onBack }) {
   const gradient = biomeColors[zone.biomeType] || 'from-indigo-500 to-purple-600';
 
   const nodeletTemplateMap = useMemo(
-    () => new Map(VERDANT_HOLLOW_NODELETS.map((nodelet) => [nodelet.id, nodelet])),
+    () => new globalThis.Map(VERDANT_HOLLOW_NODELETS.map((nodelet) => [nodelet.id, nodelet])),
     []
   );
 
