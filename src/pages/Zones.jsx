@@ -625,10 +625,11 @@ function ZoneDetailView({ zone, onBack }) {
     setActiveSection('nodelet');
   };
 
-  // Bank streak insurance once per in-game day when Contract III is active
+  // Bank streak insurance + passive presence decay once per in-game day
   useEffect(() => {
     if (zone?.id && gameTime) {
       maybeBankBrambleberryStreak();
+      maybeDailyPoacherPresenceDecay();
     }
   }, [zone?.id, gameTime?.day, gameTime?.currentDay]); // eslint-disable-line
 
