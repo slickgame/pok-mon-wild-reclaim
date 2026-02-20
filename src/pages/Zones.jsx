@@ -1566,6 +1566,7 @@ function ZoneDetailView({ zone, onBack }) {
       amount: restRules.nap,
       reason: 'napping'
     });
+    await adjustBrambleberryPoacherPresence(-10, 'napping');
   };
 
   const handleCampSleep = async () => {
@@ -1575,6 +1576,7 @@ function ZoneDetailView({ zone, onBack }) {
       mode: 'reset',
       reason: 'sleeping'
     });
+    await adjustBrambleberryPoacherPresence(-20, 'sleeping');
   };
 
   const movePartyMember = async (index, direction) => {
