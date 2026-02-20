@@ -286,11 +286,12 @@ export const LEVEL_UP_LEARNSETS = {
  * @param {number} level - Level to check
  * @returns {string[]} Array of move names learned at this level
  */
-export function getMovesLearnedAtLevel(species, level) {
+export function getMovesLearnedAtLevel(species, level, currentMoves = []) {
   const learnset = LEVEL_UP_LEARNSETS[species];
   if (!learnset) return [];
   
-  return learnset[level] || [];
+  const moves = learnset[level] || [];
+  return moves.filter(m => !currentMoves.includes(m));
 }
 
 /**

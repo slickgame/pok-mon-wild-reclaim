@@ -1,36 +1,99 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Award } from 'lucide-react';
+import { TrendingUp, Award, Star } from 'lucide-react';
 import { getPokemonStats } from '../usePokemonStats';
 import { getNatureDescription } from '../statCalculations';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-export default function StatsTab({ pokemon }) {
+// XP needed to level up FROM level N = N * 100
+// The game stores leftover XP within the current level (post-level-up remainder)
+// So pokemon.experience is already the XP within the current level band.
+function expNeededForLevel(level) {
+  return level * 100;
+}
+
+export default function StatsTab({ pokemon, xpGained = 0 }) {
   const fullStats = getPokemonStats(pokemon);
   const stats = fullStats.stats;
 
-  // Calculate EXP progress
-  const expForNextLevel = Math.floor(Math.pow(pokemon.level + 1, 3));
-  const expProgress = (pokemon.experience / expForNextLevel) * 100;
+  const displayLevel = pokemon.level ?? 1;
+  const expInThisLevel = pokemon.experience ?? 0;
+  const expNeededThisLevel = expNeededForLevel(displayLevel);
+  const expPercent = Math.min((expInThisLevel / expNeededThisLevel) * 100, 100);
 
-  // Nature description
+  // Detect if level-up should have triggered (XP >= threshold)
+  const correctLevel = expInThisLevel >= expNeededThisLevel ? displayLevel + 1 : displayLevel;
+
+  // Animate bar: start from before XP was gained, sweep to current
+  const prevPercent = xpGained > 0
+    ? Math.max(0, Math.min(((expInThisLevel - xpGained) / expNeededThisLevel) * 100, 100))
+    : expPercent;
+
+  const [barWidth, setBarWidth] = useState(prevPercent);
+  const didAnimate = useRef(false);
+
+  useEffect(() => {
+    if (xpGained > 0 && !didAnimate.current) {
+      setBarWidth(prevPercent);
+      const t = setTimeout(() => setBarWidth(expPercent), 80);
+      didAnimate.current = true;
+      return () => clearTimeout(t);
+    } else if (xpGained === 0) {
+      setBarWidth(expPercent);
+    }
+  }, [pokemon.experience, xpGained]);
+
   const natureDesc = getNatureDescription(pokemon.nature);
+  const levelMismatch = correctLevel !== pokemon.level;
 
   return (
     <div className="space-y-4">
       {/* Experience Progress */}
       <div className="glass rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1">
           <span className="text-sm text-slate-400">Experience</span>
-          <span className="text-sm font-semibold text-indigo-400">
-            {pokemon.experience} / {expForNextLevel} XP
-          </span>
+          <div className="flex items-center gap-2">
+            {xpGained > 0 && (
+              <motion.span
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-xs font-semibold text-green-400"
+              >
+                +{xpGained} XP
+              </motion.span>
+            )}
+            <span className="text-sm font-semibold text-indigo-400">
+              {expInThisLevel} / {expNeededThisLevel} XP
+            </span>
+          </div>
         </div>
-        <Progress value={expProgress} className="h-2" />
-        <p className="text-xs text-slate-500 mt-1">
-          {expForNextLevel - pokemon.experience} XP to Level {pokemon.level + 1}
-        </p>
+
+        {/* Animated XP bar */}
+        <div className="relative h-3 bg-slate-800 rounded-full overflow-hidden mt-2 mb-1">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-1000 ease-out"
+            style={{ width: `${barWidth}%` }}
+          />
+          {xpGained > 0 && (
+            <motion.div
+              initial={{ opacity: 0.6 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: 1.5, delay: 0.5 }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            />
+          )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-slate-500">
+            {Math.max(0, expNeededThisLevel - expInThisLevel)} XP to Level {displayLevel + 1}
+          </p>
+          {correctLevel > displayLevel && (
+            <span className="text-xs text-yellow-400 flex items-center gap-1">
+              <Star className="w-3 h-3" /> Level up pending!
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Nature */}

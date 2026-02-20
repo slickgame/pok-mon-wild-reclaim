@@ -18,6 +18,16 @@ import CaptureSuccessModal from '@/components/battle/CaptureSuccessModal';
 import BattleSummaryModal from '@/components/battle/BattleSummaryModal';
 import { BattleEngine, triggerTalent } from '@/components/battle/BattleEngine';
 import { createDefaultStatStages } from '@/components/battle/statStageUtils';
+import ActionQueuePanel from '@/components/battle/multi/ActionQueuePanel';
+import {
+  createBattleState,
+  syncLegacyFields,
+  isSideDefeated,
+  removeFainted,
+  sendNextFromBench,
+  sortActionQueue,
+  switchIn,
+} from '@/components/battle/battleStateModel';
 import BattlefieldStatus from '@/components/battle/BattlefieldStatus';
 import { HazardRegistry } from '@/components/data/HazardRegistry';
 import { inflictStatus } from '@/components/data/StatusRegistry';
@@ -216,10 +226,11 @@ export default function BattlePage() {
 
   // Auto-start battle with wild Pokémon
   useEffect(() => {
-    if (wildPokemon && playerPokemon.length > 0 && !battleState) {
+    if (wildPokemon && playerPokemon.length > 0 && !battleState && !battleStartedRef.current && battleReady) {
+      battleStartedRef.current = true;
       startWildBattle(wildPokemon);
     }
-  }, [wildPokemon, playerPokemon]);
+  }, [wildPokemon?.id, playerPokemon.length, battleReady]);
 
   // Start wild encounter battle
   const startWildBattle = (wildMon) => {
@@ -256,7 +267,7 @@ export default function BattlePage() {
     const initialEnemyTeam = trainerRoster.length > 0 ? trainerRoster : [wildMon];
 
     setBattleState({
-      playerPokemon: playerMon,
+      playerPokemon: { ...playerMon, movePP: playerMon.movePP || {} },
       enemyPokemon: wildMon,
       enemyTeam: initialEnemyTeam,
       playerHP: playerStats.maxHp,
@@ -487,6 +498,7 @@ export default function BattlePage() {
         }]
       };
       setBattleState(newBattleState);
+      setActionMenu('main'); // Reset action menu
       
       // Check if party has room
       const addedToParty = playerPokemon.length < 6;
@@ -541,6 +553,7 @@ export default function BattlePage() {
       }
 
       setBattleState(newBattleState);
+      setActionMenu('main'); // Reset action menu on failed capture
     }
 
     } catch (error) {
@@ -555,6 +568,7 @@ export default function BattlePage() {
           synergyTriggered: false
         }]
       });
+      setActionMenu('main'); // Reset action menu on error
     } finally {
       setCapturingPokemon(false);
       // Track pokeball usage
@@ -762,15 +776,25 @@ export default function BattlePage() {
   const performMove = async (move) => {
     if (!battleState || battleState.currentTurn !== 'player') return;
 
+    // Deduct PP for the used move
+    const moveName = move?.name;
+    const currentPP = battleState.playerPokemon.movePP || {};
+    const maxPP = move?.pp || 10;
+    const currentMovePP = currentPP[moveName] !== undefined ? currentPP[moveName] : maxPP;
+    if (currentMovePP <= 0) return; // No PP left
+    const newPP = { ...currentPP, [moveName]: Math.max(0, currentMovePP - 1) };
+    const updatedPlayerPokemon = { ...battleState.playerPokemon, movePP: newPP };
+    setBattleState(prev => ({ ...prev, playerPokemon: updatedPlayerPokemon }));
+
     // Initialize battle engine
-    const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
+    const engine = new BattleEngine(updatedPlayerPokemon, battleState.enemyPokemon);
 
     // Enemy uses smart AI to choose best move from its own learned moves
     const enemyAvailableMoves = getEnemyBattleMoves(battleState.enemyPokemon);
     const enemyMove = engine.chooseEnemyMove(enemyAvailableMoves, battleState.playerPokemon, battleState) || enemyAvailableMoves[0];
 
-    // Create a copy of battle state for engine to modify
-    const stateCopy = { ...battleState };
+    // Create a copy of battle state for engine to modify (use updated PP pokemon)
+    const stateCopy = { ...battleState, playerPokemon: updatedPlayerPokemon };
 
     // Execute turn
     const turnLogs = engine.executeTurn(move, enemyMove, stateCopy);
@@ -892,17 +916,44 @@ export default function BattlePage() {
           fainted: false,
           xpGained: xpGained,
           leveledUp: levelsGained.length > 0,
-          newLevel: newLevel
+          newLevel: newLevel,
+          level: newLevel,
+          expAfter: totalXP
         });
       }
 
-      // Update all Pokemon with XP
-      await Promise.all(pokemonToUpdate.map(p => 
-        base44.entities.Pokemon.update(p.id, {
-          experience: p.experience,
-          level: p.level
-        })
-      ));
+      // Save post-battle HP for active pokemon
+      const postBattleHP = newBattleState.playerHP;
+
+      // Clean movePP: remove undefined values and ensure it's serializable
+      const rawMovePP = newBattleState.playerPokemon.movePP || {};
+      const cleanMovePP = Object.fromEntries(
+        Object.entries(rawMovePP).filter(([, v]) => v !== undefined && v !== null)
+      );
+
+      // Update all Pokemon with XP and persist HP/PP for active pokemon
+      if (pokemonToUpdate.length > 0) {
+        await Promise.all(pokemonToUpdate.filter(p => p.id).map(p => {
+          const isActive = p.id === newBattleState.playerPokemon?.id;
+          return base44.entities.Pokemon.update(p.id, {
+            experience: p.experience,
+            level: p.level,
+            ...(isActive ? {
+              currentHp: postBattleHP,
+              movePP: cleanMovePP
+            } : {})
+          });
+        }));
+      } else {
+        // No XP updates, but still persist HP/PP for active pokemon if it has a valid id
+        const activeId = newBattleState.playerPokemon?.id;
+        if (activeId) {
+          await base44.entities.Pokemon.update(activeId, {
+            currentHp: postBattleHP,
+            movePP: cleanMovePP
+          });
+        }
+      }
 
       queryClient.invalidateQueries({ queryKey: ['playerPokemon'] });
 
@@ -915,10 +966,11 @@ export default function BattlePage() {
           levelsGained.push(lvl);
         }
 
+        const existingMoves = newBattleState.playerPokemon.abilities || [];
         levelsGained.forEach(level => {
-          const moves = getMovesLearnedAtLevel(newBattleState.playerPokemon.species, level);
-          if (moves.length > 0) {
-            movesLearned.push(...moves);
+          const newAtLevel = getMovesLearnedAtLevel(newBattleState.playerPokemon.species, level, [...existingMoves, ...movesLearned]);
+          if (newAtLevel.length > 0) {
+            movesLearned.push(...newAtLevel);
           }
         });
       }
@@ -930,21 +982,17 @@ export default function BattlePage() {
       // Generate material drops for wild battles (species-specific)
       const materialsDropped = [];
       let goldGained = 0;
-      
+      let trainerItems = [];
+
       if (newBattleState.isWildBattle) {
         // Wild Pokémon drop items using species data
         const speciesData = wildPokemonData[newBattleState.enemyPokemon.species];
-        
         if (speciesData) {
           const droppedItems = rollItemDrops(speciesData);
           materialsDropped.push(...droppedItems);
         }
-        
-        // Fallback to generic drops if no species data
         if (materialsDropped.length === 0) {
-          if (Math.random() < 0.5) {
-            materialsDropped.push('Monster Essence');
-          }
+          if (Math.random() < 0.5) materialsDropped.push('Monster Essence');
         }
       } else {
         // Trainer battles award registry-driven rewards.
@@ -1046,7 +1094,9 @@ export default function BattlePage() {
           enemyName: newBattleState.enemyPokemon.species,
           xpResults: xpResults,
           itemsUsed: itemsUsed,
-          materialsDropped: materialsDropped
+          materialsDropped: materialsDropped,
+          goldGained,
+          trainerItems
         });
         }
 
@@ -1097,8 +1147,19 @@ export default function BattlePage() {
         result: 'You lost the battle.',
         synergyTriggered: false
       });
-      // Mark active Pokemon as fainted
-      setFaintedIds(prev => [...prev, newBattleState.playerPokemon.id]);
+      // Mark active Pokemon as fainted and persist HP=0 and PP
+      const faintedId = newBattleState.playerPokemon?.id;
+      if (faintedId) {
+        setFaintedIds(prev => [...prev, faintedId]);
+        const rawFaintPP = newBattleState.playerPokemon.movePP || {};
+        const cleanFaintPP = Object.fromEntries(
+          Object.entries(rawFaintPP).filter(([, v]) => v !== undefined && v !== null)
+        );
+        base44.entities.Pokemon.update(faintedId, {
+          currentHp: 0,
+          movePP: cleanFaintPP
+        }).catch(err => console.error('Failed to persist faint state:', err));
+      }
     } else {
       newBattleState.currentTurn = 'player';
     }
@@ -1507,6 +1568,363 @@ export default function BattlePage() {
     setEvolutionState(null);
   };
 
+  const getAlive = (ids, hpMap) => (ids || []).filter(id => (hpMap[id] ?? 0) > 0);
+
+  const pickBestEnemyBenchCounter = (state, enemyBenchAlive, playerAlive) => {
+    if (!enemyBenchAlive.length) return null;
+    const hpMap = state.hpMap || {};
+    const engine = new BattleEngine(
+      pokemonMap[state.playerActive?.[0]] || state.playerPokemon,
+      pokemonMap[state.enemyActive?.[0]] || state.enemyPokemon,
+      pokemonMap
+    );
+
+    const scoreCandidate = (candId) => {
+      const cand = pokemonMap[candId];
+      if (!cand) return -Infinity;
+      const candTypes = cand.types || [cand.type1, cand.type2].filter(Boolean);
+      const candMoves = (cand.abilities || []).map(name => getMoveData(name, cand)).filter(Boolean);
+
+      let off = 0;
+      for (const mv of candMoves) {
+        if (!(mv.power > 0)) continue;
+        const isSTAB = candTypes.includes(mv.type || 'Normal');
+        if (!isSTAB) continue;
+        for (const pid of playerAlive) {
+          const p = pokemonMap[pid];
+          const pTypes = p?.types || [p?.type1, p?.type2].filter(Boolean);
+          const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(mv.type || 'Normal', pTypes) : 1;
+          off = Math.max(off, eff);
+        }
+      }
+
+      let incoming = 0;
+      for (const pid of playerAlive) {
+        const p = pokemonMap[pid];
+        if (!p) continue;
+        const pTypes = p.types || [p.type1, p.type2].filter(Boolean);
+        let bestIn = 1.0;
+        for (const t of pTypes) {
+          const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(t, candTypes) : 1;
+          bestIn = Math.max(bestIn, eff);
+        }
+        incoming += bestIn;
+      }
+      incoming = incoming / Math.max(1, playerAlive.length);
+      return (off * 2.0) - (incoming * 1.25);
+    };
+
+    let bestId = enemyBenchAlive[0];
+    let bestScore = -Infinity;
+    for (const candId of enemyBenchAlive) {
+      const s = scoreCandidate(candId);
+      if (s > bestScore) { bestScore = s; bestId = candId; }
+    }
+    return bestId;
+  };
+
+  const buildEnemyActionsSmart = (state, overrideEnemyActive = null) => {
+    const enemyActs = [];
+    const hpMap = state.hpMap || {};
+    const enemyActive = overrideEnemyActive || state.enemyActive || [];
+    const playerActive = state.playerActive || [];
+
+    const alivePlayers = playerActive.filter(id => (hpMap[id] ?? 0) > 0);
+    if (alivePlayers.length === 0) return enemyActs;
+
+    const engine = new BattleEngine(
+      pokemonMap[state.playerActive?.[0]] || state.playerPokemon,
+      pokemonMap[state.enemyActive?.[0]] || state.enemyPokemon,
+      pokemonMap
+    );
+
+    const scoreMoveVsTarget = (attMon, moveData, targetMonId) => {
+      const tgt = pokemonMap[targetMonId];
+      if (!tgt) return -Infinity;
+      const moveType = moveData?.type || 'Normal';
+      const defenderTypes = tgt.types || (tgt.type1 ? [tgt.type1, tgt.type2].filter(Boolean) : []);
+      const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(moveType, defenderTypes) : 1;
+      const power = typeof moveData?.power === 'number' ? moveData.power : 0;
+      const base = power > 0 ? power : 10;
+      const stab = (attMon.types || [tgt.type1, tgt.type2].filter(Boolean)).includes(moveType) ? 1.2 : 1.0;
+      return base * eff * stab;
+    };
+
+    for (const enemyId of enemyActive) {
+      const mon = pokemonMap[enemyId];
+      if (!mon) continue;
+      if ((hpMap[enemyId] ?? 0) <= 0) continue;
+
+      const moves = (mon.abilities || []).map(name => {
+        const md = getMoveData(name, mon);
+        if (!md) return null;
+        const maxPP = md.pp || 10;
+        const curPP = mon.movePP?.[name] !== undefined ? mon.movePP[name] : maxPP;
+        if (curPP <= 0) return null;
+        return { name, data: md };
+      }).filter(Boolean);
+
+      if (moves.length === 0) {
+        const fallback = getMoveData('Tackle', mon) || { name: 'Tackle', type: 'Normal', power: 40, target: 'single-opponent' };
+        enemyActs.push({ type: 'move', pokemonId: enemyId, side: 'enemy', payload: fallback, defenderIds: [alivePlayers[0]] });
+        continue;
+      }
+
+      let best = null;
+      for (const mv of moves) {
+        const md = mv.data;
+        const targetClass = md?.target || 'single-opponent';
+
+        if (targetClass === 'all-opponents') {
+          const scores = alivePlayers.map(pid => scoreMoveVsTarget(mon, md, pid));
+          const avgScore = scores.reduce((a, b) => a + b, 0) / Math.max(1, scores.length);
+          if (!best || avgScore > best.score) {
+            best = { moveData: md, defenderIds: [...alivePlayers], score: avgScore };
+          }
+        } else if (targetClass === 'self') {
+          const selfScore = 15;
+          if (!best || selfScore > best.score) {
+            best = { moveData: md, defenderIds: [enemyId], score: selfScore };
+          }
+        } else {
+          let bestTarget = alivePlayers[0];
+          let bestScore = -Infinity;
+          for (const pid of alivePlayers) {
+            const s = scoreMoveVsTarget(mon, md, pid);
+            if (s > bestScore || (s === bestScore && (hpMap[pid] ?? 0) < (hpMap[bestTarget] ?? 0))) {
+              bestScore = s;
+              bestTarget = pid;
+            }
+          }
+          if (!best || bestScore > best.score || (bestScore === best.score && (hpMap[bestTarget] ?? 0) < (hpMap[best.defenderIds?.[0]] ?? 0))) {
+            best = { moveData: md, defenderIds: [bestTarget], score: bestScore };
+          }
+        }
+      }
+
+      enemyActs.push({
+        type: 'move',
+        pokemonId: enemyId,
+        side: 'enemy',
+        payload: best?.moveData || moves[0].data,
+        defenderIds: best?.defenderIds?.length ? best.defenderIds : [alivePlayers[0]]
+      });
+    }
+    return enemyActs;
+  };
+
+  const buildEnemyActionsSmartWithSwitch = (state) => {
+    const hpMap = state.hpMap || {};
+    const enemyActive = state.enemyActive || [];
+    const playerAlive = getAlive(state.playerActive, hpMap);
+    const enemyBenchAlive = getAlive(state.enemyBench, hpMap);
+
+    if (playerAlive.length === 0) return [];
+
+    const engine = new BattleEngine(
+      pokemonMap[state.playerActive?.[0]] || state.playerPokemon,
+      pokemonMap[state.enemyActive?.[0]] || state.enemyPokemon,
+      pokemonMap
+    );
+
+    const switchedOut = new Set(); // track which bench slots are already claimed this turn
+    const acts = [];
+
+    for (const enemyId of enemyActive) {
+      const mon = pokemonMap[enemyId];
+      if (!mon) continue;
+      if ((hpMap[enemyId] ?? 0) <= 0) continue;
+
+      const moves = (mon.abilities || []).map(name => {
+        const md = getMoveData(name, mon);
+        if (!md) return null;
+        const maxPP = md.pp || 10;
+        const curPP = mon.movePP?.[name] !== undefined ? mon.movePP[name] : maxPP;
+        if (curPP <= 0) return null;
+        return { name, data: md };
+      }).filter(Boolean);
+
+      if (moves.length === 0) {
+        acts.push({ type: 'move', pokemonId: enemyId, side: 'enemy',
+          payload: getMoveData('Tackle', mon) || { name: 'Tackle', type: 'Normal', power: 40 },
+          defenderIds: [playerAlive[0]] });
+        continue;
+      }
+
+      // Check if walled (max effectiveness of any damaging move < 1.0)
+      let maxEff = 0;
+      for (const mv of moves) {
+        if (!(mv.data.power > 0)) continue;
+        for (const pid of playerAlive) {
+          const tgt = pokemonMap[pid];
+          const tgtTypes = tgt?.types || [tgt?.type1, tgt?.type2].filter(Boolean);
+          const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(mv.data.type || 'Normal', tgtTypes) : 1;
+          maxEff = Math.max(maxEff, eff);
+        }
+      }
+
+      const availableBench = enemyBenchAlive.filter(id => !switchedOut.has(id));
+      if (maxEff > 0 && maxEff < 1.0 && availableBench.length > 0) {
+        const bestBench = pickBestEnemyBenchCounter(state, availableBench, playerAlive);
+        if (bestBench) {
+          switchedOut.add(bestBench);
+          acts.push({ type: 'switch', pokemonId: enemyId, side: 'enemy', payload: { outId: enemyId, inId: bestBench } });
+          continue;
+        }
+      }
+
+      // Fall back to smart move selection for this single slot
+      const slotActs = buildEnemyActionsSmart(state, [enemyId]);
+      const my = slotActs.find(a => a.pokemonId === enemyId);
+      if (my) acts.push(my);
+      else acts.push({ type: 'move', pokemonId: enemyId, side: 'enemy', payload: moves[0].data, defenderIds: [playerAlive[0]] });
+    }
+
+    return acts;
+  };
+
+  const handleMultiFaintsAndRefill = (state, turnLog) => {
+    const hpMap = state.hpMap || {};
+    const log = (msg) => turnLog.push({
+      turn: state.turnNumber, actor: 'System', action: msg, result: '', synergyTriggered: false
+    });
+
+    for (const id of [...(state.playerActive || [])]) {
+      if ((hpMap[id] ?? 0) <= 0) {
+        removeFainted(state, id, 'player');
+        log(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'A Pokémon'} fainted!`);
+      }
+    }
+    for (const id of [...(state.enemyActive || [])]) {
+      if ((hpMap[id] ?? 0) <= 0) {
+        removeFainted(state, id, 'enemy');
+        log(`${pokemonMap[id]?.nickname || pokemonMap[id]?.species || 'An enemy Pokémon'} fainted!`);
+      }
+    }
+
+    while ((state.playerActive || []).length < (state.activeSlots || 1)) {
+      const nextId = (state.playerBench || []).find(pid => (hpMap[pid] ?? 0) > 0);
+      if (!nextId) break;
+      const sent = sendNextFromBench(state, 'player');
+      if (!sent) break;
+      if ((hpMap[sent] ?? 0) <= 0) continue;
+      log(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'A Pokémon'} enters the fight!`);
+    }
+
+    while ((state.enemyActive || []).length < (state.activeSlots || 1)) {
+      const nextId = (state.enemyBench || []).find(pid => (hpMap[pid] ?? 0) > 0);
+      if (!nextId) break;
+      const sent = sendNextFromBench(state, 'enemy');
+      if (!sent) break;
+      if ((hpMap[sent] ?? 0) <= 0) continue;
+      log(`${pokemonMap[sent]?.nickname || pokemonMap[sent]?.species || 'Enemy'} enters the fight!`);
+    }
+
+    return state;
+  };
+
+  const runMultiTurn = (playerActions) => {
+    setBattleState((prev) => {
+      if (!prev) return prev;
+
+      const enemyActions = buildEnemyActionsSmartWithSwitch(prev);
+      const combined = [
+        ...playerActions.map(a => ({ ...a, side: 'player' })),
+        ...enemyActions
+      ];
+      const sorted = sortActionQueue(combined, pokemonMap, `turn:${prev.turnNumber || 1}`);
+
+      const turnLog = [];
+
+      // 1) Resolve switch actions first
+      const remaining = [];
+      for (const action of sorted) {
+        if (action.type !== 'switch') { remaining.push(action); continue; }
+        const { outId, inId } = action.payload || {};
+        if (!outId || !inId) continue;
+        switchIn(prev, action.side, outId, inId);
+        const inMon = pokemonMap[inId];
+        turnLog.push({
+          turn: prev.turnNumber, actor: 'System', action: 'Switch',
+          result: `${inMon?.nickname || inMon?.species || 'A Pokémon'} switched in!`,
+          synergyTriggered: false
+        });
+      }
+
+      // 2) Retarget / skip fainted actors before executing
+      const hpMap = prev.hpMap || {};
+      const isAlive = (id) => (hpMap[id] ?? 0) > 0;
+
+      const retargetIfNeeded = (action) => {
+        if (action.type !== 'move') return action;
+        if (!isAlive(action.pokemonId)) return null; // attacker fainted
+
+        const moveTarget = action.payload?.target || 'single-opponent';
+        if (moveTarget === 'all-opponents') {
+          const pool = action.side === 'player' ? prev.enemyActive : prev.playerActive;
+          const alive = (pool || []).filter(isAlive);
+          return alive.length ? { ...action, defenderIds: alive } : null;
+        }
+
+        const stillAlive = (action.defenderIds || []).filter(isAlive);
+        if (stillAlive.length) return { ...action, defenderIds: stillAlive };
+
+        const pool = action.side === 'player' ? prev.enemyActive : prev.playerActive;
+        const fallback = (pool || []).find(isAlive);
+        return fallback ? { ...action, defenderIds: [fallback] } : null;
+      };
+
+      const cleaned = remaining.map(retargetIfNeeded).filter(Boolean)
+        .filter(a => a.type !== 'move' || (a.defenderIds?.length ?? 0) > 0);
+
+      // 3) Execute remaining actions (moves/items)
+      const engine = new BattleEngine(
+        pokemonMap[prev.playerActive?.[0]] || prev.playerPokemon,
+        pokemonMap[prev.enemyActive?.[0]]  || prev.enemyPokemon,
+        pokemonMap
+      );
+      const engineLog = engine.executeTurnQueue(cleaned, prev, pokemonMap);
+
+      // 3) Post-turn faint/refill + win/loss
+      const after = handleMultiFaintsAndRefill(prev, engineLog);
+
+      if (isSideDefeated(after, 'enemy')) after.status = 'won';
+      if (isSideDefeated(after, 'player')) after.status = 'lost';
+
+      after.turnNumber = (after.turnNumber || 1) + 1;
+      after.battleLog = [...(after.battleLog || []), ...turnLog, ...engineLog];
+
+      after.playerPokemon = pokemonMap[after.playerActive?.[0]] || after.playerPokemon;
+      after.enemyPokemon  = pokemonMap[after.enemyActive?.[0]]  || after.enemyPokemon;
+      syncLegacyFields(after);
+
+      return { ...after };
+    });
+  };
+
+  // isTrainer3v3: true only when trainerData + a real roster exist
+  const isTrainer3v3 = useMemo(() => {
+    const st = location.state;
+    return Boolean(st?.trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
+  }, [location.state, trainerRoster]);
+
+  // pokemonMap: all party + enemy roster mons with computed stats
+  const pokemonMap = useMemo(() => {
+    const map = {};
+    const all = [...(playerPokemon || []), ...(trainerRoster || [])];
+    for (const mon of all) {
+      if (!mon?.id) continue;
+      const withStats = getPokemonStats(mon);
+      map[mon.id] = {
+        ...withStats,
+        abilities: withStats.abilities || mon.abilities || ['Tackle'],
+        movePP: withStats.movePP || mon.movePP || {},
+        statStages: withStats.statStages || createDefaultStatStages(),
+      };
+    }
+    return map;
+  }, [playerPokemon, trainerRoster]);
+
   // Compute latest talent triggers (must be called before any conditional returns)
   const latestTalentTriggers = useMemo(() => {
     if (!battleState?.battleLog?.length) {
@@ -1546,6 +1964,25 @@ export default function BattlePage() {
           <Skeleton className="h-48 bg-slate-800" />
           <Skeleton className="h-48 bg-slate-800" />
         </div>
+      </div>
+    );
+  }
+
+  // While waiting for a trainer encounter to load/start, show the intro modal only
+  if (!battleState && wildPokemonId) {
+    return (
+      <div>
+        {trainerIntro && !introDismissed && (
+          <TrainerIntroModal
+            trainer={trainerIntro.trainer}
+            roster={trainerIntro.roster}
+            onBegin={() => {
+              setIntroDismissed(true);
+              setTrainerIntro(null);
+              setBattleReady(true);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -1592,12 +2029,29 @@ export default function BattlePage() {
 
   return (
     <div>
+      {/* Trainer intro modal — shown before battle begins */}
+      {trainerIntro && !introDismissed && (
+        <TrainerIntroModal
+          trainer={trainerIntro.trainer}
+          roster={trainerIntro.roster}
+          onBegin={() => {
+            setIntroDismissed(true);
+            setTrainerIntro(null);
+            setBattleReady(true);
+          }}
+        />
+      )}
+
       <PageHeader 
         title="Battle Arena" 
-        subtitle={`Turn ${battleState.turnNumber} - ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`}
+        subtitle={
+          battleState.enemyPokemon?.isTrainerNPC
+            ? `${battleState.enemyPokemon.trainerName || 'Trainer'} — Turn ${battleState.turnNumber} | ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`
+            : `Turn ${battleState.turnNumber} - ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`
+        }
         icon={Swords}
         action={
-          isBattleEnded && (
+          isBattleEnded && !battleState?.isTrainerBattle && !battleState?.enemyPokemon?.isTrainerNPC && (
             <Button 
               onClick={() => setBattleState(null)}
               className="bg-indigo-600 hover:bg-indigo-700"
@@ -1612,43 +2066,78 @@ export default function BattlePage() {
         {/* Battle Field */}
         <div className="lg:col-span-2 space-y-4">
           <BattlefieldStatus battlefield={battleState.battlefield} />
-          {/* Enemy Pokemon */}
-          <BattleHUD
-            pokemon={battleState.enemyPokemon}
-            hp={battleState.enemyHP}
-            maxHp={(() => {
-              const result = getPokemonStats(battleState.enemyPokemon);
-              return result?.stats?.maxHp || battleState.enemyPokemon?.stats?.maxHp || 100;
-            })()}
-            status={battleState.enemyStatus}
-            roles={battleState.enemyPokemon.roles || []}
-            activeTalentIndicator={latestTalentTriggers.enemy}
-          />
 
-          {/* VS Indicator */}
-          <div className="flex justify-center">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center"
-            >
-              <Swords className="w-8 h-8 text-white" />
-            </motion.div>
-          </div>
+          {/* HUDs — 3v3 or 1v1 */}
+          {isMulti ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Enemy side */}
+              <div className="space-y-2">
+                {(battleState.enemyActive || []).map((id) => {
+                  const mon = pokemonMap[id];
+                  if (!mon) return null;
+                  const hp = battleState.hpMap?.[id] ?? mon.currentHp ?? 0;
+                  const maxHp = battleState.maxHpMap?.[id] ?? mon.stats?.maxHp ?? 100;
+                  const status = battleState.statusMap?.[id];
+                  return (
+                    <BattleHUD key={id} pokemon={mon} hp={hp} maxHp={maxHp} status={status} isPlayer={false} roles={mon.roles || []} />
+                  );
+                })}
+              </div>
+              {/* Player side */}
+              <div className="space-y-2">
+                {(battleState.playerActive || []).map((id) => {
+                  const mon = pokemonMap[id];
+                  if (!mon) return null;
+                  const hp = battleState.hpMap?.[id] ?? mon.currentHp ?? 0;
+                  const maxHp = battleState.maxHpMap?.[id] ?? mon.stats?.maxHp ?? 100;
+                  const status = battleState.statusMap?.[id];
+                  return (
+                    <BattleHUD key={id} pokemon={mon} hp={hp} maxHp={maxHp} status={status} isPlayer={true} roles={mon.roles || []} />
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Enemy Pokemon */}
+              <BattleHUD
+                pokemon={battleState.enemyPokemon}
+                hp={battleState.enemyHP}
+                maxHp={(() => {
+                  const result = getPokemonStats(battleState.enemyPokemon);
+                  return result?.stats?.maxHp || battleState.enemyPokemon?.stats?.maxHp || 100;
+                })()}
+                status={battleState.enemyStatus}
+                roles={battleState.enemyPokemon.roles || []}
+                activeTalentIndicator={latestTalentTriggers.enemy}
+              />
 
-          {/* Player Pokemon */}
-          <BattleHUD
-            pokemon={battleState.playerPokemon}
-            hp={battleState.playerHP}
-            maxHp={(() => {
-              const result = getPokemonStats(battleState.playerPokemon);
-              return result?.stats?.maxHp || battleState.playerPokemon?.stats?.maxHp || 100;
-            })()}
-            status={battleState.playerStatus}
-            roles={battleState.playerPokemon.roles || []}
-            isPlayer
-            activeTalentIndicator={latestTalentTriggers.player}
-          />
+              {/* VS Indicator */}
+              <div className="flex justify-center">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center"
+                >
+                  <Swords className="w-8 h-8 text-white" />
+                </motion.div>
+              </div>
+
+              {/* Player Pokemon */}
+              <BattleHUD
+                pokemon={battleState.playerPokemon}
+                hp={battleState.playerHP}
+                maxHp={(() => {
+                  const result = getPokemonStats(battleState.playerPokemon);
+                  return result?.stats?.maxHp || battleState.playerPokemon?.stats?.maxHp || 100;
+                })()}
+                status={battleState.playerStatus}
+                roles={battleState.playerPokemon.roles || []}
+                isPlayer
+                activeTalentIndicator={latestTalentTriggers.player}
+              />
+            </>
+          )}
 
           {/* Evolution Modal */}
           {evolutionState && (
@@ -1717,6 +2206,7 @@ export default function BattlePage() {
                   await base44.entities.Pokemon.update(wildPokemonId, {
                     isInTeam: captureModalState.addedToParty,
                     isWildInstance: false,
+                    isWild: false,
                     nickname: nickname || undefined,
                     nature: randomNature,
                     ivs: randomIVs
@@ -1801,12 +2291,25 @@ export default function BattlePage() {
                   setReturnTo(null);
                   setItemsUsed([]);
                 }
+                setBattleState(null);
+                setWildPokemonId(null);
+                setEncounterPokemonIds([]);
+                setTrainerRoster([]);
+                setReturnTo(null);
+                setItemsUsed([]);
               }}
             />
           )}
 
-          {/* Battle Results Modal */}
-          {isBattleEnded && !moveLearnState && !evolutionState && !captureModalState && !battleSummary && (
+          {/* Catch Streak display during wild battle */}
+          {battleState?.isWildBattle && !isBattleEnded && battleState?.enemyPokemon?.species && (
+            <div className="mt-2">
+              <CatchStreakBadge species={battleState.enemyPokemon.species} />
+            </div>
+          )}
+
+          {/* Battle Results Modal — only for defeat (victory uses BattleSummaryModal) */}
+          {isBattleEnded && battleState?.status === 'lost' && !moveLearnState && !evolutionState && !captureModalState && !battleSummary && (
             <BattleOutcomeModal
               outcome={{
                 result: battleState.status === 'captured' ? 'captured' : 
@@ -1852,6 +2355,19 @@ export default function BattlePage() {
               }}
             />
           )}
+
+          {/* Action Menu — 3v3 uses ActionQueuePanel, 1v1 uses classic menus */}
+          {!isBattleEnded && isMulti ? (
+            <ActionQueuePanel
+              playerActive={battleState.playerActive || []}
+              pokemonMap={pokemonMap}
+              battleState={battleState}
+              inventory={inventory}
+              isWildBattle={false}
+              pokeballCount={totalPokeballCount}
+              onQueueReady={(playerActions) => runMultiTurn(playerActions)}
+            />
+          ) : null}
 
           {/* Action Menu */}
           {!isBattleEnded && (
@@ -1943,6 +2459,10 @@ export default function BattlePage() {
                     {battleState.playerPokemon.abilities && battleState.playerPokemon.abilities.length > 0 ? (
                      battleState.playerPokemon.abilities.map((moveName, idx) => {
                        const moveData = getMoveData(moveName, battleState.playerPokemon);
+                       const maxPP = moveData?.pp || 10;
+                       const currentPP = battleState.playerPokemon.movePP?.[moveName] !== undefined
+                         ? battleState.playerPokemon.movePP[moveName]
+                         : maxPP;
                        return (
                          <MoveCard
                            key={idx}
@@ -1952,7 +2472,7 @@ export default function BattlePage() {
                              performMove(m);
                              setActionMenu('main');
                            }}
-                           disabled={!isPlayerTurn}
+                           disabled={!isPlayerTurn || currentPP <= 0}
                          />
                        );
                      })
