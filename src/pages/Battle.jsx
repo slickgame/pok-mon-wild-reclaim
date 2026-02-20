@@ -33,6 +33,7 @@ import { wildPokemonData, rollItemDrops, calculateWildXP } from '@/components/zo
 import { getMoveData } from '@/components/utils/getMoveData';
 import CatchStreakBadge from '@/components/battle/CatchStreakBadge';
 import TrainerIntroModal from '@/components/battle/TrainerIntroModal';
+import { rollTrainerRewards } from '@/components/data/TrainerRegistry';
 
 const createDefaultBattlefield = () => ({
   terrain: null,
