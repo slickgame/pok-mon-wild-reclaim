@@ -246,6 +246,11 @@ function ZoneDetailView({ zone, onBack }) {
     queryFn: () => base44.auth.me()
   });
 
+  const { data: berryPlots = [] } = useQuery({
+    queryKey: ['berryPlots'],
+    queryFn: () => base44.entities.BerryPlot.list()
+  });
+
   useEffect(() => {
     const migratePoacherNodeletData = async () => {
       const migration = migrateZoneNodeletsForPoacherData(zone);
