@@ -3388,23 +3388,49 @@ function ZoneDetailView({ zone, onBack }) {
       {activeSection === 'camp' && (
         <div className="glass rounded-xl p-6 space-y-4">
           <h3 className="text-lg font-semibold text-white">Camp</h3>
-          <p className="text-sm text-slate-400">
-            Rest to recover a little HP and pass one hour, or sleep to heal fully and pass eight hours. Fainted Pokémon are not revived.
-          </p>
-          <div className="flex flex-col md:flex-row gap-3">
-            <Button onClick={handleCampRest} className="bg-indigo-500 hover:bg-indigo-600">
-              Rest (10% heal, +1 hour)
-            </Button>
-            <Button onClick={handleCampSleep} className="bg-emerald-500 hover:bg-emerald-600">
-              Sleep (Full heal, +8 hours)
-            </Button>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+              <h4 className="text-sm font-semibold text-white mb-1">Rest</h4>
+              <p className="text-xs text-slate-400 mb-3">Recovers 10% HP for non-fainted Pokémon. Advances time by 1 hour. Does not restore PP.</p>
+              <Button onClick={handleCampRest} className="w-full bg-indigo-500 hover:bg-indigo-600">
+                Rest (+1 hour)
+              </Button>
+            </div>
+            <div className="flex-1 bg-slate-800/50 rounded-lg p-4 border border-emerald-700/40">
+              <h4 className="text-sm font-semibold text-emerald-300 mb-1">Sleep</h4>
+              <p className="text-xs text-slate-400 mb-3">Fully restores HP <span className="text-emerald-300 font-medium">and PP</span> for all Pokémon. Advances time by 8 hours. Fainted Pokémon are not revived.</p>
+              <Button onClick={handleCampSleep} className="w-full bg-emerald-500 hover:bg-emerald-600">
+                Sleep (+8 hours)
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
-      {activeSection === 'nodelet' && activeNodelet && (
-      <div className="space-y-4">
-          <div className="glass rounded-xl p-4 border border-indigo-500/30">
+      {activeSection === 'items' &&
+      <ZoneInventoryPanel items={items} />
+      }
+
+      {activeSection === 'pokemon' &&
+      <ZonePartyPanel player={player} allPokemon={allPokemon} />
+      }
+
+      {activeSection === 'bestiary' &&
+      <ZoneBestiary
+        zone={zone}
+        discoveredPokemon={zoneProgress?.discoveredPokemon || []} />
+
+      }
+
+      {activeSection === 'logbook' &&
+      <ZoneLogbook
+        zone={zone}
+        zoneProgress={zoneProgress} />
+
+      }
+
+      {activeSection === 'quests' &&
+      <div className="glass rounded-xl p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div>
                 <h3 className="text-base font-semibold text-white">{activeNodelet.name}</h3>
