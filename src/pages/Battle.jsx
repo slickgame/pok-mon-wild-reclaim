@@ -1625,6 +1625,7 @@ export default function BattlePage() {
 
   const isPlayerTurn = battleState?.currentTurn === 'player';
   const isBattleEnded = battleState?.status === 'won' || battleState?.status === 'lost';
+  const isMulti = Boolean(battleState?.activeSlots && battleState.activeSlots > 1);
 
   return (
     <div>
