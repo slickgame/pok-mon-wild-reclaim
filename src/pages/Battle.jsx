@@ -1336,6 +1336,25 @@ export default function BattlePage() {
     );
   }
 
+  // While waiting for a trainer encounter to load/start, show the intro modal only
+  if (!battleState && wildPokemonId) {
+    return (
+      <div>
+        {trainerIntro && !introDismissed && (
+          <TrainerIntroModal
+            trainer={trainerIntro.trainer}
+            roster={trainerIntro.roster}
+            onBegin={() => {
+              setIntroDismissed(true);
+              setTrainerIntro(null);
+              setBattleReady(true);
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
   if (!battleState) {
     return (
       <div>
