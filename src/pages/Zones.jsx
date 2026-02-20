@@ -2480,7 +2480,17 @@ function ZoneDetailView({ zone, onBack }) {
                       <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">🎁 Loot bonus: {mult(mods.lootBonusMultiplier)}</Badge>
                       <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-100">🔥 Streak: {nodelet.harvestStreak || 0}</Badge>
                     </div>
-                    <div className="mt-2 text-xs text-emerald-100/60">Same modifiers used by Brambleberry's encounter roll logic. Streak decay: leave/travel −{BRAMBLEBERRY_STREAK_DECAY.leave}, nap −{BRAMBLEBERRY_STREAK_DECAY.nap}, sleep resets.</div>
+                    {(() => {
+                      const decayRules = getBrambleberryStreakDecayRules(nodelet);
+                      return (
+                        <div className="mt-2 text-xs text-emerald-100/60">
+                          🍂 Streak decay: leave −{decayRules.leave}, travel −{decayRules.travel}, nap −{decayRules.nap}, sleep resets.
+                          {contractState.tier2Unlocked && <span className="text-emerald-200"> (Contract II protection active)</span>}
+                          {contractState.tier3Unlocked && <span className="text-emerald-200"> (Contract III protection active)</span>}
+                          <br />Same modifiers used by Brambleberry's encounter roll logic.
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="rounded-md border border-emerald-500/20 bg-black/20 p-3">
                     <div className="text-sm text-emerald-100 font-semibold mb-2">📦 Delivery</div>
