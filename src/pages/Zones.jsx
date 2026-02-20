@@ -1148,13 +1148,40 @@ function ZoneDetailView({ zone, onBack }) {
       }
 
       if (action === 'Harvest') {
+        let nextPresence = currentNodelet.poacherPresence || 0;
+        if (currentNodelet.id === 'vh-brambleberry-thicket') {
+          const c = getBrambleberryContractState(currentNodelet);
+          let gain = 6;
+          if (c.tier2Unlocked) gain += 2;
+          if (c.tier3Unlocked) gain += 3;
+          if ((currentNodelet.harvestStreak || 0) >= 3) gain += 2;
+          if ((currentNodelet.harvestStreak || 0) >= 6) gain += 3;
+          nextPresence = clamp(nextPresence + gain, 0, 100);
+        }
         return {
           ...currentNodelet,
           harvestStreak: (currentNodelet.harvestStreak || 0) + 1,
+          poacherPresence: nextPresence,
           replantReadyAt:
           currentNodelet.replantReadyAt && toNodeletTimestamp(currentNodelet.replantReadyAt) <= nowGameTs ?
           null :
           currentNodelet.replantReadyAt,
+          objectiveProgress,
+          objectiveCompletedAt,
+          objectiveHistory,
+          lastAction: action,
+          lastActionAt: now
+        };
+      }
+
+      if (action === 'Deliver Berries') {
+        let nextPresence = currentNodelet.poacherPresence || 0;
+        if (currentNodelet.id === 'vh-brambleberry-thicket') {
+          nextPresence = clamp(nextPresence - 5, 0, 100);
+        }
+        return {
+          ...currentNodelet,
+          poacherPresence: nextPresence,
           objectiveProgress,
           objectiveCompletedAt,
           objectiveHistory,
