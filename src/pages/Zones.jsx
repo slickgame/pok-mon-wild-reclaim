@@ -2576,7 +2576,7 @@ function ZoneDetailView({ zone, onBack }) {
                         <div className="mt-2 text-xs text-emerald-100/60">
                           🍂 Streak decay: leave −{decayRules.leave}, travel −{decayRules.travel}, nap −{decayRules.nap}, sleep resets.
                           {contractState.tier2Unlocked && <span className="text-emerald-200"> (Contract II protection active)</span>}
-                          {contractState.tier3Unlocked && <span className="text-emerald-200"> (Contract III protection active)</span>}
+                          {contractState.tier3Unlocked && <span className="text-emerald-200"> Contract III: bank prevents streak dropping to 0 (auto-spends).</span>}
                           <br />Same modifiers used by Brambleberry's encounter roll logic.
                         </div>
                       );
