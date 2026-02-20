@@ -199,6 +199,9 @@ function ZoneDetailView({ zone, onBack }) {
   const [zoneProgress, setZoneProgress] = useState(null);
   const [selectedNodelet, setSelectedNodelet] = useState(null);
   const [activeNodelet, setActiveNodelet] = useState(null);
+  const [showPlantingModal, setShowPlantingModal] = useState(false);
+  const [showIrisShop, setShowIrisShop] = useState(false);
+  const [showMerraQuests, setShowMerraQuests] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
