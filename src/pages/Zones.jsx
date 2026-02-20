@@ -16,6 +16,14 @@ import ZoneLiberationTracker from '@/components/zones/ZoneLiberationTracker';
 import DiscoveryMeter from '@/components/zones/DiscoveryMeter';
 import ExplorationFeed from '@/components/zones/ExplorationFeed';
 import EncounterResult from '@/components/zones/EncounterResult';
+import PlantingPlotModal from '@/components/zones/PlantingPlotModal';
+import IrisShopModal from '@/components/zones/IrisShopModal';
+import MerraQuestsModal from '@/components/zones/MerraQuestsModal';
+import BerryFarmPanel from '@/components/zones/BerryFarmPanel';
+import ZoneInventoryPanel from '@/components/zones/ZoneInventoryPanel';
+import ZonePartyPanel from '@/components/zones/ZonePartyPanel';
+import ZoneBestiary from '@/components/zones/ZoneBestiary';
+import ZoneLogbook from '@/components/zones/ZoneLogbook';
 import {
   Dialog,
   DialogContent,
