@@ -616,6 +616,13 @@ function ZoneDetailView({ zone, onBack }) {
     setActiveSection('nodelet');
   };
 
+  // Bank streak insurance once per in-game day when Contract III is active
+  useEffect(() => {
+    if (zone?.id && gameTime) {
+      maybeBankBrambleberryStreak();
+    }
+  }, [zone?.id, gameTime?.day, gameTime?.currentDay]); // eslint-disable-line
+
   // Track nodelet changes to decay harvest streak on leave
   const prevNodeletIdRef = useRef(null);
   useEffect(() => {
