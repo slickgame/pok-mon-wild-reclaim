@@ -3404,36 +3404,6 @@ function ZoneDetailView({ zone, onBack }) {
         </div>
       )}
 
-          {activeNodelet &&
-        <div className="glass rounded-xl p-4 border border-indigo-500/30">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-semibold text-white">{activeNodelet.name}</h3>
-                  <p className="text-xs text-slate-400">{activeNodelet.type} Location</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                size="sm"
-                className="bg-indigo-600 hover:bg-indigo-700"
-                onClick={() => setActiveSection('nodelet')}>
-
-                    Open Location
-                  </Button>
-                  <Button
-                size="sm"
-                variant="outline"
-                className="border-slate-700 text-slate-200"
-                onClick={handleLeaveNodelet}>
-
-                    Leave
-                  </Button>
-                </div>
-              </div>
-            </div>
-        }
-        </div>
-      }
-
       {activeSection === 'nodelet' && activeNodelet &&
       <div className="space-y-4">
           <div className="glass rounded-xl p-4 border border-indigo-500/30">
