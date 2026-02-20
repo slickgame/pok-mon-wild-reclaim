@@ -3269,9 +3269,9 @@ function ZoneDetailView({ zone, onBack }) {
           if (!open) setSelectedNodelet(null);
         }}
       >
-        <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl">
-          {selectedNodelet && (
-            <>
+        <DialogContent className="bg-slate-900 border-slate-800 max-w-md">
+          {selectedNodelet &&
+          <>
               <DialogHeader>
                 <DialogTitle className="text-white flex items-center gap-2">
                   <MapIcon className="w-5 h-5 text-emerald-400" /> {selectedNodelet.name}
@@ -3281,113 +3281,46 @@ function ZoneDetailView({ zone, onBack }) {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 text-sm">
-                {selectedNodelet.gameplayFeatures?.length > 0 && (
-                  <div>
-                    <h4 className="text-white font-semibold mb-2">Gameplay Features</h4>
-                    <ul className="list-disc pl-5 space-y-1 text-slate-300">
-                      {selectedNodelet.gameplayFeatures.map((feature) => (
-                        <li key={feature}>{feature}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700"
+                onClick={() => {
+                  setActiveNodelet(resolveNodeletConfig(selectedNodelet));
+                  setActiveSection('nodelet');
+                  setSelectedNodelet(null);
+                }}>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InfoPills title="NPCs" values={selectedNodelet.npcs} />
-                  <InfoPills title="Items" values={selectedNodelet.items} />
-                  <InfoPills title="Wild Pokémon" values={selectedNodelet.wildPokemon} />
-                  <InfoPills title="Enemy NPCs" values={selectedNodelet.enemyNPCs} />
-                </div>
+                  Enter Location
+                </Button>
 
-                {Array.isArray(selectedNodelet.npcs) && selectedNodelet.npcs.length > 0 && (
-                  <div>
-                    <h4 className="text-white font-semibold mb-2">Talk to NPCs</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedNodelet.npcs.map((npcName) => (
-                        <Button
-                          key={`dialog-npc-${npcName}`}
-                          size="sm"
-                          variant="outline"
-                          className="border-slate-600 text-slate-200"
-                          onClick={() => {
-                            setActiveNodelet(resolveNodeletConfig(selectedNodelet));
-                            setActiveSection('nodelet');
-                            setSelectedNodelet(null);
-                            handleNodeletNpcInteract(selectedNodelet, npcName);
-                          }}
-                        >
-                          {npcName}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {selectedNodelet.id === 'vh-brambleberry-thicket' &&
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/20"
+                onClick={() => {
+                  setActiveNodelet(resolveNodeletConfig(selectedNodelet));
+                  setActiveSection('nodelet');
+                  setSelectedNodelet(null);
+                  setShowPlantingModal(true);
+                }}>
 
-                {selectedNodelet.actions?.length > 0 && (
-                  <div>
-                    <h4 className="text-white font-semibold mb-2">Available Actions</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedNodelet.actions.map((action) => (
-                        <Badge key={action} className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30">
-                          {action}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedNodelet.isComingSoon && (
-                  <p className="text-amber-300 text-xs bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
-                    Coming Soon: Honey lure encounter mechanics and delayed ambush resolution.
-                  </p>
-                )}
-
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {selectedNodelet.actions?.map((actionLabel) => {
-                    const currentProgress = zoneProgress?.discoveryProgress || 0;
-                    const unlockAt = selectedNodelet.unlockDiscoveryProgress || 0;
-                    const isLocked = currentProgress < unlockAt;
-
-                    return (
-                      <Button
-                        key={actionLabel}
-                        size="sm"
-                        variant="outline"
-                        disabled={isLocked}
-                        className={`border-indigo-500/40 text-indigo-200 hover:bg-indigo-500/20 ${
-                          isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                        onClick={() => {
-                          setActiveNodelet(resolveNodeletConfig(selectedNodelet));
-                          setActiveSection('nodelet');
-                          setSelectedNodelet(null);
-                          handleNodeletAction(selectedNodelet, actionLabel);
-                        }}
-                      >
-                        {isLocked ? `${actionLabel} 🔒` : actionLabel}
-                      </Button>
-                    );
-                  })}
-
-                  {(zoneProgress?.discoveryProgress || 0) < (selectedNodelet.unlockDiscoveryProgress || 0) && (
-                    <Badge className="bg-amber-500/20 text-amber-200 border-amber-500/30">
-                      Unlocks at {selectedNodelet.unlockDiscoveryProgress}% discovery
-                    </Badge>
-                  )}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-slate-700 text-slate-200"
-                    onClick={() => setSelectedNodelet(null)}
-                  >
-                    Close
+                    🌱 Plant Seeds
                   </Button>
-                </div>
+              }
+
+                <Button
+                variant="outline"
+                size="sm"
+                className="border-slate-700 text-slate-200"
+                onClick={() => setSelectedNodelet(null)}>
+
+                  Close
+                </Button>
               </div>
             </>
-          )}
+          }
         </DialogContent>
       </Dialog>
 
