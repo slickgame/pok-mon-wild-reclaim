@@ -616,13 +616,17 @@ function ZoneDetailView({ zone, onBack }) {
     setActiveSection('nodelet');
   };
 
-  // Track nodelet changes to reset harvest streak on leave
+  // Track nodelet changes to decay harvest streak on leave
   const prevNodeletIdRef = useRef(null);
   useEffect(() => {
     const prev = prevNodeletIdRef.current;
     const next = activeNodelet?.id || null;
     if (prev === 'vh-brambleberry-thicket' && next !== 'vh-brambleberry-thicket') {
-      resetNodeletHarvestStreak('vh-brambleberry-thicket', 'leaving Brambleberry Thicket');
+      adjustNodeletHarvestStreak('vh-brambleberry-thicket', {
+        mode: 'decay',
+        amount: BRAMBLEBERRY_STREAK_DECAY.leave,
+        reason: 'leaving Brambleberry Thicket'
+      });
     }
     prevNodeletIdRef.current = next;
   }, [activeNodelet?.id]); // eslint-disable-line
