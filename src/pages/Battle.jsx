@@ -19,6 +19,8 @@ import BattleSummaryModal from '@/components/battle/BattleSummaryModal';
 import { BattleEngine, triggerTalent } from '@/components/battle/BattleEngine';
 import { createDefaultStatStages } from '@/components/battle/statStageUtils';
 import ActionQueuePanel from '@/components/battle/multi/ActionQueuePanel';
+import TrainerIntroModal from '@/components/battle/TrainerIntroModal';
+import CatchStreakBadge from '@/components/battle/CatchStreakBadge';
 import {
   createBattleState,
   syncLegacyFields,
@@ -76,6 +78,10 @@ export default function BattlePage() {
   const [faintedIds, setFaintedIds] = useState([]); // Track which Pokemon fainted in battle
   const [poacherBattleMeta, setPoacherBattleMeta] = useState(null);
   const [trainerData, setTrainerData] = useState(null);
+  const [battleReady, setBattleReady] = useState(false);
+  const [introDismissed, setIntroDismissed] = useState(false);
+  const [trainerIntro, setTrainerIntro] = useState(null);
+  const battleStartedRef = React.useRef(false);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
