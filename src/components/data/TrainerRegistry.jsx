@@ -218,6 +218,7 @@ const FOREMAN_BRAMBLEJACK = {
   archetype: 'Contract Gatekeeper',
   aiTier: 3,
   isBoss: true,
+  signatureDrop: 'Contraband Cache',
   description: 'Controls illegal berry routes. Does not lose gracefully.',
   roster: [
     // Sacrificial lead — status setter
