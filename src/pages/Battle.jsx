@@ -82,6 +82,7 @@ export default function BattlePage() {
   const [introDismissed, setIntroDismissed] = useState(false);
   const [trainerIntro, setTrainerIntro] = useState(null);
   const battleStartedRef = React.useRef(false);
+  const postBattleReturnRef = React.useRef(false);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -167,18 +168,22 @@ export default function BattlePage() {
         const orderedParty = player.partyOrder
           .map(id => pokemon.find(p => p.id === id))
           .filter(Boolean)
-          .map(p => ({
-            ...p,
-            abilities: p.abilities || ['Tackle', 'Growl']
-          }));
+          .map(p => {
+            const withStats = getPokemonStats(p);
+            const maxHp = withStats?.stats?.maxHp || 100;
+            const cur = p.currentHp ?? maxHp;
+            return { ...p, ...withStats, currentHp: Math.min(cur, maxHp), abilities: p.abilities || ['Tackle', 'Growl'] };
+          });
         return orderedParty;
       }
       
       // Fallback to default sort
-      const sortedParty = pokemon.map(p => ({
-        ...p,
-        abilities: p.abilities || ['Tackle', 'Growl']
-      }));
+      const sortedParty = pokemon.map(p => {
+        const withStats = getPokemonStats(p);
+        const maxHp = withStats?.stats?.maxHp || 100;
+        const cur = p.currentHp ?? maxHp;
+        return { ...p, ...withStats, currentHp: Math.min(cur, maxHp), abilities: p.abilities || ['Tackle', 'Growl'] };
+      });
       
       return sortedParty;
     },
@@ -233,6 +238,39 @@ export default function BattlePage() {
   const isTrainer3v3 = useMemo(() => {
     return Boolean(trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
   }, [trainerData, trainerRoster]);
+
+  const navigateBackToOrigin = (outcome) => {
+    if (!returnTo) return;
+    const separator = returnTo.includes('?') ? '&' : '?';
+    const metaParams = buildPoacherReturnMetaParams({
+      poacherBattleMeta,
+      battleRewards: battleState?.rewards
+    });
+    const metaSuffix = metaParams?.toString?.() ? `&${metaParams.toString()}` : '';
+    navigate(`/${returnTo}${separator}battleOutcome=${outcome}${metaSuffix}`);
+  };
+
+  // Auto-return to origin when battle ends and no modal is blocking
+  useEffect(() => {
+    if (!battleState) return;
+    if (postBattleReturnRef.current) return;
+
+    const ended = battleState.status === 'won' || battleState.status === 'lost' || battleState.status === 'captured';
+    if (!ended) return;
+
+    const modalBlocking = Boolean(battleSummary) || Boolean(moveLearnState) || Boolean(evolutionState) || Boolean(captureModalState);
+
+    if (returnTo && battleState.currentTurn === 'ended' && !modalBlocking) {
+      postBattleReturnRef.current = true;
+      if ((encounterPokemonIds?.length || 0) > 0 && battleState.status !== 'captured') {
+        cleanupEncounterPokemon().finally(() => {
+          navigateBackToOrigin(battleState.status === 'lost' ? 'defeat' : 'victory');
+        });
+      } else {
+        navigateBackToOrigin(battleState.status === 'lost' ? 'defeat' : 'victory');
+      }
+    }
+  }, [battleState?.status, battleState?.currentTurn, returnTo, battleSummary, moveLearnState, evolutionState, captureModalState]); // eslint-disable-line
 
   // Auto-start battle with wild Pokémon
   useEffect(() => {
@@ -932,8 +970,10 @@ export default function BattlePage() {
         });
       }
 
-      // Save post-battle HP for active pokemon
-      const postBattleHP = newBattleState.playerHP;
+      // Save post-battle HP for active pokemon (clamped to max)
+      const activeStats = getPokemonStats(newBattleState.playerPokemon);
+      const maxHp = activeStats?.stats?.maxHp || 100;
+      const postBattleHP = Math.min(newBattleState.playerHP, maxHp);
 
       // Clean movePP: remove undefined values and ensure it's serializable
       const rawMovePP = newBattleState.playerPokemon.movePP || {};

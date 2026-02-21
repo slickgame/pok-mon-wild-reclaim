@@ -554,6 +554,34 @@ function ZoneDetailView({ zone, onBack }) {
     const enemyTriggered = await maybeTriggerEnemyNPCEncounter(nodelet, 0.18, { triggeredByAction: 'Explore' });
     if (enemyTriggered) return;
 
+    // Brambleberry Thicket: chance to find seeds/berries instead of battle
+    if (nodelet.id === BRAMBLE_ID) {
+      const roll = Math.random();
+      if (roll < 0.30) {
+        const seedPool = [
+          { name: 'Oran Berry Seed', weight: 35, rarity: 'Common', sellValue: 15 },
+          { name: 'Pecha Berry Seed', weight: 20, rarity: 'Common', sellValue: 15 },
+          { name: 'Cheri Berry Seed', weight: 20, rarity: 'Common', sellValue: 15 },
+          { name: 'Sitrus Berry Seed', weight: 15, rarity: 'Uncommon', sellValue: 30 },
+          { name: 'Lum Berry Seed', weight: 10, rarity: 'Rare', sellValue: 60 }
+        ];
+        const totalWeight = seedPool.reduce((sum, s) => sum + s.weight, 0);
+        let r = Math.random() * totalWeight;
+        let chosen = seedPool[0];
+        for (const seed of seedPool) { r -= seed.weight; if (r <= 0) { chosen = seed; break; } }
+        await upsertItem(chosen.name, 1, { type: 'Material', rarity: chosen.rarity, description: `Found while exploring ${nodelet.name}.`, sellValue: chosen.sellValue });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        setExplorationEvents(prev => [{ title: '🌱 Found Berry Seeds', description: `You found ${chosen.name} while exploring ${nodelet.name}.`, type: 'material', rarity: chosen.rarity.toLowerCase() }, ...prev].slice(0, 10));
+        return;
+      }
+      if (roll < 0.40) {
+        await upsertItem('Oran Berry', 1, { type: 'Consumable', rarity: 'Common', description: `Picked while exploring ${nodelet.name}.`, sellValue: 12 });
+        queryClient.invalidateQueries({ queryKey: ['items'] });
+        setExplorationEvents(prev => [{ title: '🫐 Found Berries', description: `You picked fresh berries while exploring ${nodelet.name}.`, type: 'material', rarity: 'common' }, ...prev].slice(0, 10));
+        return;
+      }
+    }
+
     const encounter = getNodeletEncounter(nodelet, 'Explore');
     if (!encounter?.species) {
       setExplorationEvents(prev => [{
