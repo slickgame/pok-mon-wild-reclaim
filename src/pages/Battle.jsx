@@ -92,9 +92,12 @@ export default function BattlePage() {
     const state = location.state;
 
     if (state?.wildPokemonId) {
+      const roster = Array.isArray(state.trainerRoster) ? state.trainerRoster : [];
+      const isTrainerBattle = Boolean(state.trainerData) && roster.length > 0;
+
       setWildPokemonId(state.wildPokemonId);
       setEncounterPokemonIds(state.encounterPokemonIds || [state.wildPokemonId]);
-      setTrainerRoster(Array.isArray(state.trainerRoster) ? state.trainerRoster : []);
+      setTrainerRoster(roster);
       setFaintedIds([]);
       setTrainerData(state?.trainerData || null);
       setReturnTo(state.returnTo || 'Zones');
@@ -107,6 +110,17 @@ export default function BattlePage() {
         triggeredByAction: state.triggeredByAction || null,
         harvestTxnId: state.harvestTxnId || null
       });
+
+      if (isTrainerBattle) {
+        setTrainerIntro({ trainer: state.trainerData, roster });
+        setIntroDismissed(false);
+        setBattleReady(false);
+      } else {
+        setTrainerIntro(null);
+        setIntroDismissed(true);
+        setBattleReady(true);
+      }
+
       triggerTutorial('first_battle');
     }
 
@@ -1845,11 +1859,12 @@ export default function BattlePage() {
     );
   }
 
-  // While waiting for a trainer encounter to load/start, show the intro modal only
-  if (!battleState && wildPokemonId) {
+  // Only gate battle start behind an intro for TRAINER battles.
+  // Wild/location encounters should never show a blank screen here.
+  if (!battleState && wildPokemonId && trainerRoster.length > 0 && trainerData) {
     return (
       <div>
-        {trainerIntro && !introDismissed && (
+        {trainerIntro && !introDismissed ? (
           <TrainerIntroModal
             trainer={trainerIntro.trainer}
             roster={trainerIntro.roster}
@@ -1859,6 +1874,8 @@ export default function BattlePage() {
               setBattleReady(true);
             }}
           />
+        ) : (
+          <div className="p-6 text-slate-200">Preparing trainer battle…</div>
         )}
       </div>
     );
