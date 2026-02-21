@@ -1989,8 +1989,8 @@ function ZoneDetailView({ zone, onBack }) {
         if (currentNodelet.id === 'vh-brambleberry-thicket') {
           const c = getBrambleberryContractState(currentNodelet);
           let gain = 6;
-          if (c.tier2Unlocked) gain += 2;
-          if (c.tier3Unlocked) gain += 3;
+          if (c.tier1Completed) gain += 2;
+          if (c.tier2Completed) gain += 3;
           if ((currentNodelet.harvestStreak || 0) >= 3) gain += 2;
           if ((currentNodelet.harvestStreak || 0) >= 6) gain += 3;
           nextPresence = clamp(nextPresence + gain, 0, 100);
@@ -2089,90 +2089,7 @@ function ZoneDetailView({ zone, onBack }) {
     }
   };
 
-  useEffect(() => {
-    const nodeletBattle = searchParams.get('nodeletBattle');
-    const nodeletId = searchParams.get('nodeletId');
-    const battleOutcome = searchParams.get('battleOutcome');
-    const nodeletBattleType = searchParams.get('nodeletBattleType');
 
-    if (nodeletBattle !== '1' || !nodeletId || !battleOutcome || !zone?.id) {
-      return;
-    }
-
-    const updateFromBattle = async () => {
-      const targetNodelet = (zone.nodelets || []).find((nodelet) => nodelet.id === nodeletId);
-      if (!targetNodelet) return;
-
-      const now = new Date().toISOString();
-      const updatedNodelets = (zone.nodelets || []).map((nodelet) => {
-        if (nodelet.id !== nodeletId) return nodelet;
-
-        const nextNodelet = {
-          ...nodelet,
-          lastBattleOutcome: battleOutcome,
-          lastBattleAt: now
-        };
-
-        if (nodeletBattleType === 'eclipse') {
-          nextNodelet.lastChallengeOutcome = battleOutcome === 'victory' ? 'victory' : 'failed';
-        }
-
-        if (nodeletBattleType === 'enemyNpc') {
-          const cur = nodelet.poacherPresence || 0;
-          const delta = battleOutcome === 'victory' ? -18 : 12;
-          nextNodelet.poacherPresence = clamp(cur + delta, 0, 100);
-          nextNodelet.poacherLastShift = now;
-        }
-
-        return nextNodelet;
-      });
-      const updatedActiveNodelet = updatedNodelets.find((nodelet) => nodelet.id === nodeletId);
-
-      try {
-        const updatedZone = await base44.entities.Zone.update(zone.id, { nodelets: updatedNodelets });
-        queryClient.setQueryData(['zones'], (existingZones = []) =>
-        existingZones.map((existingZone) =>
-        existingZone.id === zone.id ? { ...existingZone, nodelets: updatedZone.nodelets || updatedNodelets } : existingZone
-        )
-        );
-        setActiveNodelet(resolveNodeletConfig(updatedActiveNodelet) || null);
-
-        if (nodeletBattleType === 'enemyNpc') {
-          setExplorationEvents((prev) => [{
-            title: battleOutcome === 'victory' ? '🛡️ Poachers Driven Off' : '⚠️ Poachers Emboldened',
-            description: battleOutcome === 'victory'
-              ? 'Poacher presence decreased in Brambleberry Thicket.'
-              : 'Poacher presence increased in Brambleberry Thicket.',
-            type: 'special',
-            rarity: battleOutcome === 'victory' ? 'uncommon' : 'common'
-          }, ...prev].slice(0, 10));
-        }
-
-        if (nodeletBattleType === 'eclipse') {
-          setExplorationEvents((prev) => [{
-            title: battleOutcome === 'victory' ? '✅ Revenant Defeated' : '❌ Revenant Withstood',
-            description:
-            battleOutcome === 'victory' ?
-            'You can now Purify Spring at the Eclipse-Tainted Spring.' :
-            'Recover and challenge the Revenant again to purify the spring.',
-            type: 'special',
-            rarity: battleOutcome === 'victory' ? 'rare' : 'common'
-          }, ...prev].slice(0, 10));
-        }
-
-        const nextParams = new URLSearchParams(searchParams);
-        nextParams.delete('nodeletBattle');
-        nextParams.delete('nodeletId');
-        nextParams.delete('battleOutcome');
-        nextParams.delete('nodeletBattleType');
-        setSearchParams(nextParams);
-      } catch (error) {
-        console.error('Failed to apply nodelet battle outcome:', error);
-      }
-    };
-
-    updateFromBattle();
-  }, [searchParams, setSearchParams, zone, queryClient]);
 
   const handleStartExploring = () => {
     setIsExploring(true);
