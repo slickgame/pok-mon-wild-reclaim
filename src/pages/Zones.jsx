@@ -593,22 +593,25 @@ function ZoneDetailView({ zone, onBack }) {
       return;
     }
 
-    const started = await startNodeletWildEncounter({
-      species: encounter.species,
-      level: encounter.level,
-      nodelet,
-      battleType: 'locationExplore'
-    });
+    // Advance time for exploring a nodelet (10 min, same as main explore)
+    try { await advanceTime(EXPLORE_TIME_MINUTES); } catch (e) { console.error('advanceTime failed in nodelet explore:', e); }
 
-    if (!started) {
-      setExplorationEvents(prev => [{
-        title: '⚠️ Encounter Failed',
-        description: `Could not start an encounter at ${nodelet.name}.`,
-        type: 'special',
-        rarity: 'common'
-      }, ...prev].slice(0, 10));
-    }
-  };
+    const started = await startNodeletWildEncounter({
+        species: encounter.species,
+        level: encounter.level,
+        nodelet,
+        battleType: 'locationExplore'
+      });
+
+      if (!started) {
+        setExplorationEvents(prev => [{
+          title: '⚠️ Encounter Failed',
+          description: `Could not start an encounter at ${nodelet.name}.`,
+          type: 'special',
+          rarity: 'common'
+        }, ...prev].slice(0, 10));
+      }
+    };
   
   const handleNodeletNpcInteract = (nodelet, npcName) => {
     const resolvedNodelet = resolveNodeletConfig(nodelet);
