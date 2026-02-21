@@ -84,6 +84,7 @@ export default function BattlePage() {
   const battleStartedRef = React.useRef(false);
   const postBattleReturnRef = React.useRef(false);
   const endBattleOnceRef = React.useRef(false);
+  const autoReturnOnceRef = React.useRef(false);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -239,6 +240,42 @@ export default function BattlePage() {
   const isTrainer3v3 = useMemo(() => {
     return Boolean(trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
   }, [trainerData, trainerRoster]);
+
+  // Guaranteed auto-return: whenever battle ends and returnTo exists, navigate back immediately
+  useEffect(() => {
+    if (!battleState) return;
+    if (!returnTo) return;
+    if (autoReturnOnceRef.current) return;
+
+    const enemyHP = typeof battleState.enemyHP === 'number' ? battleState.enemyHP : null;
+    const ended =
+      battleState.status === 'won' ||
+      battleState.status === 'lost' ||
+      battleState.status === 'captured' ||
+      (enemyHP !== null && enemyHP <= 0);
+
+    if (!ended) return;
+
+    autoReturnOnceRef.current = true;
+
+    const outcome =
+      battleState.status === 'lost' ? 'defeat' :
+      battleState.status === 'captured' ? 'captured' :
+      'victory';
+
+    (async () => {
+      try {
+        if ((encounterPokemonIds?.length || 0) > 0 && battleState.status !== 'captured') {
+          await cleanupEncounterPokemon();
+        }
+      } finally {
+        const separator = returnTo.includes('?') ? '&' : '?';
+        const metaParams = buildPoacherReturnMetaParams({ poacherBattleMeta, battleRewards: battleState?.rewards });
+        const metaSuffix = metaParams?.toString?.() ? `&${metaParams.toString()}` : '';
+        navigate(`/${returnTo}${separator}battleOutcome=${outcome}${metaSuffix}`);
+      }
+    })();
+  }, [battleState?.status, battleState?.enemyHP, returnTo]); // eslint-disable-line
 
   // Hard-stop watcher: catches victories from burn/status ticks or any path that doesn't trigger the normal win handler
   useEffect(() => {
@@ -1992,7 +2029,10 @@ export default function BattlePage() {
   }
 
   const isPlayerTurn = battleState?.currentTurn === 'player';
-  const isBattleEnded = battleState?.status === 'won' || battleState?.status === 'lost';
+  const isBattleEnded =
+    battleState?.status === 'won' ||
+    battleState?.status === 'lost' ||
+    battleState?.status === 'captured';
   const isMulti = Boolean(battleState?.activeSlots && battleState.activeSlots > 1);
 
   return (
