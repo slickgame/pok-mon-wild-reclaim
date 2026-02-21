@@ -83,6 +83,7 @@ export default function BattlePage() {
   const [trainerIntro, setTrainerIntro] = useState(null);
   const battleStartedRef = React.useRef(false);
   const postBattleReturnRef = React.useRef(false);
+  const endBattleOnceRef = React.useRef(false);
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -238,6 +239,39 @@ export default function BattlePage() {
   const isTrainer3v3 = useMemo(() => {
     return Boolean(trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
   }, [trainerData, trainerRoster]);
+
+  // Hard-stop watcher: catches victories from burn/status ticks or any path that doesn't trigger the normal win handler
+  useEffect(() => {
+    if (!battleState) return;
+    if (endBattleOnceRef.current) return;
+
+    const enemyHP = battleState.enemyHP ?? battleState.enemyPokemon?.currentHp ?? null;
+    const status = battleState.status;
+    const won = status === 'won' || (typeof enemyHP === 'number' && enemyHP <= 0);
+    if (!won) return;
+
+    endBattleOnceRef.current = true;
+
+    setBattleState(prev => {
+      if (!prev) return prev;
+      return { ...prev, status: 'won', currentTurn: 'ended' };
+    });
+
+    if (returnTo) {
+      const sep = returnTo.includes('?') ? '&' : '?';
+      const metaParams = buildPoacherReturnMetaParams({ poacherBattleMeta, battleRewards: battleState?.rewards });
+      const metaSuffix = metaParams?.toString?.() ? `&${metaParams.toString()}` : '';
+      (async () => {
+        try {
+          if ((encounterPokemonIds?.length || 0) > 0 && battleState?.status !== 'captured') {
+            await cleanupEncounterPokemon();
+          }
+        } finally {
+          navigate(`/${returnTo}${sep}battleOutcome=victory${metaSuffix}`);
+        }
+      })();
+    }
+  }, [battleState?.enemyHP, battleState?.status, returnTo]); // eslint-disable-line
 
   const navigateBackToOrigin = (outcome) => {
     if (!returnTo) return;
@@ -1984,16 +2018,7 @@ export default function BattlePage() {
             : `Turn ${battleState.turnNumber} - ${isPlayerTurn ? 'Your Turn' : 'Enemy Turn'}`
         }
         icon={Swords}
-        action={
-          isBattleEnded && !battleState?.isTrainerBattle && !battleState?.enemyPokemon?.isTrainerNPC && (
-            <Button 
-              onClick={() => setBattleState(null)}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              New Battle
-            </Button>
-          )
-        }
+        action={null}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
