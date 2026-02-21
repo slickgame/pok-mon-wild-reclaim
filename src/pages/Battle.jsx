@@ -1238,13 +1238,44 @@ export default function BattlePage() {
     setBattleState(newBattleState);
   };
 
-  // Flee from battle
+  // Flee from battle — uses Gen 3+ speed-based formula
   const fleeBattle = async () => {
     if (!battleState || !battleState.isWildBattle) return;
 
-    await cleanupEncounterPokemon();
+    const playerSpd = getPokemonStats(battleState.playerPokemon)?.stats?.spd || battleState.playerPokemon?.stats?.spd || 50;
+    const enemySpd = getPokemonStats(battleState.enemyPokemon)?.stats?.spd || battleState.enemyPokemon?.stats?.spd || 50;
+    const fleeAttempts = battleState.fleeAttempts || 0;
 
-    // Navigate back to zone using React Router (wild flee always succeeds)
+    // Formula: F = (playerSpd * 128 / max(1, enemySpd)) + 30 * fleeAttempts
+    const fleeChance = Math.min(255, Math.floor((playerSpd * 128) / Math.max(1, enemySpd)) + 30 * fleeAttempts);
+    const success = Math.floor(Math.random() * 256) < fleeChance;
+
+    if (!success) {
+      // Flee failed — enemy gets a free attack
+      const engine = new BattleEngine(battleState.playerPokemon, battleState.enemyPokemon);
+      const enemyMoves = getEnemyBattleMoves(battleState.enemyPokemon);
+      const enemyMove = engine.chooseEnemyMove(enemyMoves, battleState.playerPokemon, battleState) || enemyMoves[0] || getMoveData('Tackle', battleState.enemyPokemon);
+      const damage = Math.max(1, Math.floor(Math.random() * 20) + 5);
+      const newPlayerHP = Math.max(0, battleState.playerHP - damage);
+      const newStatus = newPlayerHP <= 0 ? 'lost' : battleState.status;
+      const newTurn = newPlayerHP <= 0 ? 'ended' : 'player';
+
+      setBattleState(prev => ({
+        ...prev,
+        playerHP: newPlayerHP,
+        status: newStatus,
+        currentTurn: newTurn,
+        fleeAttempts: fleeAttempts + 1,
+        battleLog: [...(prev?.battleLog || []),
+          { turn: prev.turnNumber, actor: 'System', action: 'Flee Failed!', result: "Can't escape!", synergyTriggered: false },
+          { turn: prev.turnNumber, actor: battleState.enemyPokemon.species, action: enemyMove?.name || 'Tackle', result: `Dealt ${damage} damage!`, synergyTriggered: false }
+        ]
+      }));
+      return;
+    }
+
+    // Flee succeeded
+    await cleanupEncounterPokemon();
     if (returnTo) {
       navigate(`/${returnTo}`);
     } else {
