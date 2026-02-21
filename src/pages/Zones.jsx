@@ -3399,10 +3399,10 @@ function ZoneDetailView({ zone, onBack }) {
                     <div className="text-emerald-100 font-semibold">📜 Brambleberry Contracts</div>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {[
-                        { label: 'I', unlocked: contractState.tier1Completed },
-                        { label: 'II', unlocked: contractState.tier2Completed },
-                        { label: 'III', unlocked: false },
-                      ].map(({ label, unlocked }) => (
+                          { label: 'I', unlocked: contractState.tier1Completed },
+                          { label: 'II', unlocked: contractState.tier2Completed },
+                          { label: 'III', unlocked: contractState.tier3Unlocked },
+                        ].map(({ label, unlocked }) => (
                         <Badge key={label} className={`border ${unlocked ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' : 'bg-white/5 border-white/10 text-white/40'}`}>
                           {label} {unlocked ? 'Complete' : 'Locked'}
                         </Badge>
