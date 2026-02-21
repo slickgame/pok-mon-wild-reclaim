@@ -1621,7 +1621,7 @@ function ZoneDetailView({ zone, onBack }) {
 
     const refreshedNodelet = (updatedZone.nodelets || updatedNodelets).find((n) => n.id === nodelet.id);
     setActiveNodelet(resolveNodeletConfig(refreshedNodelet) || null);
-    setSelectedNodelet(resolveNodeletConfig(refreshedNodelet) || null);
+    // Do NOT set selectedNodelet here — that would open the details dialog
   };
 
   const handleNodeletActionLegacy = async (nodelet, action) => {
