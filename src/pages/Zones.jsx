@@ -2794,8 +2794,10 @@ function ZoneDetailView({ zone, onBack }) {
     return {
       tier1Completed: completed('merra-contract-tier1') > 0,
       tier2Completed: completed('merra-contract-tier2') > 0,
+      tier3Unlocked: completed('merra-contract-tier3') > 0,
       tier1Claimed: isClaimed('merra-contract-tier1'),
       tier2Claimed: isClaimed('merra-contract-tier2'),
+      tier3Claimed: isClaimed('merra-contract-tier3'),
       tier1Runs: completed('merra-contract-tier1'),
       tier2Runs: completed('merra-contract-tier2')
     };
