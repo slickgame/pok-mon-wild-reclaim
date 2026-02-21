@@ -241,75 +241,6 @@ export default function BattlePage() {
     return Boolean(trainerData) && Array.isArray(trainerRoster) && trainerRoster.length > 0;
   }, [trainerData, trainerRoster]);
 
-  // Guaranteed auto-return: whenever battle ends and returnTo exists, navigate back immediately
-  useEffect(() => {
-    if (!battleState) return;
-    if (!returnTo) return;
-    if (autoReturnOnceRef.current) return;
-
-    const enemyHP = typeof battleState.enemyHP === 'number' ? battleState.enemyHP : null;
-    const ended =
-      battleState.status === 'won' ||
-      battleState.status === 'lost' ||
-      battleState.status === 'captured' ||
-      (enemyHP !== null && enemyHP <= 0);
-
-    if (!ended) return;
-
-    autoReturnOnceRef.current = true;
-
-    const outcome =
-      battleState.status === 'lost' ? 'defeat' :
-      battleState.status === 'captured' ? 'captured' :
-      'victory';
-
-    (async () => {
-      try {
-        if ((encounterPokemonIds?.length || 0) > 0 && battleState.status !== 'captured') {
-          await cleanupEncounterPokemon();
-        }
-      } finally {
-        const separator = returnTo.includes('?') ? '&' : '?';
-        const metaParams = buildPoacherReturnMetaParams({ poacherBattleMeta, battleRewards: battleState?.rewards });
-        const metaSuffix = metaParams?.toString?.() ? `&${metaParams.toString()}` : '';
-        navigate(`/${returnTo}${separator}battleOutcome=${outcome}${metaSuffix}`);
-      }
-    })();
-  }, [battleState?.status, battleState?.enemyHP, returnTo]); // eslint-disable-line
-
-  // Hard-stop watcher: catches victories from burn/status ticks or any path that doesn't trigger the normal win handler
-  useEffect(() => {
-    if (!battleState) return;
-    if (endBattleOnceRef.current) return;
-
-    const enemyHP = battleState.enemyHP ?? battleState.enemyPokemon?.currentHp ?? null;
-    const status = battleState.status;
-    const won = status === 'won' || (typeof enemyHP === 'number' && enemyHP <= 0);
-    if (!won) return;
-
-    endBattleOnceRef.current = true;
-
-    setBattleState(prev => {
-      if (!prev) return prev;
-      return { ...prev, status: 'won', currentTurn: 'ended' };
-    });
-
-    if (returnTo) {
-      const sep = returnTo.includes('?') ? '&' : '?';
-      const metaParams = buildPoacherReturnMetaParams({ poacherBattleMeta, battleRewards: battleState?.rewards });
-      const metaSuffix = metaParams?.toString?.() ? `&${metaParams.toString()}` : '';
-      (async () => {
-        try {
-          if ((encounterPokemonIds?.length || 0) > 0 && battleState?.status !== 'captured') {
-            await cleanupEncounterPokemon();
-          }
-        } finally {
-          navigate(`/${returnTo}${sep}battleOutcome=victory${metaSuffix}`);
-        }
-      })();
-    }
-  }, [battleState?.enemyHP, battleState?.status, returnTo]); // eslint-disable-line
-
   const navigateBackToOrigin = (outcome) => {
     if (!returnTo) return;
     const separator = returnTo.includes('?') ? '&' : '?';
@@ -321,27 +252,46 @@ export default function BattlePage() {
     navigate(`/${returnTo}${separator}battleOutcome=${outcome}${metaSuffix}`);
   };
 
-  // Auto-return to origin when battle ends and no modal is blocking
+  // Single consolidated battle-end watcher. Fires once when battle ends, navigates back.
   useEffect(() => {
     if (!battleState) return;
-    if (postBattleReturnRef.current) return;
+    if (autoReturnOnceRef.current) return;
 
-    const ended = battleState.status === 'won' || battleState.status === 'lost' || battleState.status === 'captured';
+    // Determine if battle is over
+    const enemyHPNum = typeof battleState.enemyHP === 'number' ? battleState.enemyHP : null;
+    const ended =
+      battleState.status === 'won' ||
+      battleState.status === 'lost' ||
+      battleState.status === 'captured' ||
+      (enemyHPNum !== null && enemyHPNum <= 0 && battleState.status !== 'captured');
+
     if (!ended) return;
 
-    const modalBlocking = Boolean(battleSummary) || Boolean(moveLearnState) || Boolean(evolutionState) || Boolean(captureModalState);
+    // Don't interrupt capture modal — let CaptureSuccessModal handle its own navigate
+    if (battleState.status === 'captured' && captureModalState) return;
 
-    if (returnTo && battleState.currentTurn === 'ended' && !modalBlocking) {
-      postBattleReturnRef.current = true;
-      if ((encounterPokemonIds?.length || 0) > 0 && battleState.status !== 'captured') {
-        cleanupEncounterPokemon().finally(() => {
-          navigateBackToOrigin(battleState.status === 'lost' ? 'defeat' : 'victory');
-        });
-      } else {
-        navigateBackToOrigin(battleState.status === 'lost' ? 'defeat' : 'victory');
-      }
+    autoReturnOnceRef.current = true;
+
+    const outcome =
+      battleState.status === 'lost' ? 'defeat' :
+      battleState.status === 'captured' ? 'captured' :
+      'victory';
+
+    if (returnTo) {
+      (async () => {
+        try {
+          if ((encounterPokemonIds?.length || 0) > 0 && battleState.status !== 'captured') {
+            await cleanupEncounterPokemon();
+          }
+        } finally {
+          const separator = returnTo.includes('?') ? '&' : '?';
+          const metaParams = buildPoacherReturnMetaParams({ poacherBattleMeta, battleRewards: battleState?.rewards });
+          const metaSuffix = metaParams?.toString?.() ? `&${metaParams.toString()}` : '';
+          navigate(`/${returnTo}${separator}battleOutcome=${outcome}${metaSuffix}`);
+        }
+      })();
     }
-  }, [battleState?.status, battleState?.currentTurn, returnTo, battleSummary, moveLearnState, evolutionState, captureModalState]); // eslint-disable-line
+  }, [battleState?.status, battleState?.enemyHP, returnTo, captureModalState]); // eslint-disable-line
 
   // Auto-start battle with wild Pokémon
   useEffect(() => {
