@@ -59,12 +59,12 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
     } else if (plotStatus.status === 'empty' && selectedSeed) {
       // Plant
       const growTime = BERRY_GROW_TIMES[selectedSeed.name] || 30;
-      const now = getGameTs();
-      try {
-        await base44.entities.BerryPlot.create({
-          playerEmail, zoneId: zone.id, plotNumber: idx,
-          berryType: selectedSeed.name, plantedAt: now, readyAt: now + growTime * 60000, isHarvested: false
-        });
+        const now = Date.now();
+        try {
+          await base44.entities.BerryPlot.create({
+            playerEmail, zoneId: zone.id, plotNumber: idx,
+            berryType: selectedSeed.name, plantedAt: now, readyAt: now + growTime * 60000, isHarvested: false
+          });
         if (selectedSeed.quantity > 1) {
           await base44.entities.Item.update(selectedSeed.id, { quantity: selectedSeed.quantity - 1 });
         } else {
