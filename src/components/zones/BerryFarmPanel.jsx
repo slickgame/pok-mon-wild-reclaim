@@ -31,15 +31,10 @@ export default function BerryFarmPanel({ player, playerEmail, zone, gameTime, se
   const totalPlots = 3 + (player?.purchasedBerryPlots || 0);
   const nextPlotCost = Math.pow(5, (player?.purchasedBerryPlots || 0)) * 1000;
 
-  const getGameTs = () => {
-    const t = gameTime || {};
-    return new Date(Date.UTC(t.year || 0, t.month || 0, t.day || t.currentDay || 1, t.currentHour || 0, t.currentMinute || 0, 0)).getTime();
-  };
-
   const getPlotStatus = (idx) => {
     const plot = livePlots.find(p => p.plotNumber === idx && !p.isHarvested);
     if (!plot) return { status: 'empty', plot: null };
-    const now = getGameTs();
+    const now = Date.now();
     if (now >= plot.readyAt) return { status: 'ready', plot, timeLeft: 0 };
     return { status: 'growing', plot, timeLeft: Math.max(0, plot.readyAt - now) };
   };
