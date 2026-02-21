@@ -2169,22 +2169,23 @@ export default function BattlePage() {
             <BattleSummaryModal
               summary={battleSummary}
               onClose={async () => {
-                // Clean up wild Pokémon if defeated (not captured)
-                if (battleState?.isWildBattle && battleState.status === 'won') {
+                if ((encounterPokemonIds?.length || 0) > 0 && battleState?.status !== 'captured') {
                   await cleanupEncounterPokemon();
                 }
 
                 setBattleSummary(null);
-                if (returnTo && battleState?.isWildBattle) {
-                  navigate(`/${returnTo}`);
-                } else {
-                  setBattleState(null);
-                  setWildPokemonId(null);
-                  setEncounterPokemonIds([]);
-                  setTrainerRoster([]);
-                  setReturnTo(null);
-                  setItemsUsed([]);
+
+                if (returnTo) {
+                  const separator = returnTo.includes('?') ? '&' : '?';
+                  const metaParams = buildPoacherReturnMetaParams({
+                    poacherBattleMeta,
+                    battleRewards: battleState?.rewards
+                  });
+                  const metaSuffix = metaParams.toString();
+                  navigate(`/${returnTo}${separator}battleOutcome=victory${metaSuffix ? `&${metaSuffix}` : ''}`);
+                  return;
                 }
+
                 setBattleState(null);
                 setWildPokemonId(null);
                 setEncounterPokemonIds([]);
