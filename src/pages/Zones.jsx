@@ -3556,9 +3556,9 @@ function ZoneDetailView({ zone, onBack }) {
         </div>
       )}
 
-      {/* Details dialog with location info */}
+      {/* Details dialog with location info — only shown when NOT already inside the nodelet view */}
       <Dialog
-        open={Boolean(selectedNodelet)}
+        open={Boolean(selectedNodelet) && activeSection !== 'nodelet'}
         onOpenChange={(open) => {
           if (!open) setSelectedNodelet(null);
         }}>
