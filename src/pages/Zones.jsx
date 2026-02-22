@@ -3377,7 +3377,8 @@ function ZoneDetailView({ zone, onBack }) {
               }
               if (remaining > 0) return;
               queryClient.invalidateQueries({ queryKey: ['items'] });
-              await applyNodeletAction(nodelet, 'Deliver Berries', { count: 1 });
+              // Use handleNodeletActionLegacy so objective progress is properly tracked
+              await handleNodeletActionLegacy(nodelet, 'Deliver Berries');
               setExplorationEvents((prev) => [{
                 title: '📦 Berry Bundle Delivered',
                 description: "Delivered a berry bundle to Merra's buyers.",
