@@ -3518,6 +3518,8 @@ function ZoneDetailView({ zone, onBack }) {
               queryClient.invalidateQueries({ queryKey: ['items'] });
 
               await applyNodeletAction(activeNodelet, 'Harvest', { count: 1, incrementHarvestStreak: true });
+              // Also advance objective progress for 'Harvest' action
+              await handleNodeletActionLegacy(resolveNodeletConfig(activeNodelet), 'Harvest');
 
               if (Math.random() < 0.25) {
                 const nodelet = resolveNodeletConfig(activeNodelet);
