@@ -20,6 +20,7 @@ import {
   normalizeStatStageKey,
   normalizeStatStages
 } from './statStageUtils';
+import { syncLegacyFields } from './battleStateModel.js';
 
 const createDefaultBattlefield = () => ({
   terrain: null,
@@ -1493,15 +1494,10 @@ export class BattleEngine {
         );
 
         turnLog.push(...moveResult.logs);
-
-        const estDamage = Math.max(1, Math.floor((action.payload?.power || 40) / 6));
-        battleState.hpMap[defenderId] = Math.max(0, (battleState.hpMap?.[defenderId] ?? 0) - estDamage);
-        if (battleState.hpMap[defenderId] <= 0) {
-          addLog(`${defenderMon.nickname || defenderMon.species} fainted!`);
-        }
       });
     });
 
+    syncLegacyFields(battleState);
     return turnLog;
   }
 
@@ -1614,6 +1610,9 @@ export class BattleEngine {
         battleState.enemyHP = Math.max(0, battleState.enemyHP - damage);
         defender.pokemon.currentHp = battleState.enemyHP;
       }
+      if (battleState.hpMap && defender.pokemon?.id) {
+        battleState.hpMap[defender.pokemon.id] = defender.pokemon.currentHp;
+      }
 
       let resultText = `${damage} damage!`;
       if (isCritical) resultText += ' Critical hit!';
@@ -1677,6 +1676,9 @@ export class BattleEngine {
         if (defender.pokemon.currentHp > 0) {
           if (defender.key === 'player') battleState.playerHP = 1;
           else battleState.enemyHP = 1;
+          if (battleState.hpMap && defender.pokemon?.id) {
+            battleState.hpMap[defender.pokemon.id] = 1;
+          }
         } else {
           // Trigger onKill for attacker
           triggerTalent('onKill', this.createTalentContext(battleState, logs, {
@@ -1692,6 +1694,9 @@ export class BattleEngine {
         if (defender.pokemon.currentHp > 0) {
           if (defender.key === 'player') battleState.playerHP = 1;
           else battleState.enemyHP = 1;
+          if (battleState.hpMap && defender.pokemon?.id) {
+            battleState.hpMap[defender.pokemon.id] = 1;
+          }
         } else {
           triggerTalent('onKill', this.createTalentContext(battleState, logs, {
             attacker: attacker.pokemon,
