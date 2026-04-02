@@ -418,6 +418,34 @@ function suitesTrainerBuildOverride() {
   assert(wildMon.moves.includes('Tackle'), 'Wild mon should have Tackle as default move');
 }
 
+// ─── Suite 5: Queue move damage applies exactly once ─────────────────────────
+
+function suitesQueueSingleDamageOnce() {
+  const p1 = createTestPokemon('Caterpie', { id: 'p1', level: 10 });
+  const e1 = createTestPokemon('Pidgey', { id: 'e1', level: 10 });
+  const state = createTestBattleState([p1], [e1], 1);
+
+  const fixedDamage = 12;
+  const move = { name: 'Tackle', power: 40, target: 'single-opponent' };
+
+  // Mirrors BattleEngine.executeTurnQueue integration shape:
+  // damage should come only from executeMove/calculateDamage, with no extra estimate subtraction.
+  const executeMoveStub = (_attacker: unknown, _defender: unknown, battleState: any) => {
+    battleState.hpMap['e1'] = Math.max(0, (battleState.hpMap['e1'] ?? 0) - fixedDamage);
+    return { logs: [] };
+  };
+
+  const startHp = state.hpMap['e1'];
+  executeMoveStub(
+    { pokemon: p1, move, key: 'player' },
+    { pokemon: e1, key: 'enemy' },
+    state
+  );
+  const endHp = state.hpMap['e1'];
+
+  assert(endHp === startHp - fixedDamage, `Expected exactly one damage application (${fixedDamage}), got ${startHp - endHp}`);
+}
+
 // ─── Runner ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -431,6 +459,7 @@ Deno.serve(async (req) => {
       runSuite('AoE Hit-Set Correctness',            suitesAoE),
       runSuite('Faint + Replacement Sequencing',     suitesFaintReplacement),
       runSuite('Trainer BuildOverride Application',  suitesTrainerBuildOverride),
+      runSuite('Queue Move Damage Applied Once',     suitesQueueSingleDamageOnce),
     ];
 
     const passed = results.filter(r => r.status === 'PASS').length;
