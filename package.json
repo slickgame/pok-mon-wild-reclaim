@@ -14,7 +14,8 @@
     "test:poacher-registry": "node scripts/poacherRewardsAndPools.check.mjs",
     "audit:poacher-nodelets": "node scripts/auditPoacherNodeletPools.mjs",
     "test:poacher-handoff": "node scripts/poacherHandoff.integration.check.mjs",
-    "test:poacher-migration": "node scripts/poacherMigration.check.mjs"
+    "test:poacher-migration": "node scripts/poacherMigration.check.mjs",
+    "test:battle-stab": "node scripts/battleMoveScoringStab.check.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.3",

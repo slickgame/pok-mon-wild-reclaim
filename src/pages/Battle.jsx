@@ -1745,11 +1745,12 @@ export default function BattlePage() {
       const tgt = pokemonMap[targetMonId];
       if (!tgt) return -Infinity;
       const moveType = moveData?.type || 'Normal';
+      const attackerTypes = attMon?.types || [attMon?.type1, attMon?.type2].filter(Boolean);
       const defenderTypes = tgt.types || (tgt.type1 ? [tgt.type1, tgt.type2].filter(Boolean) : []);
       const eff = engine.getTypeEffectiveness ? engine.getTypeEffectiveness(moveType, defenderTypes) : 1;
       const power = typeof moveData?.power === 'number' ? moveData.power : 0;
       const base = power > 0 ? power : 10;
-      const stab = (attMon.types || [tgt.type1, tgt.type2].filter(Boolean)).includes(moveType) ? 1.2 : 1.0;
+      const stab = attackerTypes.includes(moveType) ? 1.2 : 1.0;
       return base * eff * stab;
     };
 
