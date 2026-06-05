@@ -1,39 +1,39 @@
-**Welcome to your Base44 project** 
+# Pokémon Wild Reclaim
 
-**About**
+A browser-playable Pokémon-inspired creature game about reclaiming abandoned or corrupted wild zones, restoring habitats, rescuing Pokémon, and rebuilding a safe ecosystem.
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+## Current Milestone
 
-This project contains everything you need to run your app locally.
+### M0 — Project Setup / Main Menu Shell
 
-**Edit the code in your local development environment**
+This milestone establishes the clean Next.js/React/TypeScript app shell:
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+- App Router project structure
+- CSS Modules for components
+- Global design tokens
+- Game provider with placeholder save-slot state
+- Main menu shell
+- Placeholder New Game, Continue, Settings, and Base Camp screens
 
-**Prerequisites:** 
+No generated image assets are required for M0.
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+## Commands
 
+```bash
+npm install
+npm run dev
+npm run build
+npm run typecheck
 ```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
 
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
-```
+## Workflow
 
-Run the app: `npm run dev`
+Development is milestone-based:
 
-**Publish your changes**
+1. Plan and lock scope.
+2. Identify required assets before implementation.
+3. Add/code the milestone.
+4. Test in browser.
+5. Polish before moving forward.
 
-Open [Base44.com](http://Base44.com) and click on Publish.
-
-**Docs & Support**
-
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
-
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+The goal is to prioritize fun, clarity, and playable systems over feature bloat.

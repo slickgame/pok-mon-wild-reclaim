@@ -1,0 +1,18 @@
+:root {
+  --color-background: #0d1712;
+  --color-panel: #14251c;
+  --color-panel-strong: #1c3327;
+  --color-border: rgba(184, 230, 194, 0.2);
+  --color-text: #f3fff6;
+  --color-text-muted: #bed3c4;
+  --color-accent: #73d6a6;
+  --color-accent-contrast: #082017;
+  --color-focus: #f7dc7b;
+
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-pill: 999px;
+
+  --shadow-panel: 0 24px 80px rgba(0, 0, 0, 0.32);
+}

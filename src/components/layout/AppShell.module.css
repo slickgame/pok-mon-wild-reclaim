@@ -1,0 +1,30 @@
+.shell {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: clamp(1rem, 3vw, 3rem);
+  place-items: center;
+}
+
+.shell::before {
+  position: absolute;
+  inset: 8%;
+  z-index: -1;
+  border: 1px solid rgba(184, 230, 194, 0.08);
+  border-radius: 48px;
+  content: "";
+}
+
+.backgroundBadge {
+  position: absolute;
+  right: clamp(1rem, 4vw, 4rem);
+  bottom: clamp(1rem, 4vw, 4rem);
+  color: rgba(243, 255, 246, 0.06);
+  font-size: clamp(3rem, 10vw, 9rem);
+  font-weight: 900;
+  letter-spacing: -0.08em;
+  pointer-events: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
