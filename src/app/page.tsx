@@ -1,5 +1,1 @@
-"use client";
-import{useState}from"react";
-import{AppShell}from"@/components/layout/AppShell";
-const party=["Bulbasaur - Support/Sustain","Charmander - Attacker","Squirtle - Tank"];
-const enc=[ ["Caterpie","Lv.2-4","Bug","Scout","Common","A tiny forest Pokemon crawls between the berry stems."], ["Weedle","Lv.2-4","Bug/Poison","Status Specialist","Common","It watches you from a curled leaf."], ["Pidgey
+"use client";import{useState}from"react";export default function Home(){let e=["Caterpie","Weedle","Pidgey","Rattata","Oddish","Bellsprout","Paras"];let[x,s]=useState("");return <main><h1>Pokepolis to Brambleberry Grove</h1><p>Party: Bulbasaur, Charmander, Squirtle</p><button onClick={()=>s(e[Math.random()*e.length|0])}>Explore</button>{x&&<section><h2>Wild {x} appeared!</h2><button>Observe</button><button>Back Away</button><button>Start Battle</button></section>}</main>}
