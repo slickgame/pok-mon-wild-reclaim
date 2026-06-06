@@ -1,20 +1,3 @@
 export type GameScreen = "mainMenu" | "newGame" | "continue" | "settings" | "baseCamp" | "pokepolis" | "verdantHollow" | "brambleberryGrove";
-
-export type StarterPokemon = {
-  id: string;
-  name: string;
-  level: number;
-  role: string;
-  hp: number;
-  maxHp: number;
-  moves: string[];
-  talent: string;
-};
-
-export type GameState = {
-  currentScreen: GameScreen;
-  selectedSlotId: string | null;
-  party: StarterPokemon[];
-  inventory: Record<string, number>;
-  activeQuests: string[];
-  completedQuests:
+export type StarterPokemon = { id: string; name: string; level: number; role: string; hp: number; maxHp: number; moves: string[]; talent: string };
+export type GameState = { currentScreen: GameScreen; selectedSlotId: string | null; party: StarterPokemon[]; inventory: Record<string, number
