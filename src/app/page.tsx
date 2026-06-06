@@ -1,4 +1,3 @@
 "use client";
 import{useState}from"react";
-const mons=["Bulbasaur - Support","Charmander - Attacker","Squirtle - Tank"],items=["Potion x3","Poke Ball x5","Field Snack x2"],wild=["Caterpie","Weedle","Pidgey","Rattata","Oddish","Bellsprout","Paras"];
-export default function Home(){let[x,sx]=useState(""),[p,sp]=useState("party");let body=p=="party"?mons:p=="bag"?items:["Restores
+export default function Home(){let a=["Caterpie","Weedle","Paras"],[x,s]=useState(""),[p,setP]=useState("Party: Bulbasaur, Charmander, Squirtle");return <main><h1>Wild Reclaim</h1><p>{p}</p><button onClick={()=>setP("Party: Bulbasaur, Charmander, Squirtle")}>Party</button><button onClick={()=>setP("Bag: Potion x3, Poke Ball x5")}>Bag</button><button onClick={()=>setP("Camp: your team rests at Br
