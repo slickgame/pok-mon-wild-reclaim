@@ -1,3 +1,4 @@
 "use client";
 import{useState}from"react";
-export default function Home(){let e=["Caterpie","Weedle","Paras"],[x,s]=useState("");return <main><h1>Wild Reclaim</h1><p>Party: Bulbasaur, Charmander, Squirtle</p><button onClick={()=>s(e[Math.random()*3|0])}>Explore</button>{x&&<h2>Wild {x} appeared!</h2>}</main>}
+const mons=["Bulbasaur - Support","Charmander - Attacker","Squirtle - Tank"],items=["Potion x3","Poke Ball x5","Field Snack x2"],wild=["Caterpie","Weedle","Pidgey","Rattata","Oddish","Bellsprout","Paras"];
+export default function Home(){let[x,sx]=useState(""),[p,sp]=useState("party");let body=p=="party"?mons:p=="bag"?items:["Restores
