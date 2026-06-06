@@ -1,3 +1,3 @@
 "use client";
 import{useState}from"react";
-export default function Home(){const[p,setP]=useState("menu"),[x,setX]=useState("");const e=["Caterpie","Weedle","Pidgey","Rattata","Oddish","Bellsprout","Paras"];if(p==="menu")return <main><h1>Pokemon Wild Reclaim</h1><button onClick={()=>setP("town")}>New Game</button></main>;if(p==="town")return <main><h1>Pokepolis</h1><p>Party: Bulbasaur, Charmander, Squirtle</p><p>Center, Mart, Lab,
+export default function Home(){let e=["Caterpie","Weedle","Paras"],[x,s]=useState("");return <main><h1>Wild Reclaim</h1><p>Party: Bulbasaur, Charmander, Squirtle</p><button onClick={()=>s(e[Math.random()*3|0])}>Explore</button>{x&&<h2>Wild {x} appeared!</h2>}</main>}
