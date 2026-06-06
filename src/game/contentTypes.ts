@@ -23,4 +23,19 @@ export type MoveCategory = "Physical" | "Special" | "Status";
 export type MoveDefinition = {
   id: string;
   name: string;
-  type
+  type: PokemonType;
+  category: MoveCategory;
+  power: number | null;
+  accuracy: number | null;
+  description: string;
+};
+
+export type TalentDefinition = {
+  id: string;
+  name: string;
+  grade: "C";
+  description: string;
+};
+
+export type PokemonDefinition = {
+  id: string;
