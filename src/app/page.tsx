@@ -1,1 +1,13 @@
-"use client";import{useState}from"react";export default function Home(){let e=["Caterpie","Weedle","Pidgey","Rattata","Oddish","Bellsprout","Paras"];let[x,s]=useState("");return <main><h1>Pokepolis to Brambleberry Grove</h1><p>Party: Bulbasaur, Charmander, Squirtle</p><button onClick={()=>s(e[Math.random()*e.length|0])}>Explore</button>{x&&<section><h2>Wild {x} appeared!</h2><button>Observe</button><button>Back Away</button><button>Start Battle</button></section>}</main>}
+"use client";
+import { useState } from "react";
+
+export default function Home() {
+  const [screen, setScreen] = useState("menu");
+  const [encounter, setEncounter] = useState("");
+  const encounters = ["Caterpie", "Weedle", "Pidgey", "Rattata", "Oddish", "Bellsprout", "Paras"];
+
+  if (screen === "menu") {
+    return <main><h1>Pokemon Wild Reclaim</h1><button onClick={() => setScreen("town")}>New Game</button></main>;
+  }
+
+  if (screen === "town") {
