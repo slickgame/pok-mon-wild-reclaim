@@ -1,3 +1,3 @@
 "use client";
 import{useState}from"react";
-export default function Home(){let a=["Caterpie","Weedle","Paras"], [t,s]=useState("Welcome to Brambleberry Grove.");let f=(v:string)=>s(v);return <main><h1>Wild Reclaim</h1><p>Party: Bulbasaur, Charmander, Squirtle</p><button onClick={()=>f("Wild "+a[Math.random()*3|0]+" appeared!")}>Explore</button><button onClick={()=>f("Party: Bulbasaur / Charmander / Squirtle")}>Party</button><button onClick={()=>f("Bag: Potions and Poke Balls")}>Bag</button><button onClick={()=>f("Camp: your team rests at the grove edge")}>Camp</button><h
+export default function Home(){let a=["Caterpie","Weedle","Paras"], [t,s]=useState("Grove ready.");return <main><h1>Wild Reclaim</h1><p>{t}</p><button onClick={()=>s("Wild "+a[Math.random()*3|0]+"!")}>Explore</button><button onClick={()=>s("Party: Bulbasaur, Charmander, Squirtle")}>Party</button><button onClick={()=>s("Bag: Potions, Poke Balls")}>Bag</button><button on
