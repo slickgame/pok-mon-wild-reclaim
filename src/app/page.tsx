@@ -1,5 +1,3 @@
 "use client";
 import{useState}from"react";
-const party=["Bulbasaur - Support/Sustain - Tackle, Vine Whip, Growl, Leech Seed","Charmander - Attacker - Scratch, Ember, Growl, Smokescreen","Squirtle - Tank - Tackle, Water Gun, Tail Whip, Withdraw"];
-const wild=["Caterpie","Weedle","Pidgey","Rattata","Oddish","Bellsprout","Paras"];
-export default function Home(){const[screen,setScreen]=useState("town");const[panel,setPanel]=useState("Welcome to Pokepolis. Professor Maple assigned Bul
+export default function Home(){let e=["Caterpie","Weedle","Paras"], [x,s]=useState("");return <main><h1>Wild Reclaim</h1><p>Party: Bulbasaur, Charmander, Squirtle</p><button onClick={()=>s(e[Math.random()*3|0])}>Explore</button>{x&&<h2>Wild {x} appeared!</h2>}</main>}
