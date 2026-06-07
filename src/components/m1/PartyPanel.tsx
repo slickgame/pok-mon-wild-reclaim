@@ -1,2 +1,2 @@
 import{party}from'@/data/m1/party';
-export function PartyPanel(){return <section><h2>Starter Party</h2>{party.map(p=><article key={p.name}><h3>{p.name}</h3><p>{p.role} · HP {p.hp}</p><p>Moves: {p.moves.join(', ')}</p><p>Talent: {p.talent}</p></article>)}</section>}
+export function PartyPanel(){return <section><h2>Starter Party</h2><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10}}>{party.map(p=><article key={p.name} style={{border:'1px solid #315b45',borderRadius:12,padding:10}}><h3 style={{margin:'0 0 6px'}}>{p.name}</h3><p>{p.role}</p><p>HP {p.hp}</p><p>{p.moves.slice(0,2).join(' / ')}</p><p>{p.talent}</p></article>)}</div></section>}
