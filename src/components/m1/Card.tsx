@@ -1,0 +1,1 @@
+export function Card({title,children}:{title:string;children:React.ReactNode}){return <section style={{border:'1px solid #d6e4d6',borderRadius:16,padding:18,background:'#fbfff8',boxShadow:'0 6px 18px rgba(30,80,40,.08)'}}><h2 style={{marginTop:0}}>{title}</h2>{children}</section>}
