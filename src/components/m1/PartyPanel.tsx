@@ -1,0 +1,2 @@
+import{party}from'@/data/m1/party';
+export function PartyPanel(){return <section><h2>Starter Party</h2>{party.map(p=><article key={p.name}><h3>{p.name}</h3><p>{p.role} · HP {p.hp}</p><p>Moves: {p.moves.join(', ')}</p><p>Talent: {p.talent}</p></article>)}</section>}
