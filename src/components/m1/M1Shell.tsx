@@ -1,0 +1,2 @@
+import{M1DataView}from'./M1DataView';
+export function M1Shell(){return <main style={{maxWidth:980,margin:'0 auto',padding:24,fontFamily:'system-ui'}}><header style={{marginBottom:24}}><p style={{letterSpacing:3,textTransform:'uppercase',opacity:.7}}>M1 Prototype</p><h1>Pokémon Wild Reclaim</h1><p>A cozy restoration RPG slice: Poképolis → Verdant Hollow → Brambleberry Grove.</p></header><M1DataView/></main>}
