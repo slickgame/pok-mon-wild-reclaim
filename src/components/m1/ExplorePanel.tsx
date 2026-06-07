@@ -1,4 +1,4 @@
 "use client";
 import{useState}from'react';
 import{encounterNames}from'@/data/m1/encounterNames';
-export function ExplorePanel(){const[x,setX]=useState('');return <section><h2>Explore</h2><button onClick={()=>setX(encounterNames[Math.random()*encounterNames.length|0])}>Explore Brambleberry Grove</button>{x&&<p>Wild {x} appeared! Observe / Back Away / Start Battle coming next.</p>}</section>}
+export function ExplorePanel(){const[x,setX]=useState(''),[m,setM]=useState('Click Explore to search the grove.');const go=()=>{const n=encounterNames[Math.random()*encounterNames.length|0];setX(n);setM(`Wild ${n} appeared!`)};return <section><h2>Explore</h2><p>{m}</p><button onClick={go}>Explore Brambleberry Grove</button>{x&&<p><button onClick={()=>setM(`You observe ${x}.`)}>Observe</button> <button onClick={()=>{setX('');setM('You back away safely.')}}>Back Away</button> <button onClick={()=>setM('Battle starts in M1.5.')}>Start Battle</button></p>}</section>}
