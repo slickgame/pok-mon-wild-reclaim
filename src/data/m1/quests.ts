@@ -1,0 +1,1 @@
+export const quests=['Welcome to Poképolis','First Steps into Verdant Hollow','A Grove in Need','The Strange-Eyed Paras'];
