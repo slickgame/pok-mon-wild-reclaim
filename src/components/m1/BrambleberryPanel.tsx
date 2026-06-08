@@ -1,1 +1,1 @@
-export function BrambleberryPanel(){return <section><h2>Brambleberry Grove</h2><p>First sublocation in Verdant Hollow.</p><p>Habitat: Stage 0 — overgrown but recoverable.</p><p>Next hooks: Youngster Theo, Ranger Lina, Revenant-tainted Paras.</p></section>}
+export function BrambleberryPanel(){return <section><h2>Brambleberry Grove</h2><p>Verdant Hollow sublocation · calm, overgrown, recoverable.</p><p><b>Habitat:</b> Stage 0</p><p><b>Hooks:</b> Ranger Lina · Youngster Theo · Revenant Paras</p></section>}
