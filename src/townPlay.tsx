@@ -2,11 +2,21 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import './townPlay.css';
 
 export type PanelId = 'maple' | 'clinic' | 'merra' | 'board' | 'gate' | 'workshop' | 'talent' | 'party' | 'bag' | 'journal' | 'settings';
+export type GroveStage = 'arrival' | 'surveyed' | 'restored';
 
 const SAVE_KEY = 'wild-reclaim.brookbend.opening.v1';
-const MILESTONES = ['mapleMet', 'clinicVisited', 'merraMet', 'boardRead', 'gateOpen'] as const;
+const MILESTONES = [
+  'mapleMet', 'clinicVisited', 'merraMet', 'boardRead', 'gateOpen',
+  'groveSurveyed', 'groveRestored', 'bridgeRepaired',
+] as const;
 type Milestone = typeof MILESTONES[number];
 type Progress = Record<Milestone, boolean>;
+
+const GROVE_REQUIREMENTS: Partial<Record<Milestone, Milestone>> = {
+  groveSurveyed: 'gateOpen',
+  groveRestored: 'groveSurveyed',
+  bridgeRepaired: 'groveRestored',
+};
 
 const FIRST_VISIT: Progress = {
   mapleMet: false,
@@ -14,6 +24,9 @@ const FIRST_VISIT: Progress = {
   merraMet: false,
   boardRead: false,
   gateOpen: false,
+  groveSurveyed: false,
+  groveRestored: false,
+  bridgeRepaired: false,
 };
 
 const TOUR = [
@@ -26,12 +39,18 @@ function readProgress(value: string | null): Progress {
   if (!value) return FIRST_VISIT;
   const parsed = JSON.parse(value) as Partial<Progress> | null;
   if (!parsed || typeof parsed !== 'object') return FIRST_VISIT;
+  const gateOpen = parsed.gateOpen === true;
+  const groveSurveyed = gateOpen && parsed.groveSurveyed === true;
+  const groveRestored = groveSurveyed && parsed.groveRestored === true;
   return {
     mapleMet: parsed.mapleMet === true,
     clinicVisited: parsed.clinicVisited === true,
     merraMet: parsed.merraMet === true,
     boardRead: parsed.boardRead === true,
-    gateOpen: parsed.gateOpen === true,
+    gateOpen,
+    groveSurveyed,
+    groveRestored,
+    bridgeRepaired: groveRestored && parsed.bridgeRepaired === true,
   };
 }
 
@@ -51,6 +70,9 @@ function mergeProgress(current: Progress, incoming: Progress): Progress {
     merraMet: current.merraMet || incoming.merraMet,
     boardRead: current.boardRead || incoming.boardRead,
     gateOpen: current.gateOpen || incoming.gateOpen,
+    groveSurveyed: current.groveSurveyed || incoming.groveSurveyed,
+    groveRestored: current.groveRestored || incoming.groveRestored,
+    bridgeRepaired: current.bridgeRepaired || incoming.bridgeRepaired,
   };
 }
 
@@ -59,7 +81,11 @@ export function useTownPlay() {
   const [saveStatus, setSaveStatus] = useState<'pending' | 'saved' | 'unavailable'>('pending');
 
   function finish(milestone: Milestone) {
-    setProgress((current) => current[milestone] ? current : { ...current, [milestone]: true });
+    const prerequisite = GROVE_REQUIREMENTS[milestone];
+    setProgress((current) => {
+      if (current[milestone] || (prerequisite && !current[prerequisite])) return current;
+      return { ...current, [milestone]: true };
+    });
   }
 
   useEffect(() => {
@@ -94,11 +120,23 @@ export function useTownPlay() {
     actionLabel: 'Visit Professor Maple',
     panel: 'maple' as const,
   };
-  const objective = openingObjective?.objective ?? (progress.gateOpen ? 'Verdant Hollow route open' : 'Speak to Ranger Lina');
+  const groveStage: GroveStage = progress.groveRestored ? 'restored' : progress.groveSurveyed ? 'surveyed' : 'arrival';
+  const objective = openingObjective?.objective ?? (
+    progress.bridgeRepaired ? 'Brookbend’s bridge repaired' :
+      progress.groveRestored ? 'Grove crossing cleared' :
+        progress.gateOpen ? 'Verdant Hollow route open' : 'Speak to Ranger Lina'
+  );
   const actionLabel = openingObjective?.actionLabel ?? (progress.gateOpen ? 'Read the route briefing' : 'Visit the Travel Gate');
   const actionTarget: PanelId = openingObjective?.panel ?? 'gate';
 
-  return { objective, actionLabel, actionTarget, gateOpen: progress.gateOpen, progress, finish, saveStatus, nextTourStop };
+  return {
+    objective, actionLabel, actionTarget, gateOpen: progress.gateOpen, progress, finish, saveStatus, nextTourStop,
+    groveStage,
+    bridgeRepaired: progress.bridgeRepaired,
+    surveyGrove: () => finish('groveSurveyed'),
+    restoreGrove: () => finish('groveRestored'),
+    returnFromGrove: () => finish('bridgeRepaired'),
+  };
 }
 
 type TownPlay = ReturnType<typeof useTownPlay>;
@@ -146,7 +184,7 @@ const PANEL_TITLES: Record<PanelId, string> = {
   settings: 'Save & Settings',
 };
 
-function PanelContent({ panel, play }: { panel: PanelId; play: TownPlay }) {
+function PanelContent({ panel, play, onEnterGrove }: { panel: PanelId; play: TownPlay; onEnterGrove?: () => void }) {
   const { progress, finish } = play;
   switch (panel) {
     case 'maple':
@@ -171,8 +209,11 @@ function PanelContent({ panel, play }: { panel: PanelId; play: TownPlay }) {
       </StopDialogue>;
     case 'gate':
       if (progress.gateOpen) return <>
-        <Dialogue speaker="Ranger Lina">Follow the east trail into Verdant Hollow. Brambleberry Grove is the first survey site. Bring your Field Notebook, and keep to the marked paths.</Dialogue>
-        <p className="town-play-progress" role="status">Travel cleared. Trail Pass added to your Bag.</p>
+        <Dialogue speaker="Ranger Lina">{progress.bridgeRepaired ?
+          'Water’s running through the grove again, and the crew laid new planks on our footbridge. The east trail stays open if you want another look.' :
+          'Follow the east trail into Verdant Hollow. Brambleberry Grove is our first survey site. Bring your Field Notebook and check where the creek has backed up by the crossing.'}</Dialogue>
+        {onEnterGrove && <PanelAction onClick={onEnterGrove}>Head to Brambleberry Grove</PanelAction>}
+        <p className="town-play-progress" role="status">{progress.bridgeRepaired ? 'Bridge repaired.' : 'Travel cleared. Trail Pass added to your Bag.'}</p>
       </>;
       if (!progress.mapleMet || play.nextTourStop) return <>
         <Dialogue speaker="Ranger Lina">I clear travelers once Maple’s introduction and the town rounds are done. Check your Journal if you’re unsure where to go.</Dialogue>
@@ -206,6 +247,14 @@ function PanelContent({ panel, play }: { panel: PanelId; play: TownPlay }) {
             <span>{text}</span><span className={done ? 'town-play-done' : ''}>{done ? 'Complete' : 'Pending'}</span>
           </li>)}
         </ul>
+        {progress.gateOpen && <>
+          <h3 className="town-play-subheading">Brambleberry Grove</h3>
+          <ul className="town-play-list town-play-checklist">
+            <li><span>Survey the blocked crossing</span><span className={progress.groveSurveyed ? 'town-play-done' : ''}>{progress.groveSurveyed ? 'Complete' : 'Pending'}</span></li>
+            <li><span>Restore the creek’s flow</span><span className={progress.groveRestored ? 'town-play-done' : ''}>{progress.groveRestored ? 'Complete' : 'Pending'}</span></li>
+            <li><span>Return to Brookbend and see the new bridge planks</span><span className={progress.bridgeRepaired ? 'town-play-done' : ''}>{progress.bridgeRepaired ? 'Complete' : 'Pending'}</span></li>
+          </ul>
+        </>}
       </>;
     }
     case 'settings':
@@ -217,7 +266,12 @@ function PanelContent({ panel, play }: { panel: PanelId; play: TownPlay }) {
   }
 }
 
-export function TownPanel({ panel, play, onClose }: { panel: PanelId | null; play: TownPlay; onClose: () => void }) {
+export function TownPanel({ panel, play, onClose, onEnterGrove }: {
+  panel: PanelId | null;
+  play: TownPlay;
+  onClose: () => void;
+  onEnterGrove?: () => void;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -252,7 +306,7 @@ export function TownPanel({ panel, play, onClose }: { panel: PanelId | null; pla
         <button className="town-play-close" type="button" onClick={onClose} aria-label="Close panel">×</button>
       </header>
       <div className="town-play-content" key={panel}>
-        <PanelContent panel={panel} play={play} />
+        <PanelContent panel={panel} play={play} onEnterGrove={onEnterGrove} />
       </div>
     </div>
   </dialog>;

@@ -1,0 +1,96 @@
+.grove .grove-card {
+  width: clamp(17.5rem, 27cqw, 29rem);
+  padding: clamp(12px, 1.4cqw, 25px);
+  scrollbar-color: #b9c286 #253b2d;
+}
+
+.grove-pin { --pin-x: 54.6%; --pin-y: 56%; }
+.grove-pin svg { position: relative; width: 52%; height: 52%; }
+
+.grove-header > p {
+  margin: 0 0 .3rem;
+  color: #d5db9e;
+  font-size: clamp(.82rem, 1.2cqw, 1.12rem);
+}
+
+.grove .grove-header h1 {
+  margin: 0;
+  font-size: clamp(1.65rem, 2.3cqw, 2.65rem);
+  white-space: normal;
+}
+
+.grove .grove-header h1:focus { outline: none; }
+
+.grove .grove-header .town-divider {
+  width: 100%;
+  height: clamp(12px, 1.7cqw, 26px);
+  margin: .38rem 0;
+}
+
+.grove .grove-card > .grove-objective {
+  flex: 1 1 auto;
+  min-height: min(3rem, 19svh);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.grove-objective h2 {
+  margin: .15rem 0 .38rem;
+  font-size: clamp(1.03rem, 1.45cqw, 1.58rem);
+  line-height: 1.25;
+}
+
+.grove-objective p {
+  margin: 0;
+  color: #e9e6ce;
+  font-size: clamp(.9rem, 1.13cqw, 1.18rem);
+  line-height: 1.42;
+}
+
+.grove-actions {
+  display: grid;
+  gap: .38rem;
+  margin-top: .75rem;
+}
+
+.grove .grove-start {
+  grid-template-columns: 1.1rem 1fr 1rem;
+  gap: .55rem;
+  min-height: 44px;
+  padding: .45rem .72rem;
+  font-size: clamp(.91rem, 1.35cqw, 1.35rem);
+}
+
+.grove-start svg:first-child { width: 1.1rem; height: 1.1rem; color: #35521f; }
+
+.grove-return {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  min-height: 44px;
+  padding: .4rem .65rem;
+  color: #f2e9cb;
+  background: #203829;
+  border: 1px solid #a4b27c;
+  border-radius: .35rem;
+  font-size: clamp(.88rem, 1.12cqw, 1.08rem);
+}
+
+.grove-return:hover { background: #345339; }
+.grove-return svg { width: 1rem; height: 1rem; }
+
+@media (max-height: 400px) and (orientation: landscape) {
+  .grove .grove-card { padding: 9px 12px; }
+  .grove .grove-card > .grove-objective { min-height: 2.25rem; }
+  .grove .grove-header .town-divider { margin: .24rem 0; }
+  .grove-actions { margin-top: .45rem; }
+}
+
+@media (max-width: 700px) and (orientation: landscape) {
+  .grove .grove-pin { display: none; }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .grove .grove-card { width: auto; }
+}
