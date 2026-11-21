@@ -204,6 +204,11 @@
   line-height: 1.14;
 }
 
+.grove-conditions {
+  margin: .4rem 0 0;
+  color: #f1d391;
+}
+
 .grove-combatant h2 {
   margin: 0 0 .35rem;
   color: var(--cream);

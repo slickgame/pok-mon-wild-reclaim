@@ -1,72 +1,18 @@
-export const starterIds = ['bulbasaur', 'charmander', 'squirtle'] as const;
-const wildIds = ['caterpie', 'weedle', 'pidgey', 'rattata', 'oddish', 'bellsprout', 'paras'] as const;
+import {
+  drainSeed, emptyConditions, readBattleConditions, resolveBattleMove,
+  type BattleConditions, type BattleTarget,
+} from './battleRules';
+import {
+  gainXp, getMove, isSpeciesId, levelOf, MAX_XP, maxHp, species, starterIds, wildIds,
+  type Companion, type MoveId, type SpeciesId,
+} from './pokemonData';
+import {
+  loadTrainerBattle, startTrainerBattle, trainerParty, updateTrainerBattle,
+  type TrainerAction, type TrainerBattleState, type TrainerId,
+} from './trainerBattle';
 
-export type SpeciesId = typeof starterIds[number] | typeof wildIds[number];
-export type MoveId = 'strike' | 'guard';
-
-type Move = { name: string; power: number };
-type Species = {
-  name: string;
-  dexNumber: number;
-  kind: string;
-  description?: string;
-  baseHp: number;
-  moves: Record<MoveId, Move>;
-};
-
-function guard(name: string, power: number): Move {
-  return { name: `${name} and guard`, power };
-}
-
-export const species: Record<SpeciesId, Species> = {
-  bulbasaur: {
-    name: 'Bulbasaur', dexNumber: 1, kind: 'Grass / Poison', baseHp: 45,
-    description: 'A durable starter with a strong guarded attack.',
-    moves: { strike: { name: 'Vine Whip', power: 7 }, guard: guard('Tackle', 5) },
-  },
-  charmander: {
-    name: 'Charmander', dexNumber: 4, kind: 'Fire', baseHp: 39,
-    description: 'The strongest attack of the three starters, with the lowest HP.',
-    moves: { strike: { name: 'Ember', power: 9 }, guard: guard('Scratch', 3) },
-  },
-  squirtle: {
-    name: 'Squirtle', dexNumber: 7, kind: 'Water', baseHp: 44,
-    description: 'A sturdy starter with a balance of attack power and HP.',
-    moves: { strike: { name: 'Water Gun', power: 8 }, guard: guard('Tackle', 4) },
-  },
-  caterpie: {
-    name: 'Caterpie', dexNumber: 10, kind: 'Bug', baseHp: 21,
-    moves: { strike: { name: 'Tackle', power: 5 }, guard: guard('Tackle', 3) },
-  },
-  weedle: {
-    name: 'Weedle', dexNumber: 13, kind: 'Bug / Poison', baseHp: 20,
-    moves: { strike: { name: 'Poison Sting', power: 5 }, guard: guard('Poison Sting', 3) },
-  },
-  pidgey: {
-    name: 'Pidgey', dexNumber: 16, kind: 'Normal / Flying', baseHp: 23,
-    moves: { strike: { name: 'Gust', power: 5 }, guard: guard('Tackle', 3) },
-  },
-  rattata: {
-    name: 'Rattata', dexNumber: 19, kind: 'Normal', baseHp: 19,
-    moves: { strike: { name: 'Quick Attack', power: 6 }, guard: guard('Tackle', 3) },
-  },
-  oddish: {
-    name: 'Oddish', dexNumber: 43, kind: 'Grass / Poison', baseHp: 23,
-    moves: { strike: { name: 'Absorb', power: 5 }, guard: guard('Absorb', 3) },
-  },
-  bellsprout: {
-    name: 'Bellsprout', dexNumber: 69, kind: 'Grass / Poison', baseHp: 24,
-    moves: { strike: { name: 'Vine Whip', power: 5 }, guard: guard('Vine Whip', 4) },
-  },
-  paras: {
-    name: 'Paras', dexNumber: 46, kind: 'Bug / Grass', baseHp: 27,
-    moves: { strike: { name: 'Scratch', power: 6 }, guard: guard('Scratch', 4) },
-  },
-};
-
-export function pokemonSpriteUrl(id: SpeciesId) {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${species[id].dexNumber}.png`;
-}
+export { getMove, levelOf, maxHp, moveDescription, pokemonSpriteUrl, species, starterIds } from './pokemonData';
+export type { Companion, MoveId, SpeciesId } from './pokemonData';
 
 const previousRoster: Record<string, { replacement: SpeciesId; baseHp: number } | undefined> = {
   mosskip: { replacement: 'bulbasaur', baseHp: 32 },
@@ -77,14 +23,23 @@ const previousRoster: Record<string, { replacement: SpeciesId; baseHp: number } 
   gloamwing: { replacement: 'oddish', baseHp: 23 },
 };
 
-export type Companion = { id: number; species: SpeciesId; hp: number; xp: number };
 type Outcome = 'active' | 'won' | 'captured' | 'fled' | 'lost';
-export type Encounter = { species: SpeciesId; hp: number; outcome: Outcome; log: string[] };
+type EncounterConditions = { player: Record<number, BattleConditions>; wild: BattleConditions };
+export type Encounter = {
+  species: SpeciesId;
+  hp: number;
+  outcome: Outcome;
+  log: string[];
+  conditions?: EncounterConditions;
+};
 export type OutingState = {
   party: Companion[];
   leadId: number | null;
   pokeBalls: number;
   encounter: Encounter | null;
+  trainerBattle: TrainerBattleState | null;
+  theoDefeated: boolean;
+  ruskDefeated: boolean;
 };
 
 export type OutingAction =
@@ -95,29 +50,23 @@ export type OutingAction =
   | { type: 'capture' }
   | { type: 'flee' }
   | { type: 'closeEncounter' }
+  | { type: 'startTrainer'; trainerId: TrainerId }
+  | { type: 'trainerAction'; action: TrainerAction }
+  | { type: 'closeTrainer' }
   | { type: 'clinic' };
 
 export const PARTY_LIMIT = 6;
 export const OUTING_SAVE_KEY = 'wild-reclaim.outing.v1';
 const STARTER_POKE_BALLS = 4;
 const CLINIC_POKE_BALLS = 1;
-const MAX_XP = 90;
 const LOG_LIMIT = 8;
 
 export const initialOuting: OutingState = {
-  party: [], leadId: null, pokeBalls: 0, encounter: null,
+  party: [], leadId: null, pokeBalls: 0, encounter: null, trainerBattle: null, theoDefeated: false, ruskDefeated: false,
 };
 
 export function getLead(state: OutingState) {
   return state.party.find(({ id }) => id === state.leadId);
-}
-
-export function levelOf(companion: Companion) {
-  return 1 + Math.floor(companion.xp / 10);
-}
-
-export function maxHp(companion: Companion) {
-  return species[companion.species].baseHp + (levelOf(companion) - 1) * 3;
 }
 
 export function captureChance(encounter: Encounter) {
@@ -127,7 +76,28 @@ export function captureChance(encounter: Encounter) {
 
 export function clinicAvailable(state: OutingState) {
   return state.party.length > 0 && state.encounter?.outcome !== 'active' &&
+    !state.trainerBattle &&
     (state.pokeBalls < CLINIC_POKE_BALLS || state.party.some((companion) => companion.hp < maxHp(companion)));
+}
+
+export function canBeginTrainer(state: OutingState, trainerId: TrainerId) {
+  const available = trainerId === 'theo' || (trainerId === 'rusk' && state.theoDefeated);
+  return available && !state.encounter && !state.trainerBattle &&
+    state.party.filter((companion) => companion.hp > 0).length >= 3;
+}
+
+function newCompanion(party: Companion[], pokemon: SpeciesId, hp = species[pokemon].baseHp): Companion {
+  let id = 1;
+  while (party.some((member) => member.id === id)) id += 1;
+  return { id, species: pokemon, hp, xp: 0 };
+}
+
+function addMissingStarters(party: Companion[]) {
+  const additions = starterIds.filter((starter) => !party.some((member) => member.species === starter));
+  return additions.reduce(
+    (team, starter) => team.length < PARTY_LIMIT ? [...team, newCompanion(team, starter)] : team,
+    party,
+  );
 }
 
 function beginEncounter(state: OutingState, roll: number): OutingState {
@@ -147,12 +117,6 @@ function recordTurn(encounter: Encounter, outcome: Outcome, ...messages: string[
   return { ...encounter, outcome, log: [...encounter.log, ...messages].slice(-LOG_LIMIT) };
 }
 
-function gainXp(companion: Companion, reward: number) {
-  const trained = { ...companion, xp: Math.min(MAX_XP, companion.xp + reward) };
-  trained.hp += maxHp(trained) - maxHp(companion);
-  return trained;
-}
-
 function xpMessage(before: Companion, after: Companion) {
   return before.xp < after.xp
     ? `${species[before.species].name} gained ${after.xp - before.xp} XP.`
@@ -163,32 +127,108 @@ function saveLead(state: OutingState, lead: Companion, encounter: Encounter): Ou
   return { ...state, encounter, party: state.party.map((member) => member.id === lead.id ? lead : member) };
 }
 
-function counterattack(state: OutingState, lead: Companion, encounter: Encounter, guarded: boolean, message: string) {
-  const wild = species[encounter.species];
-  const attack = wild.moves.strike;
-  const hit = Math.min(lead.hp, guarded ? Math.ceil(attack.power / 2) : attack.power);
-  const hurt = { ...lead, hp: lead.hp - hit };
-  const retaliation = `${wild.name} used ${attack.name} for ${hit} damage${guarded ? ' through your guard' : ''}.`;
-  if (hurt.hp === 0) {
-    const result = recordTurn(encounter, 'lost', message, retaliation, `${species[lead.species].name} fainted.`);
-    return saveLead(state, hurt, result);
+function battleTargets(lead: Companion, encounter: Encounter): { player: BattleTarget; wild: BattleTarget } {
+  return {
+    player: {
+      ...lead, maxHp: maxHp(lead), level: levelOf(lead),
+      conditions: encounter.conditions?.player[lead.id] ?? emptyConditions,
+    },
+    wild: {
+      id: 0, species: encounter.species, hp: encounter.hp, maxHp: species[encounter.species].baseHp,
+      level: 1, conditions: encounter.conditions?.wild ?? emptyConditions,
+    },
+  };
+}
+
+function resolveWildTurn(
+  state: OutingState,
+  lead: Companion,
+  encounter: Encounter,
+  player: BattleTarget,
+  wild: BattleTarget,
+  log: string[],
+  roll: number,
+  guarded = false,
+) {
+  if (wild.hp > 0 && player.hp > 0) {
+    const retaliation = resolveBattleMove(wild, player, species[wild.species].moves.strike, roll, guarded);
+    player = retaliation.target;
+    wild = retaliation.actor;
+    log.push(...retaliation.log);
   }
-  return saveLead(state, hurt, recordTurn(encounter, 'active', message, retaliation));
+
+  const drained = drainSeed(wild, player);
+  wild = drained.target;
+  player = drained.owner ?? player;
+  log.push(...drained.log);
+
+  const updated: Encounter = {
+    ...encounter, hp: wild.hp,
+    conditions: {
+      player: { ...encounter.conditions?.player, [lead.id]: player.conditions },
+      wild: wild.conditions,
+    },
+  };
+  const companion = { ...lead, hp: player.hp };
+  const healthyReserve = state.party.some((member) => member.id !== lead.id && member.hp > 0);
+
+  if (player.hp === 0) {
+    log.push(`${species[player.species].name} fainted.`);
+    if (!healthyReserve) return saveLead(state, companion, recordTurn(updated, 'lost', ...log));
+  }
+  if (wild.hp === 0) {
+    const trained = companion.hp > 0 ? gainXp(companion, 6) : companion;
+    const reward = companion.hp > 0 ? [xpMessage(companion, trained)] : [];
+    return saveLead(state, trained, recordTurn(updated, 'won', ...log, `${species[wild.species].name} retreated.`, ...reward));
+  }
+  if (player.hp === 0) log.push('Choose a healthy Pokémon to continue.');
+  return saveLead(state, companion, recordTurn(updated, 'active', ...log));
 }
 
 export function updateOuting(state: OutingState, action: OutingAction, roll = 0.5): OutingState {
   const random = Number.isFinite(roll) ? Math.max(0, Math.min(1, roll)) : 0.5;
   const encounter = state.encounter;
+  const lead = getLead(state);
+  const battle = state.trainerBattle;
+
+  if (action.type === 'startTrainer') {
+    if (!canBeginTrainer(state, action.trainerId)) return state;
+    const trainerBattle = startTrainerBattle(action.trainerId, state.party, state.leadId);
+    return trainerBattle ? { ...state, trainerBattle } : state;
+  }
+  if (action.type === 'trainerAction') {
+    if (battle?.outcome !== 'active') return state;
+    const trainerBattle = updateTrainerBattle(battle, action.action, random);
+    if (trainerBattle === battle) return state;
+    const party = trainerParty(trainerBattle);
+    const nextLead = party.find((member) => member.id === state.leadId && member.hp > 0)
+      ?? party.find((member) => member.hp > 0) ?? party[0];
+    return {
+      ...state, trainerBattle, party, leadId: nextLead?.id ?? null,
+      theoDefeated: state.theoDefeated || (trainerBattle.outcome === 'won' && trainerBattle.trainerId === 'theo'),
+      ruskDefeated: state.ruskDefeated || (trainerBattle.outcome === 'won' && trainerBattle.trainerId === 'rusk'),
+    };
+  }
+  if (action.type === 'closeTrainer') {
+    return battle && battle.outcome !== 'active' ? { ...state, trainerBattle: null } : state;
+  }
+  if (battle) return state;
 
   switch (action.type) {
     case 'chooseStarter': {
       if (state.party.length || !starterIds.some((id) => id === action.species)) return state;
-      const starter = { id: 1, species: action.species, hp: species[action.species].baseHp, xp: 0 };
-      return { ...state, leadId: starter.id, party: [starter], pokeBalls: STARTER_POKE_BALLS };
+      const starter = newCompanion([], action.species);
+      return { ...state, leadId: starter.id, party: addMissingStarters([starter]), pokeBalls: STARTER_POKE_BALLS };
     }
     case 'selectLead': {
-      if (action.id === state.leadId || encounter?.outcome === 'active' || !state.party.some(({ id, hp }) => id === action.id && hp > 0)) return state;
-      return { ...state, leadId: action.id };
+      const selected = state.party.find(({ id, hp }) => id === action.id && hp > 0);
+      if (!selected || selected.id === state.leadId) return state;
+      const next = { ...state, leadId: selected.id };
+      if (encounter?.outcome !== 'active') return next;
+      const message = `Go, ${species[selected.species].name}!`;
+      if (!lead || lead.hp === 0) return { ...next, encounter: recordTurn(encounter, 'active', message) };
+      const { player, wild } = battleTargets(selected, encounter);
+      return resolveWildTurn(next, selected, encounter, player, wild, [message], random);
     }
     case 'search':
       return beginEncounter(state, random);
@@ -207,38 +247,31 @@ export function updateOuting(state: OutingState, action: OutingAction, roll = 0.
         : state;
   }
 
-  const lead = getLead(state);
   if (!lead || lead.hp === 0 || encounter?.outcome !== 'active') return state;
-  const partner = species[lead.species];
-  const wild = species[encounter.species];
+  const { player, wild } = battleTargets(lead, encounter);
+  const retaliationRoll = (random + 0.38196601125) % 1;
 
   if (action.type === 'capture') {
     if (!state.pokeBalls || state.party.length >= PARTY_LIMIT) return state;
     const usedBall = { ...state, pokeBalls: state.pokeBalls - 1 };
     if (random >= captureChance(encounter)) {
-      return counterattack(usedBall, lead, encounter, false, `${wild.name} slipped free of the Pokéball.`);
+      const message = `${species[wild.species].name} slipped free of the Pokéball.`;
+      return resolveWildTurn(usedBall, lead, encounter, player, wild, [message], retaliationRoll);
     }
 
-    let id = 1;
-    while (state.party.some((member) => member.id === id)) id += 1;
-    const newPartner = { id, species: encounter.species, hp: encounter.hp, xp: 0 };
+    const newPartner = newCompanion(state.party, encounter.species, encounter.hp);
     const trained = gainXp(lead, 4);
-    const result = recordTurn(encounter, 'captured', `${wild.name} joined your party.`, xpMessage(lead, trained));
+    const result = recordTurn(encounter, 'captured', `${species[wild.species].name} joined your party.`, xpMessage(lead, trained));
     const earned = saveLead(usedBall, trained, result);
     return { ...earned, party: [...earned.party, newPartner] };
   }
 
-  const move = partner.moves[action.move];
-  const damage = Math.min(encounter.hp, move.power + levelOf(lead) - 1);
-  const target = { ...encounter, hp: encounter.hp - damage };
-  const message = `${partner.name} used ${move.name} for ${damage} damage.`;
-  if (target.hp === 0) {
-    const trained = gainXp(lead, 6);
-    const result = recordTurn(target, 'won', message, `${wild.name} retreated.`, xpMessage(lead, trained));
-    return saveLead(state, trained, result);
-  }
-
-  return counterattack(state, lead, target, action.move === 'guard', message);
+  const move = getMove(lead.species, action.move);
+  if (!move) return state;
+  const result = resolveBattleMove(player, wild, move, random);
+  return resolveWildTurn(
+    state, lead, encounter, result.actor, result.target, result.log, retaliationRoll, action.move === 'guard',
+  );
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -247,10 +280,6 @@ function record(value: unknown): Record<string, unknown> | undefined {
 
 function integer(value: unknown, fallback: number, lower: number, upper: number) {
   return typeof value === 'number' && Number.isSafeInteger(value) ? Math.max(lower, Math.min(upper, value)) : fallback;
-}
-
-function isSpeciesId(value: unknown): value is SpeciesId {
-  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(species, value);
 }
 
 function previousSpecies(value: unknown) {
@@ -276,10 +305,10 @@ function readParty(value: unknown): Companion[] {
     party.push(companion);
     if (party.length === PARTY_LIMIT) break;
   }
-  return party;
+  return party.length ? addMissingStarters(party) : party;
 }
 
-function readEncounter(value: unknown, lead: Companion): Encounter | null {
+function readEncounter(value: unknown, lead: Companion, party: Companion[]): Encounter | null {
   const encounter = record(value);
   if (!encounter) return null;
   const previous = previousSpecies(encounter.species);
@@ -289,7 +318,7 @@ function readEncounter(value: unknown, lead: Companion): Encounter | null {
   if (outcome !== 'active' && outcome !== 'won' && outcome !== 'captured' && outcome !== 'fled' && outcome !== 'lost') return null;
   const fullHp = species[speciesId].baseHp;
   const hp = integer(encounter.hp, fullHp, 0, fullHp);
-  if (outcome === 'active' && (hp === 0 || lead.hp === 0)) return null;
+  if (outcome === 'active' && (hp === 0 || !party.some((member) => member.hp > 0))) return null;
   const name = species[speciesId].name;
   const migratedLog = {
     active: `Your encounter with wild ${name} resumed.`,
@@ -301,7 +330,17 @@ function readEncounter(value: unknown, lead: Companion): Encounter | null {
   const log = previous ? [migratedLog[outcome]] : Array.isArray(encounter.log)
     ? encounter.log.filter((line): line is string => typeof line === 'string').slice(-LOG_LIMIT)
     : [];
-  return { species: speciesId, hp, outcome, log };
+  const savedConditions = record(encounter.conditions);
+  if (!savedConditions) return { species: speciesId, hp, outcome, log };
+  const savedPlayerConditions = record(savedConditions.player);
+  const conditions = {
+    player: Object.fromEntries(party.flatMap(({ id }) => {
+      const saved = savedPlayerConditions?.[id];
+      return saved ? [[id, readBattleConditions(saved)]] : [];
+    })),
+    wild: readBattleConditions(savedConditions.wild),
+  };
+  return { species: speciesId, hp, outcome, log, conditions };
 }
 
 export function loadOuting(value: string | null): OutingState {
@@ -312,10 +351,19 @@ export function loadOuting(value: string | null): OutingState {
     const party = readParty(parsed.party);
     if (!party.length) return initialOuting;
     const lead = party.find(({ id }) => id === parsed.leadId) ?? party.find(({ hp }) => hp > 0) ?? party[0];
+    const encounter = readEncounter(parsed.encounter, lead, party);
+    const candidate = encounter ? null : loadTrainerBattle(parsed.trainerBattle);
+    const savedTrainerParty = candidate && trainerParty(candidate);
+    const trainerBattle = candidate && savedTrainerParty && savedTrainerParty.length === party.length &&
+      party.every((member) => savedTrainerParty.some(({ id, species }) => id === member.id && species === member.species))
+      ? candidate : null;
+    const completedTheo = trainerBattle?.trainerId === 'theo' && trainerBattle.outcome === 'won';
+    const theoDefeated = parsed.theoDefeated === true || completedTheo;
     return {
-      party, leadId: lead.id,
+      party: trainerBattle ? trainerParty(trainerBattle) : party, leadId: lead.id, encounter, trainerBattle,
       pokeBalls: integer(parsed.pokeBalls ?? parsed.snares, 0, 0, STARTER_POKE_BALLS),
-      encounter: readEncounter(parsed.encounter, lead),
+      theoDefeated, ruskDefeated: theoDefeated &&
+        (parsed.ruskDefeated === true || (trainerBattle?.trainerId === 'rusk' && trainerBattle.outcome === 'won')),
     };
   } catch {
     return initialOuting;

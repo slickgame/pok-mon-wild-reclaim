@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
   OUTING_SAVE_KEY,
   clinicAvailable,
+  getLead,
   levelOf,
   loadOuting,
   maxHp,
@@ -159,11 +160,12 @@ export function useTownPlay() {
   if (!progress.mapleMet) {
     openingObjective = { objective: 'Meet Professor Maple', actionLabel: 'Visit Professor Maple', panel: 'maple' };
   } else if (!hasStarter) {
-    openingObjective = { objective: 'Choose a starter', actionLabel: 'Choose a starter', panel: 'maple' };
+    openingObjective = { objective: 'Meet your starter team', actionLabel: 'Choose your lead', panel: 'maple' };
   }
   const canEnterGrove = progress.gateOpen && hasStarter;
-  const objective = openingObjective?.objective ?? (canEnterGrove ? 'Explore Brambleberry Grove' : 'Speak to Ranger Lina');
-  const actionLabel = openingObjective?.actionLabel ?? (canEnterGrove ? 'Go to Brambleberry Grove' : 'Visit the Travel Gate');
+  const resumeBattle = canEnterGrove && (outing.encounter?.outcome === 'active' || outing.trainerBattle?.outcome === 'active');
+  const objective = openingObjective?.objective ?? (resumeBattle ? 'Battle in progress' : canEnterGrove ? 'Explore Brambleberry Grove' : 'Speak to Ranger Lina');
+  const actionLabel = openingObjective?.actionLabel ?? (resumeBattle ? 'Resume battle' : canEnterGrove ? 'Go to Brambleberry Grove' : 'Visit the Travel Gate');
   const actionTarget: PanelId = openingObjective?.panel ?? 'gate';
 
   return {
@@ -230,19 +232,21 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
   onEnterGrove: () => void;
 }) {
   const { progress, finish, outing, dispatchOuting, hasStarter } = play;
+  const lead = getLead(outing);
+  const inBattle = outing.encounter?.outcome === 'active' || outing.trainerBattle?.outcome === 'active';
   switch (panel) {
     case 'maple': {
       if (!progress.mapleMet) return <>
-        <Dialogue speaker="Professor Maple">Welcome to Brookbend. Take this notebook for your field observations. Then choose a starter Pokémon to take on your first outing to Brambleberry Grove.</Dialogue>
+        <Dialogue speaker="Professor Maple">Welcome to Brookbend. Take this notebook for your field observations. Bulbasaur, Charmander, and Squirtle are ready to join you on your first outing.</Dialogue>
         <PanelAction onClick={() => finish('mapleMet')}>Take the Field Notebook</PanelAction>
       </>;
       if (hasStarter) return <>
         <Dialogue speaker="Professor Maple">{progress.gateOpen ? 'Bring your Field Notebook whenever you explore Brambleberry Grove.' : 'Check in at the Clinic, Merra’s Shop, and the Quest Board. Then ask Ranger Lina about the trail to Brambleberry Grove.'}</Dialogue>
-        <p className="town-play-progress" role="status">{species[outing.party[0].species].name} is in your party.</p>
+        {lead && <p className="town-play-progress" role="status">{species[lead.species].name} leads your party.</p>}
       </>;
       return <>
-        <Dialogue speaker="Professor Maple">Who will lead your first outing? I’ll give you four Pokéballs when you choose your partner.</Dialogue>
-        <ul className="town-play-starters" aria-label="Starter options">
+        <Dialogue speaker="Professor Maple">All three will join your party. Pick your lead, then take four Pokéballs for the trail.</Dialogue>
+        <ul className="town-play-starters" aria-label="Choose a lead for your starter team">
           {starterIds.map((id) => {
             const starter = species[id];
             const statsId = `town-starter-${id}-stats`;
@@ -252,7 +256,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
                 className="town-play-starter"
                 type="button"
                 onClick={() => dispatchOuting({ type: 'chooseStarter', species: id })}
-                aria-label={`Choose ${starter.name}`}
+                aria-label={`Choose ${starter.name} as lead`}
                 aria-describedby={`${statsId} ${descriptionId}`}
               >
                 <PokemonSprite speciesId={id} />
@@ -272,7 +276,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
         Bring your party here after a wild encounter. We can treat injured Pokémon and give you a Pokéball if you run out.
       </StopDialogue>;
       if (!hasStarter) return <p className="town-play-note">Come back when you have a partner to care for.</p>;
-      if (outing.encounter?.outcome === 'active') return <p className="town-play-note">Finish your active encounter in the Grove before returning for care.</p>;
+      if (inBattle) return <p className="town-play-note">Finish your active battle in the Grove before returning for care.</p>;
       return <>
         <Dialogue speaker="Clinic attendant">I can heal your whole party. If you’ve used your last Pokéball, I’ll replace it.</Dialogue>
         {clinicAvailable(outing) ? <PanelAction onClick={() => dispatchOuting({ type: 'clinic' })}>Heal and resupply</PanelAction>
@@ -298,11 +302,11 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
         <p className="town-play-note">{play.objective}</p>
       </>;
       if (!hasStarter) return <>
-        <Dialogue speaker="Ranger Lina">Maple has starter Pokémon ready for new scouts. Choose one before you take the east trail.</Dialogue>
+        <Dialogue speaker="Ranger Lina">Meet your starter team at Maple’s Lab before you take the east trail.</Dialogue>
         <PanelAction onClick={onChooseStarter}>Visit Maple’s Lab</PanelAction>
       </>;
       return <>
-        <Dialogue speaker="Ranger Lina">Take this Trail Pass and keep it with your notes. You and your partner can follow the east trail to the grove.</Dialogue>
+        <Dialogue speaker="Ranger Lina">Take this Trail Pass and keep it with your notes. Follow the east trail to the grove. Youngster Theo can show your team how a trainer battle works.</Dialogue>
         <PanelAction onClick={() => finish('gateOpen')}>Accept the Trail Pass</PanelAction>
       </>;
     case 'workshop':
@@ -310,10 +314,9 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
     case 'talent':
       return <p className="town-play-note">The Talent Lab is closed. Professor Maple will share more as the town rebuilds.</p>;
     case 'party': {
-      if (!hasStarter) return <p className="town-play-note">Choose your first partner at Maple’s Lab.</p>;
-      const inBattle = outing.encounter?.outcome === 'active';
+      if (!hasStarter) return <p className="town-play-note">Meet your starter team at Maple’s Lab.</p>;
       return <>
-        {inBattle && <p className="town-play-note town-play-party-note">Finish the encounter before changing your lead.</p>}
+        {inBattle && <p className="town-play-note town-play-party-note">Use the battle commands to switch Pokémon.</p>}
         <ul className="town-play-list town-play-party" aria-label="Party members">
           {outing.party.map((companion) => {
             const partner = species[companion.species];
@@ -345,10 +348,14 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
     case 'journal': {
       const steps = [
         { text: 'Meet Professor Maple', done: progress.mapleMet },
-        { text: 'Choose a starter', done: hasStarter },
+        { text: 'Meet your starter team', done: hasStarter },
         ...TOUR.map(({ objective, milestone }) => ({ text: objective, done: progress[milestone] })),
         { text: 'Get clearance from Ranger Lina', done: progress.gateOpen },
       ];
+      if (progress.gateOpen) steps.push(
+        { text: 'Win Youngster Theo’s training match', done: outing.theoDefeated },
+        { text: 'Defeat Rusk Vale', done: outing.ruskDefeated },
+      );
       return <>
         <h3 className="town-play-subheading">Welcome to Brookbend</h3>
         <ul className="town-play-list town-play-checklist">

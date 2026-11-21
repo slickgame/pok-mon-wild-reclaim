@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronRight, EyeOff } from "lucide-react";
 import { GroveOuting } from "./GroveOuting";
+import { TrainerBattleView } from "./TrainerBattleView";
 import { TownPanel, useTownPlay, type PanelId } from "./townPlay";
 
 type GlyphName = "party" | "bag" | "journal" | "settings" | "leaf" | "eye" | "lock" | "board" | "clinic" | "gate";
@@ -43,6 +44,7 @@ export function Town() {
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [showPlaces, setShowPlaces] = useState(false);
   const play = useTownPlay();
+  const trainerBattle = play.outing.trainerBattle;
   const [inGrove, setInGrove] = useState(() => play.canEnterGrove && window.location.hash === GROVE_HASH);
   const isLocked = (id: PanelId) =>
     id === "workshop" || id === "talent" || (id === "gate" && !play.canEnterGrove);
@@ -78,6 +80,9 @@ export function Town() {
   function travel(toGrove: boolean, nextPanel: PanelId | null = null) {
     if (toGrove && !play.canEnterGrove) return;
     if (!toGrove && play.outing.encounter) play.dispatchOuting({ type: "closeEncounter" });
+    if (!toGrove && trainerBattle && trainerBattle.outcome !== "active") {
+      play.dispatchOuting({ type: "closeTrainer" });
+    }
     const url = new URL(window.location.href);
     url.hash = toGrove ? GROVE_HASH : "";
     if (url.hash !== window.location.hash) window.history.pushState(window.history.state, "", url);
@@ -98,7 +103,13 @@ export function Town() {
   );
 
   return <>
-    {inGrove ? <GroveOuting
+    {inGrove && trainerBattle ? <TrainerBattleView
+      battle={trainerBattle}
+      onAction={(action) => play.dispatchOuting({ type: "trainerAction", action })}
+      onReturn={() => play.dispatchOuting({ type: "closeTrainer" })}
+      onVisitClinic={() => travel(false, "clinic")}
+      toolbar={toolbar}
+    /> : inGrove ? <GroveOuting
       outing={play.outing}
       onAction={play.dispatchOuting}
       onReturn={() => travel(false)}
