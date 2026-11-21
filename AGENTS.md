@@ -4,7 +4,7 @@
 
 Consult both current volumes of the Master Planning Doc in the Wild Reclaim project’s Google Drive before starting any update work. Identify the sections that govern the update and use those rules when planning, implementing, and testing it. Check the M1 Design Lock Plan when the update touches the first playable slice.
 
-Show labeled concepts before implementing an update. For visual changes, show the mockups inline in chat. Wait for the user to choose the concept.
+Show labeled concepts before implementing an update. Before choosing a visual direction, show three distinct, labeled concept mockups inline in chat. Wait for the user to choose the direction before implementing it.
 
 ## After every update
 
