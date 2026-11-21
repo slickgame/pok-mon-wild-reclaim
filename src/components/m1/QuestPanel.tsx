@@ -1,2 +1,0 @@
-import{quests}from'@/data/m1/quests';
-export function QuestPanel(){return <section><h2>Opening Quests</h2><div style={{display:'grid',gap:8}}>{quests.map((q,i)=><div key={q} style={{border:'1px solid #315b45',borderRadius:10,padding:8}}><b>{i+1}. {q}</b><span style={{float:'right'}}>{i===0?'Active':'Locked'}</span></div>)}</div></section>}
