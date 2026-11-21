@@ -69,7 +69,7 @@ export function Town() {
   }, [play.canEnterGrove]);
 
   useEffect(() => {
-    document.title = `${inGrove ? "Brambleberry Grove" : "Brookbend Town"} · Wild Reclaim`;
+    document.title = `${inGrove ? "Brambleberry Grove" : "Brookbend Town"} · Pokémon Wild Reclaim`;
     if (document.activeElement === document.body) {
       document.getElementById(inGrove ? "grove-name" : "town-name")?.focus({ preventScroll: true });
     }

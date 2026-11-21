@@ -7,6 +7,7 @@ import {
   captureChance, getLead, levelOf, maxHp, PARTY_LIMIT, species,
   type OutingAction, type OutingState, type SpeciesId,
 } from "./outing";
+import { PokemonSprite } from "./PokemonSprite";
 import "./groveOuting.css";
 
 type GroveOutingProps = {
@@ -21,7 +22,7 @@ const resultTitles = {
   won: "Encounter won",
   captured: "Capture successful",
   fled: "Left the encounter",
-  lost: "Companion fainted",
+  lost: "Pokémon fainted",
 };
 
 function Vitals({ name, hp, maximum }: { name: string; hp: number; maximum: number }) {
@@ -31,16 +32,16 @@ function Vitals({ name, hp, maximum }: { name: string; hp: number; maximum: numb
   </div>;
 }
 
-function Combatant({ creature, hp, maximum, level, wild = false }: {
-  creature: SpeciesId;
+function Combatant({ speciesId, hp, maximum, level, wild = false }: {
+  speciesId: SpeciesId;
   hp: number;
   maximum: number;
   level: number;
   wild?: boolean;
 }) {
-  const { name, kind } = species[creature];
+  const { name, kind } = species[speciesId];
   return <div className={`grove-combatant${wild ? " grove-combatant--wild" : ""}`}>
-    <img className="grove-portrait" src={`/art/creatures/${creature}.webp`} alt="" draggable={false} />
+    <PokemonSprite className="grove-portrait" speciesId={speciesId} />
     <div className="grove-combatant-card">
       <p className="grove-combatant-detail">{wild ? `Wild · ${kind}` : kind} · Lv. {level}</p>
       <h2>{name}</h2>
@@ -73,7 +74,7 @@ function GroveButton({ icon: Icon, label, detail, onClick, disabled, primary = f
 }
 
 export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, toolbar }: GroveOutingProps) {
-  const { encounter, snares, party } = outing;
+  const { encounter, pokeBalls, party } = outing;
   const lead = getLead(outing);
   const battle = encounter?.outcome === "active" ? encounter : null;
   const resultOutcome = encounter && encounter.outcome !== "active" ? encounter.outcome : null;
@@ -93,7 +94,7 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, toolbar
   const leadReady = lead !== undefined && lead.hp > 0;
   const moves = lead && species[lead.species].moves;
   const partyFull = party.length >= PARTY_LIMIT;
-  const outOfSnares = snares === 0;
+  const outOfPokeBalls = pokeBalls === 0;
 
   return <main className={`town grove-outing${battle ? " grove-outing--battle" : ""}`} aria-labelledby="grove-name">
     <div className="atlas grove-atlas">
@@ -107,9 +108,9 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, toolbar
           fetchPriority="high"
         />
       </div>
-      {battle && lead && <section className="grove-combatants" aria-label="Encounter companions">
-        <Combatant creature={lead.species} hp={lead.hp} maximum={maxHp(lead)} level={levelOf(lead)} />
-        <Combatant creature={battle.species} hp={battle.hp} maximum={species[battle.species].baseHp} level={1} wild />
+      {battle && lead && <section className="grove-combatants" aria-label="Pokémon in battle">
+        <Combatant speciesId={lead.species} hp={lead.hp} maximum={maxHp(lead)} level={levelOf(lead)} />
+        <Combatant speciesId={battle.species} hp={battle.hp} maximum={species[battle.species].baseHp} level={1} wild />
       </section>}
     </div>
 
@@ -134,8 +135,8 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, toolbar
             detail={`Power ${moves.strike.power}`} onClick={() => onAction({ type: "move", move: "strike" })} primary />
           <GroveButton icon={Shield} label={moves.guard.name}
             detail={`Power ${moves.guard.power} · Halves retaliation`} onClick={() => onAction({ type: "move", move: "guard" })} />
-          <GroveButton icon={Crosshair} label="Throw snare" disabled={partyFull || outOfSnares}
-            detail={partyFull ? "Party is full" : outOfSnares ? "No Field Snares left" : `${snares} left · ${Math.round(captureChance(battle) * 100)}% capture chance`}
+          <GroveButton icon={Crosshair} label="Throw Pokéball" disabled={partyFull || outOfPokeBalls}
+            detail={partyFull ? "Party is full" : outOfPokeBalls ? "No Pokéballs left" : `${pokeBalls} left · ${Math.round(captureChance(battle) * 100)}% capture chance`}
             onClick={() => onAction({ type: "capture" })} />
           <GroveButton icon={Footprints} label="Leave encounter" onClick={() => onAction({ type: "flee" })} />
         </div>
@@ -154,19 +155,19 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, toolbar
       </> : <>
         <div className="grove-phase">
           <h2 tabIndex={-1} data-phase-heading>Creekside trail</h2>
-          <p>{leadReady ? "Look along the creek for wild creatures." : lead ?
-            "Your lead companion needs care. Visit the Clinic or switch your lead in Party." :
-            "Choose a companion at Maple’s Lab before searching the trail."}</p>
+          <p>{leadReady ? "Look along the creek for wild Pokémon." : lead ?
+            "Your lead Pokémon needs care. Visit the Clinic or switch your lead in Party." :
+            "Choose a starter Pokémon at Maple’s Lab before searching the trail."}</p>
         </div>
         <div className="grove-field-kit">
           {lead && <div className="grove-field-lead">
             <span>{species[lead.species].name} · Lv. {levelOf(lead)}</span>
             <Vitals name={species[lead.species].name} hp={lead.hp} maximum={maxHp(lead)} />
           </div>}
-          <div className="grove-field-snares"><Crosshair aria-hidden="true" /><span>Field Snares</span><strong>{snares}</strong></div>
+          <div className="grove-field-balls"><Crosshair aria-hidden="true" /><span>Pokéballs</span><strong>{pokeBalls}</strong></div>
         </div>
         <div className="grove-actions">
-          {leadReady && <GroveButton icon={Search} label="Look for wild creatures" onClick={() => onAction({ type: "search" })} primary />}
+          {leadReady && <GroveButton icon={Search} label="Look for wild Pokémon" onClick={() => onAction({ type: "search" })} primary />}
           {!leadReady && lead && onVisitClinic && <GroveButton icon={HeartPulse} label="Visit the Clinic" onClick={onVisitClinic} primary />}
           <GroveButton icon={ArrowLeft} label="Return to Brookbend" onClick={onReturn} />
         </div>

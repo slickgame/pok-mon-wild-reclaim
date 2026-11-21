@@ -10,6 +10,7 @@ import {
   updateOuting,
   type OutingAction,
 } from './outing';
+import { PokemonSprite } from './PokemonSprite';
 import './townPlay.css';
 
 export type PanelId = 'maple' | 'clinic' | 'merra' | 'board' | 'gate' | 'workshop' | 'talent' | 'party' | 'bag' | 'journal' | 'settings';
@@ -232,7 +233,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
   switch (panel) {
     case 'maple': {
       if (!progress.mapleMet) return <>
-        <Dialogue speaker="Professor Maple">Welcome to Brookbend. Take this notebook for your field observations. Then choose a partner to take on your first outing to Brambleberry Grove.</Dialogue>
+        <Dialogue speaker="Professor Maple">Welcome to Brookbend. Take this notebook for your field observations. Then choose a starter Pokémon to take on your first outing to Brambleberry Grove.</Dialogue>
         <PanelAction onClick={() => finish('mapleMet')}>Take the Field Notebook</PanelAction>
       </>;
       if (hasStarter) return <>
@@ -240,7 +241,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
         <p className="town-play-progress" role="status">{species[outing.party[0].species].name} is in your party.</p>
       </>;
       return <>
-        <Dialogue speaker="Professor Maple">Who will lead your first outing? I’ll give you four Field Snares when you choose your partner.</Dialogue>
+        <Dialogue speaker="Professor Maple">Who will lead your first outing? I’ll give you four Pokéballs when you choose your partner.</Dialogue>
         <ul className="town-play-starters" aria-label="Starter options">
           {starterIds.map((id) => {
             const starter = species[id];
@@ -254,7 +255,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
                 aria-label={`Choose ${starter.name}`}
                 aria-describedby={`${statsId} ${descriptionId}`}
               >
-                <img src={`/art/creatures/${id}.webp`} alt="" />
+                <PokemonSprite speciesId={id} />
                 <span>
                   <strong>{starter.name}</strong>
                   <small id={statsId}>{starter.kind} · {starter.baseHp} HP</small>
@@ -268,12 +269,12 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
     }
     case 'clinic': {
       if (!progress.clinicVisited) return <StopDialogue play={play} milestone="clinicVisited" speaker="Clinic attendant" label="Check in" completed="Clinic stop recorded in your Journal.">
-        Bring your party here after a wild encounter. We can treat injured partners and replace a Field Snare if you run out.
+        Bring your party here after a wild encounter. We can treat injured Pokémon and give you a Pokéball if you run out.
       </StopDialogue>;
       if (!hasStarter) return <p className="town-play-note">Come back when you have a partner to care for.</p>;
       if (outing.encounter?.outcome === 'active') return <p className="town-play-note">Finish your active encounter in the Grove before returning for care.</p>;
       return <>
-        <Dialogue speaker="Clinic attendant">I can heal your whole party. If you’ve used your last Field Snare, I’ll replace it.</Dialogue>
+        <Dialogue speaker="Clinic attendant">I can heal your whole party. If you’ve used your last Pokéball, I’ll replace it.</Dialogue>
         {clinicAvailable(outing) ? <PanelAction onClick={() => dispatchOuting({ type: 'clinic' })}>Heal and resupply</PanelAction>
           : <p className="town-play-progress" role="status">Your party is fully healed and ready for the trail.</p>}
       </>;
@@ -284,11 +285,11 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
       </StopDialogue>;
     case 'board':
       return <StopDialogue play={play} milestone="boardRead" speaker="Town notice" label="Record the notice" completed="Town notice recorded in your Journal.">
-        Field volunteers wanted to scout wild creatures in Brambleberry Grove. Check in with Ranger Lina before taking the east trail.
+        Field volunteers wanted to scout wild Pokémon in Brambleberry Grove. Check in with Ranger Lina before taking the east trail.
       </StopDialogue>;
     case 'gate':
       if (play.canEnterGrove) return <>
-        <Dialogue speaker="Ranger Lina">The east trail leads to Brambleberry Grove. Look for wild creatures along the banks and bring your party back to the Clinic when they need care.</Dialogue>
+        <Dialogue speaker="Ranger Lina">The east trail leads to Brambleberry Grove. Look for wild Pokémon along the banks and bring your party back to the Clinic when they need care.</Dialogue>
         <p className="town-play-progress" role="status">Trail Pass added to your Bag.</p>
         <PanelAction onClick={onEnterGrove}>Enter Brambleberry Grove</PanelAction>
       </>;
@@ -297,7 +298,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
         <p className="town-play-note">{play.objective}</p>
       </>;
       if (!hasStarter) return <>
-        <Dialogue speaker="Ranger Lina">Maple has partners ready for new scouts. Choose one before you take the east trail.</Dialogue>
+        <Dialogue speaker="Ranger Lina">Maple has starter Pokémon ready for new scouts. Choose one before you take the east trail.</Dialogue>
         <PanelAction onClick={onChooseStarter}>Visit Maple’s Lab</PanelAction>
       </>;
       return <>
@@ -319,7 +320,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
             const isLead = companion.id === outing.leadId;
             const hp = maxHp(companion);
             return <li key={companion.id}>
-              <img src={`/art/creatures/${companion.species}.webp`} alt="" />
+              <PokemonSprite speciesId={companion.species} />
               <span className="town-play-member">
                 <strong>{partner.name}</strong>
                 <span>{partner.kind} · Lv. {levelOf(companion)}</span>
@@ -339,7 +340,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
       return progress.mapleMet ? <ul className="town-play-list">
         <li><span>Field Notebook</span><span>1</span></li>
         {progress.gateOpen && <li><span>Trail Pass</span><span>1</span></li>}
-        {hasStarter && <li><span>Field Snares</span><span>{outing.snares}</span></li>}
+        {hasStarter && <li><span>Pokéballs</span><span>{outing.pokeBalls}</span></li>}
       </ul> : <p className="town-play-note">Your Bag is empty.</p>;
     case 'journal': {
       const steps = [
