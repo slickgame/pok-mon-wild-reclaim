@@ -1,11 +1,13 @@
-# Wild Reclaim project instructions
+# Wild Reclaim project instructions for ChatGPT
 
 ## Before every update
 
-Consult both current volumes of the Master Planning Doc in the Wild Reclaim project’s Google Drive before starting any update work. Identify the sections that govern the update and use those rules when planning, implementing, and testing it. Check the M1 Design Lock Plan when the update touches the first playable slice.
+Before starting any other work on a Wild Reclaim update, review both current volumes of the Master Planning Doc in the project's Google Drive. Cite the relevant sections in chat and use them to plan, implement, and verify the update. Check the M1 Design Lock Plan when the update touches the first playable slice.
 
-Show labeled concepts before implementing an update. Before choosing a visual direction, show three distinct, labeled concept mockups inline in chat. Wait for the user to choose the direction before implementing it.
+Show labeled concepts before implementing an update. When the update involves a visual direction, show exactly three distinct, labeled concept mockups as images embedded directly in chat so they are visible without opening a link. Wait for the user to choose a concept before implementing that direction.
 
-## After every update
+For an in-game update, capture a Before screenshot from the existing build before changing the game.
 
-Display an in-game screenshot of the update inline in chat and include the verified Vercel preview link for the same build. If publishing the preview is blocked, state the blocker and provide the available playtest so the user can still try the update.
+## After every in-game update
+
+Embed labeled Before and After screenshots from the actual game directly in chat so both images are visible without opening a link. Include the verified Vercel preview link for the build shown in the After screenshot. If publishing the preview is blocked, state the blocker and provide the available playtest so the user can still try the update.
