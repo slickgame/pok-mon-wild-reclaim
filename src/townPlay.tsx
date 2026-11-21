@@ -1,4 +1,15 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import {
+  OUTING_SAVE_KEY,
+  clinicAvailable,
+  levelOf,
+  loadOuting,
+  maxHp,
+  species,
+  starterIds,
+  updateOuting,
+  type OutingAction,
+} from './outing';
 import './townPlay.css';
 
 export type PanelId = 'maple' | 'clinic' | 'merra' | 'board' | 'gate' | 'workshop' | 'talent' | 'party' | 'bag' | 'journal' | 'settings';
@@ -54,9 +65,62 @@ function mergeProgress(current: Progress, incoming: Progress): Progress {
   };
 }
 
+function loadSavedOuting() {
+  try {
+    return loadOuting(window.localStorage.getItem(OUTING_SAVE_KEY));
+  } catch {
+    return loadOuting(null);
+  }
+}
+
+function useOutingPlay() {
+  const [outing, setOuting] = useState(loadSavedOuting);
+  const [canSaveOuting, setCanSaveOuting] = useState(true);
+  const currentOuting = useRef(outing);
+
+  useEffect(() => {
+    function catchUp(event: StorageEvent) {
+      if (event.key !== OUTING_SAVE_KEY) return;
+      const current = loadSavedOuting();
+      currentOuting.current = current;
+      setOuting(current);
+    }
+
+    window.addEventListener('storage', catchUp);
+    return () => window.removeEventListener('storage', catchUp);
+  }, []);
+
+  function dispatchOuting(action: OutingAction) {
+    let current = currentOuting.current;
+    if (canSaveOuting) {
+      try {
+        const saved = window.localStorage.getItem(OUTING_SAVE_KEY);
+        if (saved !== null) current = loadOuting(saved);
+      } catch {
+        setCanSaveOuting(false);
+      }
+    }
+
+    const next = updateOuting(current, action, Math.random());
+    currentOuting.current = next;
+    setOuting(next);
+    if (next === current) return;
+
+    try {
+      window.localStorage.setItem(OUTING_SAVE_KEY, JSON.stringify(next));
+      setCanSaveOuting(true);
+    } catch {
+      setCanSaveOuting(false);
+    }
+  }
+
+  return { outing, dispatchOuting, canSaveOuting };
+}
+
 export function useTownPlay() {
   const [progress, setProgress] = useState(loadProgress);
   const [saveStatus, setSaveStatus] = useState<'pending' | 'saved' | 'unavailable'>('pending');
+  const { outing, dispatchOuting, canSaveOuting } = useOutingPlay();
 
   function finish(milestone: Milestone) {
     setProgress((current) => current[milestone] ? current : { ...current, [milestone]: true });
@@ -89,16 +153,23 @@ export function useTownPlay() {
   }, []);
 
   const nextTourStop = TOUR.find(({ milestone }) => !progress[milestone]);
-  const openingObjective = progress.mapleMet ? nextTourStop : {
-    objective: 'Meet Professor Maple',
-    actionLabel: 'Visit Professor Maple',
-    panel: 'maple' as const,
-  };
-  const objective = openingObjective?.objective ?? (progress.gateOpen ? 'Verdant Hollow route open' : 'Speak to Ranger Lina');
-  const actionLabel = openingObjective?.actionLabel ?? (progress.gateOpen ? 'Read the route briefing' : 'Visit the Travel Gate');
+  const hasStarter = outing.party.length > 0;
+  let openingObjective: { objective: string; actionLabel: string; panel: PanelId } | undefined = nextTourStop;
+  if (!progress.mapleMet) {
+    openingObjective = { objective: 'Meet Professor Maple', actionLabel: 'Visit Professor Maple', panel: 'maple' };
+  } else if (!hasStarter) {
+    openingObjective = { objective: 'Choose a starter', actionLabel: 'Choose a starter', panel: 'maple' };
+  }
+  const canEnterGrove = progress.gateOpen && hasStarter;
+  const objective = openingObjective?.objective ?? (canEnterGrove ? 'Explore Brambleberry Grove' : 'Speak to Ranger Lina');
+  const actionLabel = openingObjective?.actionLabel ?? (canEnterGrove ? 'Go to Brambleberry Grove' : 'Visit the Travel Gate');
   const actionTarget: PanelId = openingObjective?.panel ?? 'gate';
 
-  return { objective, actionLabel, actionTarget, gateOpen: progress.gateOpen, progress, finish, saveStatus, nextTourStop };
+  return {
+    objective, actionLabel, actionTarget, canEnterGrove, progress, finish,
+    saveStatus: canSaveOuting ? saveStatus : 'unavailable',
+    nextTourStop, outing, dispatchOuting, hasStarter,
+  };
 }
 
 type TownPlay = ReturnType<typeof useTownPlay>;
@@ -110,8 +181,13 @@ function Dialogue({ speaker, children }: { speaker: string; children: ReactNode 
   </blockquote>;
 }
 
-function PanelAction({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return <button className="town-play-action" type="button" onClick={onClick}>{children}</button>;
+function PanelAction({ onClick, children, disabled, label }: {
+  onClick: () => void;
+  children: ReactNode;
+  disabled?: boolean;
+  label?: string;
+}) {
+  return <button className="town-play-action" type="button" onClick={onClick} disabled={disabled} aria-label={label}>{children}</button>;
 }
 
 function StopDialogue({ play, milestone, speaker, children, label, completed }: {
@@ -146,56 +222,129 @@ const PANEL_TITLES: Record<PanelId, string> = {
   settings: 'Save & Settings',
 };
 
-function PanelContent({ panel, play }: { panel: PanelId; play: TownPlay }) {
-  const { progress, finish } = play;
+function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
+  panel: PanelId;
+  play: TownPlay;
+  onChooseStarter: () => void;
+  onEnterGrove: () => void;
+}) {
+  const { progress, finish, outing, dispatchOuting, hasStarter } = play;
   switch (panel) {
-    case 'maple':
-      return progress.mapleMet ? <>
-        <Dialogue speaker="Professor Maple">Once you’ve made your rounds, Ranger Lina can clear you for Verdant Hollow. We’re starting with Brambleberry Grove.</Dialogue>
-        <p className="town-play-progress" role="status">Field Notebook added to your Bag.</p>
-      </> : <>
-        <Dialogue speaker="Professor Maple">Welcome to Brookbend. You’ve seen the tarps on our roofs. Out in Brambleberry Grove, we have work to do as well. Take this notebook, then stop at the Clinic, Merra’s Shop, and the Quest Board before you head for the gate.</Dialogue>
+    case 'maple': {
+      if (!progress.mapleMet) return <>
+        <Dialogue speaker="Professor Maple">Welcome to Brookbend. Take this notebook for your field observations. Then choose a partner to take on your first outing to Brambleberry Grove.</Dialogue>
         <PanelAction onClick={() => finish('mapleMet')}>Take the Field Notebook</PanelAction>
       </>;
-    case 'clinic':
-      return <StopDialogue play={play} milestone="clinicVisited" speaker="Clinic attendant" label="Check in" completed="Clinic stop recorded in your Journal.">
-        The west room is still under a tarp. Come through this door if you or a partner needs tending.
+      if (hasStarter) return <>
+        <Dialogue speaker="Professor Maple">{progress.gateOpen ? 'Bring your Field Notebook whenever you explore Brambleberry Grove.' : 'Check in at the Clinic, Merra’s Shop, and the Quest Board. Then ask Ranger Lina about the trail to Brambleberry Grove.'}</Dialogue>
+        <p className="town-play-progress" role="status">{species[outing.party[0].species].name} is in your party.</p>
+      </>;
+      return <>
+        <Dialogue speaker="Professor Maple">Who will lead your first outing? I’ll give you four Field Snares when you choose your partner.</Dialogue>
+        <ul className="town-play-starters" aria-label="Starter options">
+          {starterIds.map((id) => {
+            const starter = species[id];
+            const statsId = `town-starter-${id}-stats`;
+            const descriptionId = `town-starter-${id}-description`;
+            return <li key={id}>
+              <button
+                className="town-play-starter"
+                type="button"
+                onClick={() => dispatchOuting({ type: 'chooseStarter', species: id })}
+                aria-label={`Choose ${starter.name}`}
+                aria-describedby={`${statsId} ${descriptionId}`}
+              >
+                <img src={`/art/creatures/${id}.webp`} alt="" />
+                <span>
+                  <strong>{starter.name}</strong>
+                  <small id={statsId}>{starter.kind} · {starter.baseHp} HP</small>
+                  <small id={descriptionId}>{starter.description}</small>
+                </span>
+              </button>
+            </li>;
+          })}
+        </ul>
+      </>;
+    }
+    case 'clinic': {
+      if (!progress.clinicVisited) return <StopDialogue play={play} milestone="clinicVisited" speaker="Clinic attendant" label="Check in" completed="Clinic stop recorded in your Journal.">
+        Bring your party here after a wild encounter. We can treat injured partners and replace a Field Snare if you run out.
       </StopDialogue>;
+      if (!hasStarter) return <p className="town-play-note">Come back when you have a partner to care for.</p>;
+      if (outing.encounter?.outcome === 'active') return <p className="town-play-note">Finish your active encounter in the Grove before returning for care.</p>;
+      return <>
+        <Dialogue speaker="Clinic attendant">I can heal your whole party. If you’ve used your last Field Snare, I’ll replace it.</Dialogue>
+        {clinicAvailable(outing) ? <PanelAction onClick={() => dispatchOuting({ type: 'clinic' })}>Heal and resupply</PanelAction>
+          : <p className="town-play-progress" role="status">Your party is fully healed and ready for the trail.</p>}
+      </>;
+    }
     case 'merra':
       return <StopDialogue play={play} milestone="merraMet" speaker="Merra" label="Introduce yourself" completed="Merra’s Shop stop recorded in your Journal.">
         The shelves are a little bare this week. I’ll keep a space for supplies the rangers bring back from the Hollow.
       </StopDialogue>;
     case 'board':
       return <StopDialogue play={play} milestone="boardRead" speaker="Town notice" label="Record the notice" completed="Town notice recorded in your Journal.">
-        Field volunteers wanted for Brambleberry Grove. Check in with Ranger Lina at the Travel Gate before taking the east trail.
+        Field volunteers wanted to scout wild creatures in Brambleberry Grove. Check in with Ranger Lina before taking the east trail.
       </StopDialogue>;
     case 'gate':
-      if (progress.gateOpen) return <>
-        <Dialogue speaker="Ranger Lina">Follow the east trail into Verdant Hollow. Brambleberry Grove is the first survey site. Bring your Field Notebook, and keep to the marked paths.</Dialogue>
-        <p className="town-play-progress" role="status">Travel cleared. Trail Pass added to your Bag.</p>
+      if (play.canEnterGrove) return <>
+        <Dialogue speaker="Ranger Lina">The east trail leads to Brambleberry Grove. Look for wild creatures along the banks and bring your party back to the Clinic when they need care.</Dialogue>
+        <p className="town-play-progress" role="status">Trail Pass added to your Bag.</p>
+        <PanelAction onClick={onEnterGrove}>Enter Brambleberry Grove</PanelAction>
       </>;
       if (!progress.mapleMet || play.nextTourStop) return <>
         <Dialogue speaker="Ranger Lina">I clear travelers once Maple’s introduction and the town rounds are done. Check your Journal if you’re unsure where to go.</Dialogue>
         <p className="town-play-note">{play.objective}</p>
       </>;
+      if (!hasStarter) return <>
+        <Dialogue speaker="Ranger Lina">Maple has partners ready for new scouts. Choose one before you take the east trail.</Dialogue>
+        <PanelAction onClick={onChooseStarter}>Visit Maple’s Lab</PanelAction>
+      </>;
       return <>
-        <Dialogue speaker="Ranger Lina">I have your name on the field list. Take this pass and keep it with your notes. We’ll start the grove survey from the east trail.</Dialogue>
+        <Dialogue speaker="Ranger Lina">Take this Trail Pass and keep it with your notes. You and your partner can follow the east trail to the grove.</Dialogue>
         <PanelAction onClick={() => finish('gateOpen')}>Accept the Trail Pass</PanelAction>
       </>;
     case 'workshop':
       return <p className="town-play-note">Wells’ Workshop is closed for repairs. The workbench will reopen after Wells returns.</p>;
     case 'talent':
       return <p className="town-play-note">The Talent Lab is closed. Professor Maple will share more as the town rebuilds.</p>;
-    case 'party':
-      return <p className="town-play-note">No partners in your party yet.</p>;
+    case 'party': {
+      if (!hasStarter) return <p className="town-play-note">Choose your first partner at Maple’s Lab.</p>;
+      const inBattle = outing.encounter?.outcome === 'active';
+      return <>
+        {inBattle && <p className="town-play-note town-play-party-note">Finish the encounter before changing your lead.</p>}
+        <ul className="town-play-list town-play-party" aria-label="Party members">
+          {outing.party.map((companion) => {
+            const partner = species[companion.species];
+            const isLead = companion.id === outing.leadId;
+            const hp = maxHp(companion);
+            return <li key={companion.id}>
+              <img src={`/art/creatures/${companion.species}.webp`} alt="" />
+              <span className="town-play-member">
+                <strong>{partner.name}</strong>
+                <span>{partner.kind} · Lv. {levelOf(companion)}</span>
+                <span>{companion.hp}/{hp} HP</span>
+              </span>
+              {isLead ? <span className="town-play-lead">Lead</span> : <PanelAction
+                onClick={() => dispatchOuting({ type: 'selectLead', id: companion.id })}
+                disabled={inBattle || companion.hp === 0}
+                label={`Lead with ${partner.name}`}
+              >Set as lead</PanelAction>}
+            </li>;
+          })}
+        </ul>
+      </>;
+    }
     case 'bag':
       return progress.mapleMet ? <ul className="town-play-list">
         <li><span>Field Notebook</span><span>1</span></li>
         {progress.gateOpen && <li><span>Trail Pass</span><span>1</span></li>}
+        {hasStarter && <li><span>Field Snares</span><span>{outing.snares}</span></li>}
       </ul> : <p className="town-play-note">Your Bag is empty.</p>;
     case 'journal': {
       const steps = [
         { text: 'Meet Professor Maple', done: progress.mapleMet },
+        { text: 'Choose a starter', done: hasStarter },
         ...TOUR.map(({ objective, milestone }) => ({ text: objective, done: progress[milestone] })),
         { text: 'Get clearance from Ranger Lina', done: progress.gateOpen },
       ];
@@ -217,7 +366,13 @@ function PanelContent({ panel, play }: { panel: PanelId; play: TownPlay }) {
   }
 }
 
-export function TownPanel({ panel, play, onClose }: { panel: PanelId | null; play: TownPlay; onClose: () => void }) {
+export function TownPanel({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
+  panel: PanelId | null;
+  play: TownPlay;
+  onClose: () => void;
+  onChooseStarter: () => void;
+  onEnterGrove: () => void;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -252,7 +407,7 @@ export function TownPanel({ panel, play, onClose }: { panel: PanelId | null; pla
         <button className="town-play-close" type="button" onClick={onClose} aria-label="Close panel">×</button>
       </header>
       <div className="town-play-content" key={panel}>
-        <PanelContent panel={panel} play={play} />
+        <PanelContent panel={panel} play={play} onChooseStarter={onChooseStarter} onEnterGrove={onEnterGrove} />
       </div>
     </div>
   </dialog>;

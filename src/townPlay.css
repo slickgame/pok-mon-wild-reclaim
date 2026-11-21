@@ -99,8 +99,19 @@
   cursor: pointer;
 }
 
-.town-play-action:hover {
+.town-play-action:hover:not(:disabled) {
   background: #fff5d9;
+}
+
+.town-play-action:disabled {
+  color: #d9d1ae;
+  border-color: #c8c18966;
+  background: #203c2f;
+  cursor: default;
+}
+
+.town-play-progress + .town-play-action {
+  margin-top: 0.75rem;
 }
 
 .town-play-dialog :focus-visible {
@@ -144,6 +155,94 @@
   color: #c6deae;
 }
 
+.town-play-starters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.town-play-starter {
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.65rem;
+  border: 1px solid #d9bd788c;
+  border-radius: 0.65rem;
+  color: #253926;
+  background: linear-gradient(150deg, #fff4d2, #e7d3a2);
+  text-align: start;
+}
+
+.town-play-starter:hover {
+  border-color: #fff7cb;
+  background: #fff4d2;
+}
+
+.town-play-starter img {
+  display: block;
+  width: 100%;
+  height: 5.8rem;
+  object-fit: contain;
+}
+
+.town-play-starter strong,
+.town-play-starter small,
+.town-play-member span {
+  display: block;
+}
+
+.town-play-starter small {
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.town-play-starter small + small {
+  margin-top: 0.35rem;
+}
+
+.town-play-content .town-play-party-note {
+  margin-bottom: 0.7rem;
+}
+
+.town-play-party li {
+  display: grid;
+  grid-template-columns: 3.35rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.town-play-party img {
+  width: 100%;
+  height: 3.35rem;
+  object-fit: contain;
+}
+
+.town-play-member {
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.town-play-member strong {
+  color: #fff0ce;
+  font-size: 1.05rem;
+}
+
+.town-play-lead {
+  color: #d0e2bd;
+  font-size: 0.88rem;
+}
+
+.town-play-party .town-play-action {
+  width: auto;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.84rem;
+}
+
 @media (max-width: 580px) {
   .town-play-dialog {
     width: calc(100% - 1rem);
@@ -152,5 +251,16 @@
   }
   .town-play-action {
     width: 100%;
+  }
+  .town-play-starters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .town-play-starter {
+    grid-template-columns: 3.45rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .town-play-starter img {
+    height: 3.45rem;
   }
 }

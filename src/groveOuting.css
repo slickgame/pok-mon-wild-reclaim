@@ -1,0 +1,260 @@
+.grove-outing {
+  --grove-width: clamp(18.75rem, 30cqw, 29rem);
+  --grove-panel-line: #bdc38a70;
+  --grove-muted: #d5dcc0;
+}
+
+.grove-outing .grove-panel {
+  display: grid;
+  align-content: start;
+  width: var(--grove-width);
+  gap: clamp(.55rem, .9cqw, 1rem);
+  padding: clamp(.75rem, 1.4cqw, 1.45rem);
+  scrollbar-color: #b9c286 #253b2d;
+}
+
+.grove-heading > p {
+  margin: 0 0 .25rem;
+  color: #e1e6ac;
+  font-size: clamp(.76rem, 1.1cqw, 1rem);
+  line-height: 1.2;
+}
+
+.grove-outing .grove-heading h1 {
+  margin: 0;
+  white-space: normal;
+  font-size: clamp(1.43rem, 2.5cqw, 2.5rem);
+}
+
+.grove-heading h1:focus,
+.grove-phase h2:focus { outline: none; }
+
+.grove-heading .town-divider {
+  width: 100%;
+  height: clamp(.65rem, 1.24cqw, 1.2rem);
+  margin: .38rem 0 0;
+}
+
+.grove-phase > h2 {
+  margin: 0 0 .3rem;
+  font-size: clamp(1.03rem, 1.54cqw, 1.43rem);
+  line-height: 1.16;
+}
+
+.grove-phase p {
+  margin: 0;
+  color: #efead2;
+  font-size: clamp(.84rem, 1.06cqw, 1.09rem);
+  line-height: 1.35;
+}
+
+.grove-battle-log {
+  display: grid;
+  align-content: start;
+  gap: .19rem;
+  padding: .5rem .64rem;
+  border-inline-start: 2px solid #b1b875;
+  background: #0e201788;
+}
+
+.grove-actions { display: grid; gap: .38rem; }
+
+.grove-button {
+  display: grid;
+  grid-template-columns: 1.05rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .56rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: .4rem .6rem;
+  border: 1px solid var(--grove-panel-line);
+  border-radius: .42rem;
+  text-align: left;
+  color: var(--cream);
+  background: linear-gradient(145deg, #294738, #1b3024);
+  font-size: clamp(.88rem, 1.2cqw, 1.18rem);
+  line-height: 1.18;
+  font-weight: 700;
+}
+
+.grove-button svg { width: 1.05rem; height: 1.05rem; }
+.grove-button .grove-button-arrow { width: .9rem; height: .9rem; }
+
+.grove-button small {
+  display: block;
+  margin-top: .16rem;
+  color: var(--grove-muted);
+  font-size: clamp(.7rem, .86cqw, .86rem);
+  line-height: 1.2;
+  font-weight: 400;
+}
+
+.grove-button:hover { border-color: #d6d799; background: #365444; }
+.grove-button:disabled { opacity: .65; cursor: default; }
+.grove-button:disabled:hover { border-color: var(--grove-panel-line); background: linear-gradient(145deg, #294738, #1b3024); }
+
+.grove-button--primary {
+  color: #173021;
+  border-color: #e7e5a6;
+  background: linear-gradient(140deg, #f9efb7, #fff4d1 65%, #e9d99d);
+  box-shadow: 0 0 0 1px #9eab5e, 0 2px 4px #0a140c70;
+}
+
+.grove-button--primary:hover { border-color: #edf0ad; background: #fff5ca; }
+.grove-button--primary small { color: #41543a; }
+
+.grove-field-kit {
+  display: grid;
+  gap: .45rem;
+  padding: .54rem .64rem;
+  border: 1px solid var(--grove-panel-line);
+  border-radius: .42rem;
+  background: #10231980;
+  font-size: clamp(.78rem, 1.03cqw, .98rem);
+}
+
+.grove-field-lead { display: grid; gap: .25rem; }
+
+.grove-field-snares {
+  display: grid;
+  grid-template-columns: 1rem 1fr auto;
+  align-items: center;
+  gap: .37rem;
+}
+
+.grove-field-lead + .grove-field-snares { padding-top: .42rem; border-top: 1px solid var(--grove-panel-line); }
+.grove-field-snares svg { width: 1rem; height: 1rem; color: #cdd491; }
+
+.grove-vitals {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .38rem;
+  font-size: clamp(.65rem, .88cqw, .9rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  --grove-hp-color: #a4d18d;
+}
+
+.grove-vitals[data-hp="low"] { --grove-hp-color: #edaa78; }
+
+.grove-vitals progress {
+  width: 100%;
+  height: .48rem;
+  overflow: hidden;
+  border: 1px solid #e4dbc17a;
+  border-radius: 10px;
+  color: var(--grove-hp-color);
+  background: #0e170f;
+  appearance: none;
+}
+
+.grove-vitals progress::-webkit-progress-bar { background: #0e170f; }
+.grove-vitals progress::-webkit-progress-value { background: var(--grove-hp-color); border-radius: 10px; }
+.grove-vitals progress::-moz-progress-bar { background: var(--grove-hp-color); border-radius: 10px; }
+
+.grove-outing--battle .grove-atlas::after {
+  position: absolute;
+  inset: 40% 0 0;
+  content: '';
+  background: linear-gradient(0deg, #10251ad9, #17302300);
+  pointer-events: none;
+}
+
+.grove-combatants {
+  position: absolute;
+  z-index: 1;
+  inset-inline-start: clamp(12px, 3cqw, 50px);
+  inset-inline-end: calc(var(--grove-width) + clamp(12px, 3cqw, 50px));
+  inset-block-end: clamp(12px, 5svh, 48px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-items: center;
+  gap: clamp(.55rem, 3cqw, 3rem);
+}
+
+.grove-combatant { width: min(100%, 19rem); align-self: end; min-width: 0; }
+
+.grove-portrait {
+  position: relative;
+  display: block;
+  width: min(100%, 17.5rem);
+  height: clamp(5rem, 26svh, 16rem);
+  object-fit: contain;
+  object-position: bottom;
+  margin: 0 auto -.15rem;
+  filter: drop-shadow(0 6px 4px #102317a0);
+}
+
+.grove-combatant-card {
+  padding: clamp(.41rem, .9cqw, .9rem) clamp(.48rem, 1.16cqw, 1.1rem);
+  border: 1px solid #d1dc9b;
+  border-radius: .5rem;
+  background: linear-gradient(145deg, #2d4937, #15271d);
+  box-shadow: 0 3px 6px #09180ac0;
+}
+
+.grove-combatant--wild .grove-combatant-card { border-color: #e2c183; background: linear-gradient(145deg, #534831, #302a20); }
+
+.grove-combatant-detail {
+  margin: 0 0 .15rem;
+  color: #e1ddbc;
+  font-size: clamp(.63rem, .97cqw, .95rem);
+  line-height: 1.14;
+}
+
+.grove-combatant h2 {
+  margin: 0 0 .35rem;
+  color: var(--cream);
+  font-size: clamp(1rem, 2cqw, 1.88rem);
+  line-height: 1.12;
+}
+
+@media (min-width: 701px), (orientation: landscape) {
+  .grove-outing .tool-bar { z-index: 2; }
+}
+
+@media (max-height: 540px) and (orientation: landscape) {
+  .grove-outing { --grove-width: clamp(17.25rem, 34cqw, 26rem); }
+  .grove-outing .grove-panel { gap: .42rem; padding: .57rem .68rem; }
+  .grove-heading .town-divider { margin-top: .2rem; }
+  .grove-outing--battle .grove-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grove-outing--battle .grove-button { grid-template-columns: .86rem minmax(0, 1fr); gap: .34rem; padding: .33rem .4rem; }
+  .grove-outing--battle .grove-button svg { width: .86rem; height: .86rem; }
+  .grove-outing--battle .grove-button-arrow { display: none; }
+}
+
+@media (max-height: 380px) and (orientation: landscape) {
+  .grove-outing--battle { --grove-width: clamp(17.25rem, 49cqw, 26rem); }
+  .grove-outing--battle .grove-panel { gap: .28rem; }
+  .grove-outing--battle .grove-heading > p,
+  .grove-outing--battle .grove-heading .town-divider { display: none; }
+  .grove-outing--battle .grove-heading h1 { font-size: 1.3rem; }
+  .grove-outing--battle .grove-battle-log { padding: .28rem .46rem; }
+  .grove-outing--battle .grove-battle-log p { font-size: .79rem; }
+  .grove-outing--battle .grove-actions { gap: .3rem; }
+  .grove-outing--battle .grove-button { padding-block: .25rem; font-size: .84rem; }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .grove-outing { grid-template-rows: auto auto minmax(0, 1fr); }
+  .grove-outing .grove-panel { width: auto; padding: .7rem .75rem; }
+  .grove-outing .grove-heading h1 { font-size: clamp(1.45rem, 6cqw, 2rem); }
+  .grove-outing--battle .grove-atlas { height: clamp(8.75rem, 30svh, 17rem); aspect-ratio: auto; }
+  .grove-outing--battle .map-frame { width: max(100%, calc(clamp(8.75rem, 30svh, 17rem) * 1672 / 941)); }
+  .grove-combatants { inset-inline: 8px; inset-block-end: 6px; gap: 7px; }
+  .grove-portrait { height: clamp(4.25rem, 17svh, 9.5rem); }
+  .grove-outing--battle .grove-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grove-outing--battle .grove-button { grid-template-columns: .83rem minmax(0, 1fr); gap: .34rem; padding: .34rem .42rem; }
+  .grove-outing--battle .grove-button svg { width: .83rem; height: .83rem; }
+  .grove-outing--battle .grove-button-arrow { display: none; }
+  .grove-outing--battle .grove-button small { font-size: max(.68rem, 3cqw); }
+}
+
+@media (max-width: 380px) and (max-height: 650px) and (orientation: portrait) {
+  .grove-outing .grove-panel { gap: .43rem; }
+  .grove-outing--battle .grove-atlas { height: 8.65rem; }
+  .grove-outing--battle .map-frame { width: 100%; }
+  .grove-portrait { height: 4.7rem; }
+}

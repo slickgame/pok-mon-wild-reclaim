@@ -1,5 +1,6 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronRight, EyeOff } from "lucide-react";
+import { GroveOuting } from "./GroveOuting";
 import { TownPanel, useTownPlay, type PanelId } from "./townPlay";
 
 type GlyphName = "party" | "bag" | "journal" | "settings" | "leaf" | "eye" | "lock" | "board" | "clinic" | "gate";
@@ -29,6 +30,8 @@ const tools: { id: Extract<PanelId, GlyphName>; label: string }[] = [
   { id: "settings", label: "Save & Settings" },
 ];
 
+const GROVE_HASH = "#brambleberry-grove";
+
 function Glyph({ name }: { name: GlyphName }) {
   const style = name === "clinic" || name === "gate" ? undefined : {
     "--glyph-image": `url('/art/ui/${name}.png')`,
@@ -40,11 +43,68 @@ export function Town() {
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [showPlaces, setShowPlaces] = useState(false);
   const play = useTownPlay();
+  const [inGrove, setInGrove] = useState(() => play.canEnterGrove && window.location.hash === GROVE_HASH);
   const isLocked = (id: PanelId) =>
-    id === "workshop" || id === "talent" || (id === "gate" && !play.gateOpen);
+    id === "workshop" || id === "talent" || (id === "gate" && !play.canEnterGrove);
 
-  return (
-    <main className="town" aria-labelledby="town-name">
+  useEffect(() => {
+    function readLocation() {
+      const groveRequested = window.location.hash === GROVE_HASH;
+      if (groveRequested && !play.canEnterGrove) {
+        const url = new URL(window.location.href);
+        url.hash = "";
+        window.history.replaceState(window.history.state, "", url);
+      }
+      setInGrove(groveRequested && play.canEnterGrove);
+    }
+
+    function restoreLocation() {
+      setPanel(null);
+      readLocation();
+    }
+
+    readLocation();
+    window.addEventListener("hashchange", restoreLocation);
+    return () => window.removeEventListener("hashchange", restoreLocation);
+  }, [play.canEnterGrove]);
+
+  useEffect(() => {
+    document.title = `${inGrove ? "Brambleberry Grove" : "Brookbend Town"} · Wild Reclaim`;
+    if (document.activeElement === document.body) {
+      document.getElementById(inGrove ? "grove-name" : "town-name")?.focus({ preventScroll: true });
+    }
+  }, [inGrove]);
+
+  function travel(toGrove: boolean, nextPanel: PanelId | null = null) {
+    if (toGrove && !play.canEnterGrove) return;
+    if (!toGrove && play.outing.encounter) play.dispatchOuting({ type: "closeEncounter" });
+    const url = new URL(window.location.href);
+    url.hash = toGrove ? GROVE_HASH : "";
+    if (url.hash !== window.location.hash) window.history.pushState(window.history.state, "", url);
+    setPanel(nextPanel);
+    setInGrove(toGrove);
+    window.scrollTo(0, 0);
+  }
+
+  const toolbar = (
+    <nav className="tool-bar bevel" aria-label="Player tools">
+      {tools.map(({ id, label }) => (
+        <button key={id} className={`tool-button tool-button--${id}`} aria-label={label} onClick={() => setPanel(id)}>
+          <Glyph name={id} />
+          {id !== "settings" && <span>{label}</span>}
+        </button>
+      ))}
+    </nav>
+  );
+
+  return <>
+    {inGrove ? <GroveOuting
+      outing={play.outing}
+      onAction={play.dispatchOuting}
+      onReturn={() => travel(false)}
+      onVisitClinic={() => travel(false, "clinic")}
+      toolbar={toolbar}
+    /> : <main className="town" aria-labelledby="town-name">
       <div className="atlas">
         <div className="map-frame">
           <img
@@ -75,20 +135,16 @@ export function Town() {
         </div>
       </div>
 
-      <nav className="tool-bar bevel" aria-label="Player tools">
-        {tools.map(({ id, label }) => (
-          <button key={id} className={`tool-button tool-button--${id}`} aria-label={label} onClick={() => setPanel(id)}>
-            <Glyph name={id} />
-            {id !== "settings" && <span>{label}</span>}
-          </button>
-        ))}
-      </nav>
+      {toolbar}
 
       <section className="town-card bevel" aria-label="Town objective">
-        <h1 id="town-name">Brookbend Town</h1>
+        <h1 id="town-name" tabIndex={-1}>Brookbend Town</h1>
         <img className="town-divider" src="/art/ui/divider.png" alt="" />
         <p className="town-objective" aria-live="polite">{play.objective}</p>
-        <button className="objective-button bevel" onClick={() => setPanel(play.actionTarget)}>
+        <button className="objective-button bevel" onClick={() => {
+          if (play.actionTarget === "gate" && play.canEnterGrove) travel(true);
+          else setPanel(play.actionTarget);
+        }}>
           <Glyph name="leaf" />
           <span>{play.actionLabel}</span>
           <ChevronRight aria-hidden="true" />
@@ -122,7 +178,13 @@ export function Town() {
         </nav>
       </section>
 
-      <TownPanel panel={panel} play={play} onClose={() => setPanel(null)} />
-    </main>
-  );
+    </main>}
+    <TownPanel
+      panel={panel}
+      play={play}
+      onClose={() => setPanel(null)}
+      onChooseStarter={() => setPanel("maple")}
+      onEnterGrove={() => travel(true)}
+    />
+  </>;
 }
