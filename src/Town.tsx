@@ -103,7 +103,7 @@ export function Town() {
           <span>{showPlaces ? "Hide Places" : "Show Places"}</span>
           <ChevronDown className={showPlaces ? "flipped" : undefined} aria-hidden="true" />
         </button>
-        <nav className="places-list" id="places-list" aria-label="Town places" hidden={!showPlaces}>
+        <nav className="places-list" id="places-list" aria-label="Town places" tabIndex={0} hidden={!showPlaces}>
           {places.map(({ id, name, icon }) => {
             const locked = isLocked(id);
             return (
