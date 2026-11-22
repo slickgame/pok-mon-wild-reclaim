@@ -15,7 +15,7 @@ export type SpeciesMove = {
   power: number;
   accuracy: number;
   priority: number;
-  effect?: 'seed' | 'smokescreen' | 'withdraw' | 'absorb';
+  effect?: 'seed' | 'smokescreen' | 'withdraw' | 'absorb' | 'attackDown' | 'defenseDown' | 'speedDown' | 'paralyze';
 };
 
 type Species = {
@@ -109,6 +109,35 @@ export function getMove(id: SpeciesId, moveId: MoveId) {
   return species[id].moves[moveId];
 }
 
+type FourMoves = readonly [SpeciesMove, SpeciesMove, SpeciesMove, SpeciesMove];
+const statusMove = (name: string, effect: NonNullable<SpeciesMove['effect']>, type: PokemonType = 'Normal', accuracy = 1) =>
+  strike(name, 0, type, 'status', { effect, accuracy });
+
+// The Revenant encounter opens with four learned choices for every recruit.
+// Preserve the quick attack-and-guard options in the existing encounters.
+const growl = statusMove('Growl', 'attackDown');
+const tailWhip = statusMove('Tail Whip', 'defenseDown');
+const stringShot = statusMove('String Shot', 'speedDown', 'Bug', 0.95);
+const stunSpore = statusMove('Stun Spore', 'paralyze', 'Grass', 0.75);
+const tackle = strike('Tackle', 5);
+const scratch = species.paras.moves.strike;
+const revenantMoveSets = {
+  bulbasaur: [species.bulbasaur.moves.strike, tackle, species.bulbasaur.moves.signature!, growl],
+  charmander: [species.charmander.moves.strike, scratch, species.charmander.moves.signature!, growl],
+  squirtle: [species.squirtle.moves.strike, tackle, species.squirtle.moves.signature!, tailWhip],
+  caterpie: [tackle, stringShot, strike('Bug Bite', 6, 'Bug'), strike('Electroweb', 5, 'Electric', 'special', { accuracy: 0.95, effect: 'speedDown' })],
+  weedle: [species.weedle.moves.strike, stringShot, strike('Bug Bite', 6, 'Bug'), strike('Electroweb', 5, 'Electric', 'special', { accuracy: 0.95, effect: 'speedDown' })],
+  pidgey: [species.pidgey.moves.strike, tackle, strike('Quick Attack', 6, 'Normal', 'physical', { priority: 1 }), statusMove('Sand Attack', 'smokescreen', 'Ground')],
+  rattata: [species.rattata.moves.strike, tackle, strike('Bite', 6, 'Dark'), tailWhip],
+  oddish: [species.oddish.moves.strike, strike('Acid', 6, 'Poison', 'special'), stunSpore, strike('Mega Drain', 7, 'Grass', 'special', { effect: 'absorb' })],
+  bellsprout: [species.bellsprout.moves.strike, strike('Acid', 6, 'Poison', 'special'), stunSpore, strike('Razor Leaf', 6, 'Grass', 'physical', { accuracy: 0.95 })],
+  paras: [scratch, strike('Absorb', 5, 'Grass', 'special', { effect: 'absorb' }), stunSpore, strike('Bug Bite', 6, 'Bug')],
+} satisfies Record<SpeciesId, FourMoves>;
+
+export function revenantMoves(id: SpeciesId): FourMoves {
+  return revenantMoveSets[id];
+}
+
 export function pokemonSpriteUrl(id: SpeciesId) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${species[id].dexNumber}.png`;
 }
@@ -132,6 +161,10 @@ export function moveDescription(move: SpeciesMove) {
   switch (move.effect) {
     case 'seed': return 'Drains ⅛ of the foe’s max HP each round and heals the user.';
     case 'smokescreen': return 'Lowers the target’s accuracy by one stage.';
+    case 'attackDown': return 'Lowers the target’s Attack by one stage.';
+    case 'defenseDown': return 'Lowers the target’s Defense by one stage.';
+    case 'speedDown': return 'Lowers the target’s Speed by one stage.';
+    case 'paralyze': return 'Paralyzes the target.';
     case 'withdraw': return 'Raises the user’s Defense by one stage.';
     case 'absorb': return 'Restores half the damage dealt.';
     default: return `${move.type} · Power ${move.power}`;

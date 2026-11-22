@@ -24,11 +24,12 @@ const typeChart: Record<PokemonType, Matchup> = {
   Fairy: { weak: ['Fighting', 'Dragon', 'Dark'], resist: ['Fire', 'Poison', 'Steel'] },
 };
 
-export type BattleConditions = { accuracy: number; defense: number; seededBy?: number };
+export type BattleConditions = { accuracy: number; defense: number; attack?: number; speed?: number; paralyzed?: boolean; seededBy?: number };
 export const emptyConditions: BattleConditions = { accuracy: 0, defense: 0 };
 
 export type BattleTarget = {
   id: number;
+  name?: string;
   species: SpeciesId;
   hp: number;
   maxHp: number;
@@ -55,23 +56,58 @@ export function damagePreview(actor: BattleTarget, target: BattleTarget, move: S
   if (effectiveness === 0) return 0;
   const stab = species[actor.species].types.includes(move.type) ? 1.5 : 1;
   const defense = move.category === 'physical' ? stageMultiplier(target.conditions.defense, 2) : 1;
-  const damage = (move.power + actor.level - 1) * stab * effectiveness / defense * (guarded ? 0.5 : 1);
+  const attack = move.category === 'physical' ? stageMultiplier(actor.conditions.attack ?? 0, 2) : 1;
+  const damage = (move.power + actor.level - 1) * stab * effectiveness * attack / defense * (guarded ? 0.5 : 1);
   return Math.max(1, Math.floor(damage));
+}
+
+export function battleSpeed(actor: BattleTarget) {
+  return (species[actor.species].speed + actor.level) * stageMultiplier(actor.conditions.speed ?? 0, 2) *
+    (actor.conditions.paralyzed ? 0.5 : 1);
+}
+
+function readStage(value: unknown) {
+  return typeof value === 'number' && Number.isSafeInteger(value) ? Math.max(-6, Math.min(6, value)) : 0;
 }
 
 export function readBattleConditions(value: unknown): BattleConditions {
   if (!value || typeof value !== 'object') return emptyConditions;
-  const { accuracy, defense, seededBy } = value as Partial<BattleConditions>;
+  const { accuracy, defense, attack, speed, paralyzed, seededBy } = value as Partial<BattleConditions>;
   return {
-    accuracy: typeof accuracy === 'number' && Number.isSafeInteger(accuracy) ? Math.max(-6, Math.min(6, accuracy)) : 0,
-    defense: typeof defense === 'number' && Number.isSafeInteger(defense) ? Math.max(-6, Math.min(6, defense)) : 0,
+    accuracy: readStage(accuracy),
+    defense: readStage(defense),
+    ...(readStage(attack) ? { attack: readStage(attack) } : {}),
+    ...(readStage(speed) ? { speed: readStage(speed) } : {}),
+    ...(paralyzed === true ? { paralyzed } : {}),
     ...(typeof seededBy === 'number' && Number.isSafeInteger(seededBy) ? { seededBy } : {}),
   };
 }
 
-export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, move: SpeciesMove, roll: number, guarded = false) {
-  const actorName = species[actor.species].name;
-  const targetName = species[target.species].name;
+function battleName(mon: BattleTarget) {
+  return mon.name ?? species[mon.species].name;
+}
+
+const loweredStats = {
+  smokescreen: { stat: 'accuracy', label: 'accuracy', amount: 1 },
+  attackDown: { stat: 'attack', label: 'Attack', amount: 1 },
+  defenseDown: { stat: 'defense', label: 'Defense', amount: 1 },
+  speedDown: { stat: 'speed', label: 'Speed', amount: 2 },
+} as const;
+
+function lowerStat(target: BattleTarget, effect: keyof typeof loweredStats) {
+  const { stat, label, amount } = loweredStats[effect];
+  const stage = target.conditions[stat] ?? 0;
+  const name = battleName(target);
+  if (stage <= -6) return { target, log: `${name}’s ${label} cannot go lower.` };
+  return {
+    target: { ...target, conditions: { ...target.conditions, [stat]: Math.max(-6, stage - amount) } },
+    log: `${name}’s ${label} fell.`,
+  };
+}
+
+export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, move: SpeciesMove, roll: number, guarded = false, healingMultiplier = 1) {
+  const actorName = battleName(actor);
+  const targetName = battleName(target);
   const log = [`${actorName} used ${move.name}.`];
   if (move.effect === 'withdraw') {
     if (actor.conditions.defense >= 6) return { actor, target, log: [...log, `${actorName}’s Defense cannot go higher.`] };
@@ -82,10 +118,20 @@ export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, mov
   const accuracy = Math.min(1, move.accuracy * stageMultiplier(actor.conditions.accuracy, 3));
   if (roll >= accuracy && accuracy < 1) return { actor, target, log: [...log, 'The move missed.'] };
 
-  if (move.effect === 'smokescreen') {
-    if (target.conditions.accuracy <= -6) return { actor, target, log: [...log, `${targetName}’s accuracy cannot go lower.`] };
-    const obscured = { ...target, conditions: { ...target.conditions, accuracy: target.conditions.accuracy - 1 } };
-    return { actor, target: obscured, log: [...log, `${targetName}’s accuracy fell.`] };
+  if (move.effect === 'smokescreen' || move.effect === 'attackDown' || move.effect === 'defenseDown' ||
+      (move.effect === 'speedDown' && move.category === 'status')) {
+    const lowered = lowerStat(target, move.effect);
+    return { actor, target: lowered.target, log: [...log, lowered.log] };
+  }
+  if (move.effect === 'paralyze') {
+    if (species[target.species].types.includes('Grass') || species[target.species].types.includes('Electric')) {
+      return { actor, target, log: [...log, `It did not affect ${targetName}.`] };
+    }
+    if (target.conditions.paralyzed) return { actor, target, log: [...log, `${targetName} is already paralyzed.`] };
+    return {
+      actor, target: { ...target, conditions: { ...target.conditions, paralyzed: true } },
+      log: [...log, `${targetName} was paralyzed.`],
+    };
   }
   if (move.effect === 'seed') {
     if (species[target.species].types.includes('Grass')) {
@@ -105,21 +151,27 @@ export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, mov
   log[0] = `${actorName} used ${move.name} for ${damage} damage.${matchup}`;
   let acting = actor;
   if (move.effect === 'absorb') {
-    const heal = Math.min(actor.maxHp - actor.hp, Math.ceil(damage / 2));
+    const heal = Math.min(actor.maxHp - actor.hp, Math.floor(Math.ceil(damage / 2) * healingMultiplier));
     if (heal > 0) {
       acting = { ...actor, hp: actor.hp + heal };
       log.push(`${actorName} recovered ${heal} HP.`);
     }
   }
-  return { actor: acting, target: { ...target, hp: target.hp - damage }, log };
+  const damaged = { ...target, hp: target.hp - damage };
+  if (damaged.hp > 0 && move.effect === 'speedDown') {
+    const lowered = lowerStat(damaged, move.effect);
+    return { actor: acting, target: lowered.target, log: [...log, lowered.log] };
+  }
+  return { actor: acting, target: damaged, log };
 }
 
-export function drainSeed(target: BattleTarget, owner?: BattleTarget) {
+export function drainSeed(target: BattleTarget, owner?: BattleTarget, healingMultiplier = 1) {
   if (target.conditions.seededBy === undefined || target.hp === 0) return { target, owner, log: [] as string[] };
   const loss = Math.min(target.hp, Math.max(1, Math.floor(target.maxHp / 8)));
-  const heal = owner && owner.hp > 0 && owner.id === target.conditions.seededBy ? Math.min(loss, owner.maxHp - owner.hp) : 0;
-  const log = [`Leech Seed drained ${loss} HP from ${species[target.species].name}.`];
-  if (owner && heal) log.push(`${species[owner.species].name} recovered ${heal} HP.`);
+  const heal = owner && owner.hp > 0 && owner.id === target.conditions.seededBy
+    ? Math.min(Math.floor(loss * healingMultiplier), owner.maxHp - owner.hp) : 0;
+  const log = [`Leech Seed drained ${loss} HP from ${battleName(target)}.`];
+  if (owner && heal) log.push(`${battleName(owner)} recovered ${heal} HP.`);
   return {
     target: { ...target, hp: target.hp - loss },
     owner: owner && heal ? { ...owner, hp: owner.hp + heal } : owner,

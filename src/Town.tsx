@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronRight, EyeOff } from "lucide-react";
 import { GroveOuting } from "./GroveOuting";
+import { RevenantBattleView } from "./RevenantBattleView";
 import { TrainerBattleView } from "./TrainerBattleView";
 import { TownPanel, useTownPlay, type PanelId } from "./townPlay";
 
@@ -57,13 +58,27 @@ export function Town() {
   const [journalOpen, setJournalOpen] = useState(false);
   const play = useTownPlay();
   const trainerBattle = play.outing.trainerBattle;
-  const [location, setLocation] = useState(() => play.canEnterGrove ? requestedLocation() : "town");
+  const revenantBattle = play.outing.revenantBattle;
+  const revenantActive = revenantBattle?.outcome === "active";
+  const [location, setLocation] = useState(() => play.canEnterGrove ? (revenantActive ? "grove" : requestedLocation()) : "town");
   const inGrove = location === "grove";
   const isLocked = (id: PanelId) =>
     id === "workshop" || id === "talent" || (id === "gate" && !play.canEnterGrove);
 
   useEffect(() => {
     function readLocation() {
+      if (revenantActive && play.canEnterGrove) {
+        const hash = destinations.grove.hash;
+        if (window.location.hash !== hash) {
+          const url = new URL(window.location.href);
+          url.hash = hash;
+          window.history.replaceState(window.history.state, "", url);
+        }
+        setPanel(null);
+        setJournalOpen(false);
+        setLocation("grove");
+        return;
+      }
       const requested = requestedLocation();
       if (requested !== "town" && !play.canEnterGrove) {
         const url = new URL(window.location.href);
@@ -84,7 +99,7 @@ export function Town() {
     readLocation();
     window.addEventListener("hashchange", restoreLocation);
     return () => window.removeEventListener("hashchange", restoreLocation);
-  }, [play.canEnterGrove]);
+  }, [play.canEnterGrove, revenantActive]);
 
   useEffect(() => {
     const { title, heading } = destinations[location];
@@ -96,7 +111,9 @@ export function Town() {
 
   function travel(destination: WorldLocation, nextPanel: PanelId | null = null) {
     if (destination !== "town" && !play.canEnterGrove) return;
+    if (revenantActive && destination !== "grove") return;
     if (inGrove && destination !== "grove") {
+      if (revenantBattle) play.dispatchOuting({ type: "closeRevenant" });
       if (play.outing.encounter && play.outing.encounter.outcome !== "active") {
         play.dispatchOuting({ type: "closeEncounter" });
       }
@@ -125,7 +142,12 @@ export function Town() {
   );
 
   return <>
-    {inGrove && trainerBattle ? <TrainerBattleView
+    {inGrove && revenantBattle ? <RevenantBattleView
+      battle={revenantBattle}
+      onAction={(action) => play.dispatchOuting({ type: "revenantAction", action })}
+      onReturn={() => play.dispatchOuting({ type: "closeRevenant" })}
+      onVisitClinic={() => travel("town", "clinic")}
+    /> : inGrove && trainerBattle ? <TrainerBattleView
       battle={trainerBattle}
       onAction={(action) => play.dispatchOuting({ type: "trainerAction", action })}
       onReturn={() => play.dispatchOuting({ type: "closeTrainer" })}

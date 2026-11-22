@@ -4,6 +4,7 @@ import {
   GROVE_WILD_WINS_REQUIRED,
   OUTING_SAVE_KEY,
   canBeginTrainer,
+  canOpenSporesDiscovery,
   canRestAtCamp,
   clinicAvailable,
   getGroveQuestPhase,
@@ -170,7 +171,12 @@ export function useTownPlay() {
     openingObjective = { objective: 'Meet your starter team', actionLabel: 'Choose your lead', panel: 'maple' };
   }
   const canEnterGrove = progress.gateOpen && hasStarter;
-  const resumeBattle = canEnterGrove && (outing.encounter?.outcome === 'active' || outing.trainerBattle?.outcome === 'active');
+  const resumeBattle = canEnterGrove && (
+    outing.encounter?.outcome === 'active' || outing.trainerBattle?.outcome === 'active' || outing.revenantBattle?.outcome === 'active'
+  );
+  if (canEnterGrove && !resumeBattle && outing.sporesQuest.defeated && !outing.sporesQuest.reported) {
+    openingObjective = { objective: 'Report to Professor Maple', actionLabel: 'Visit Professor Maple', panel: 'maple' };
+  }
   const objective = openingObjective?.objective ?? (resumeBattle ? 'Battle in progress' : canEnterGrove ? 'Explore Brambleberry Grove' : 'Speak to Ranger Lina');
   const actionLabel = openingObjective?.actionLabel ?? (resumeBattle ? 'Resume battle' : canEnterGrove ? 'Go to Brambleberry Grove' : 'Visit the Travel Gate');
   const actionTarget: PanelId = openingObjective?.panel ?? 'gate';
@@ -242,6 +248,15 @@ function groveQuestSteps({ clearedOvergrowth, wildWins, reported }: OutingState[
   ];
 }
 
+function sporesQuestSteps({ discovered, investigated, defeated, reported }: OutingState['sporesQuest']) {
+  return [
+    { text: 'Find the strange spores through Explore', done: discovered },
+    { text: 'Investigate the spores', done: investigated },
+    { text: 'Defeat Revenant-tainted Paras', done: defeated },
+    { text: 'Report to Professor Maple in Brookbend', done: reported },
+  ];
+}
+
 const PANEL_TITLES: Record<PanelId, string> = {
   maple: 'Maple’s Lab',
   clinic: 'Clinic',
@@ -276,12 +291,21 @@ type PanelProps = {
 function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove, onEnterHollow, onEnterTown, onOpenPanel, onOpenJournal }: PanelProps & { panel: PanelId }) {
   const { progress, finish, outing, dispatchOuting, hasStarter } = play;
   const lead = getLead(outing);
-  const inBattle = outing.encounter?.outcome === 'active' || outing.trainerBattle?.outcome === 'active';
+  const inBattle = outing.encounter?.outcome === 'active' || outing.trainerBattle?.outcome === 'active' ||
+    outing.revenantBattle?.outcome === 'active';
   switch (panel) {
     case 'maple': {
       if (!progress.mapleMet) return <>
         <Dialogue speaker="Professor Maple">Welcome to Brookbend. Take this notebook for your field observations. Bulbasaur, Charmander, and Squirtle are ready to join you on your first outing.</Dialogue>
         <PanelAction onClick={() => finish('mapleMet')}>Take the Field Notebook</PanelAction>
+      </>;
+      if (hasStarter && outing.sporesQuest.defeated) return <>
+        <Dialogue speaker="Professor Maple">{outing.sporesQuest.reported
+          ? 'Your field notes are on record. Ranger Lina can now keep watch over the restored Grove.'
+          : 'Ranger Lina says the spores are clearing. Let me add your findings to the restoration record.'}</Dialogue>
+        {outing.sporesQuest.reported
+          ? <p className="town-play-progress" role="status">Strange Spores complete · Brambleberry Grove restored to Stage 1.</p>
+          : <PanelAction onClick={() => dispatchOuting({ type: 'reportSporesToMaple' })}>Share the Grove report</PanelAction>}
       </>;
       if (hasStarter) return <>
         <Dialogue speaker="Professor Maple">{progress.gateOpen ? 'Bring your Field Notebook whenever you explore Brambleberry Grove.' : 'Check in at the Clinic, Merra’s Shop, and the Quest Board. Then ask Ranger Lina about the trail to Brambleberry Grove.'}</Dialogue>
@@ -354,6 +378,10 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove, onE
       </>;
     case 'grove-lina': {
       const phase = getGroveQuestPhase(outing);
+      if (outing.sporesQuest.defeated) return <Dialogue speaker="Ranger Lina">{outing.sporesQuest.reported
+        ? 'The Grove can breathe again. I’ll keep an eye on the plants along the creek.'
+        : 'The spore cloud is thinning. Take your Field Notebook to Professor Maple in Brookbend.'}</Dialogue>;
+      if (outing.sporesQuest.discovered) return <Dialogue speaker="Ranger Lina">That haze belongs to Revenant-tainted Paras. Bring three conscious Pokémon when you follow the spores into the clearing.</Dialogue>;
       if (phase === 'complete') return <Dialogue speaker="Ranger Lina">I’ve finished assessing the grove. I’ll need your help investigating the strange spores next.</Dialogue>;
       if (phase !== 'report' || outing.encounter || outing.trainerBattle) {
         return <Dialogue speaker="Ranger Lina">Clear the overgrowth and win two wild battles before we compare notes.</Dialogue>;
@@ -405,20 +433,23 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove, onE
         {explored && <QuestEntry title="A Grove in Need" steps={groveQuestSteps(outing.groveQuest)}>
           <PanelAction onClick={onOpenJournal}>Open Field Journal</PanelAction>
         </QuestEntry>}
-        {reported && <section className="town-play-quest">
-          <h3 className="town-play-subheading">Strange Spores</h3>
-          <p className="town-play-progress">Next quest · Investigate the spores in Brambleberry Grove.</p>
-        </section>}
+        {reported && <QuestEntry title="Strange Spores" steps={sporesQuestSteps(outing.sporesQuest)}>
+          {canOpenSporesDiscovery(outing) && <PanelAction onClick={() => {
+            dispatchOuting({ type: 'openSporesDiscovery' });
+            onClose();
+          }}>{outing.sporesQuest.investigated ? 'Return to the spores' : 'Investigate the spores'}</PanelAction>}
+        </QuestEntry>}
       </>;
     }
     case 'grove-habitat': {
       const steps = groveQuestSteps(outing.groveQuest);
       const done = steps.filter((step) => step.done).length;
+      const restored = outing.sporesQuest.defeated;
       return <section className="town-play-action-stack" aria-label="Restoration progress">
-        <h3 className="town-play-subheading">Stage 0 · Unrestored</h3>
+        <h3 className="town-play-subheading">{restored ? 'Stage 1 · Restored' : 'Stage 0 · Unrestored'}</h3>
         <progress className="town-play-survey-meter" aria-label="Grove survey objectives" max={steps.length} value={done} />
         <p>{done} of {steps.length} Grove survey objectives complete.</p>
-        <p>Complete Strange Spores to reach Stage 1.</p>
+        <p>{restored ? 'The Revenant spores have cleared from Brambleberry Grove.' : 'Defeat the Revenant in Strange Spores to reach Stage 1.'}</p>
       </section>;
     }
     case 'grove-travel':
@@ -476,9 +507,8 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove, onE
         { text: 'Defeat Rusk Vale', done: outing.ruskDefeated },
       );
       return <>
-        {explored && <QuestEntry title="A Grove in Need" steps={groveQuestSteps(outing.groveQuest)}>
-          {reported && <p className="town-play-progress">Strange Spores unlocked.</p>}
-        </QuestEntry>}
+        {reported && <QuestEntry title="Strange Spores" steps={sporesQuestSteps(outing.sporesQuest)} />}
+        {explored && <QuestEntry title="A Grove in Need" steps={groveQuestSteps(outing.groveQuest)} />}
         {play.canEnterGrove && <QuestEntry title="First Steps into Verdant Hollow" steps={[
           { text: 'Explore Brambleberry Grove', done: explored },
         ]} />}

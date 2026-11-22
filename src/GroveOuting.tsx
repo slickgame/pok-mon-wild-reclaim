@@ -4,7 +4,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  canBeginTrainer, canExploreGrove, captureChance, getGroveQuestPhase, getLead, levelOf, maxHp, PARTY_LIMIT, species,
+  canBeginRevenant, canBeginTrainer, canExploreGrove, captureChance, getGroveQuestPhase, getLead, levelOf, maxHp, PARTY_LIMIT, species,
   type GroveDiscovery, type OutingAction, type OutingState, type SpeciesId,
 } from "./outing";
 import { typeMultiplier, type BattleConditions } from "./battleRules";
@@ -34,11 +34,29 @@ const resultTitles = {
   lost: "Pokémon fainted",
 };
 
-function GroveDiscoveryResult({ discovery, outing, onAction }: {
+function GroveDiscoveryResult({ discovery, outing, onAction, onVisitClinic }: {
   discovery: GroveDiscovery;
   outing: OutingState;
   onAction: (action: OutingAction) => void;
+  onVisitClinic?: () => void;
 }) {
+  if (discovery.kind === "spores") {
+    const ready = canBeginRevenant(outing);
+
+    return <>
+      <div className="grove-phase">
+        <h2 tabIndex={-1} data-phase-heading>Strange Spores</h2>
+        <p>Violet spores drift from a clearing beyond the creek. Something moves in the haze.</p>
+      </div>
+      <div className="grove-actions">
+        <GroveButton icon={Search} label="Investigate the spores" detail={ready ? undefined : "Bring three conscious Pokémon"}
+          primary disabled={!ready} onClick={() => onAction({ type: "startRevenant" })} />
+        {!ready && onVisitClinic && <GroveButton icon={HeartPulse} label="Visit the Clinic" onClick={onVisitClinic} />}
+        <GroveButton icon={ArrowLeft} label="Back to Grove" onClick={() => onAction({ type: "closeGroveDiscovery" })} />
+      </div>
+    </>;
+  }
+
   const trainer = discovery.kind === "trainer" ? discovery.trainerId : null;
   const trainerName = trainer === "rusk" ? "Rusk Vale" : "Youngster Theo";
   const title = discovery.kind === "resource" ? "Oran Berries"
@@ -249,7 +267,8 @@ export function GroveOuting({
           {!leadReady && onVisitClinic && <GroveButton icon={HeartPulse} label="Visit the Clinic" onClick={onVisitClinic} primary />}
           <GroveButton icon={ArrowLeft} label="Return to Brookbend" onClick={onReturn} />
         </div>
-      </> : groveDiscovery && <GroveDiscoveryResult discovery={groveDiscovery} outing={outing} onAction={onAction} />}
+      </> : groveDiscovery && <GroveDiscoveryResult discovery={groveDiscovery} outing={outing} onAction={onAction}
+        onVisitClinic={onVisitClinic} />}
     </section>
     </>}
   </main>;
