@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, Check, ChevronRight, Circle, HeartPulse } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Check, ChevronRight, Circle, HeartPulse } from "lucide-react";
+import { BattleCommandBar, BattleCommands, BattleIcon, BattleMoves, BattleTile, type BattleMode } from "./BattleCommandBar";
 import { PokemonSprite } from "./PokemonSprite";
-import { levelOf, moveDescription, species, type SpeciesMove } from "./pokemonData";
+import { levelOf, species } from "./pokemonData";
 import {
   canPlanRevenantCommand, ORAN_BERRY_HEAL, REVENANT_HEAL_MULTIPLIER, REVENANT_NAME,
   revenantActive, revenantBattleReady, revenantBossMoves, revenantItemTargets, revenantMoves,
@@ -16,38 +17,6 @@ type BattleProps = {
   onReturn: () => void;
   onVisitClinic: () => void;
 };
-
-type Mode = "command" | "fight" | "items" | "switch" | "inspect";
-const commands = [
-  { label: "Fight", mode: "fight" },
-  { label: "Items", mode: "items" },
-  { label: "Switch", mode: "switch" },
-  { label: "Inspect", mode: "inspect" },
-] as const;
-
-const moveIcons: Record<string, string> = {
-  Ember: "ember",
-  Scratch: "scratch",
-  Smokescreen: "smokescreen",
-  Growl: "growl",
-};
-
-function ArtIcon({ icon }: { icon: string }) {
-  return <img className="revenant-control-icon" src={`/art/strange-spores/${icon}.webp`} alt="" width="64" height="64" />;
-}
-
-function Tile({ children, icon, onClick, disabled, title }: {
-  children: ReactNode;
-  icon?: string;
-  onClick: () => void;
-  disabled?: boolean;
-  title?: string;
-}) {
-  return <button className="revenant-tile" type="button" onClick={onClick} disabled={disabled} title={title}>
-    {icon && <ArtIcon icon={icon} />}
-    <span>{children}</span>
-  </button>;
-}
 
 function Health({ name, hp, maxHp, boss = false }: {
   name: string;
@@ -92,12 +61,8 @@ function planName(battle: RevenantBattleState, id: number) {
   return plan.type === "switch" ? `Switch to ${name ?? "reserve"}` : `Oran Berry → ${name ?? "ally"}`;
 }
 
-function moveDetail(move: SpeciesMove) {
-  return `${move.type} · ${move.category} · ${moveDescription(move)}`;
-}
-
 export function RevenantBattleView({ battle, onAction, onReturn, onVisitClinic }: BattleProps) {
-  const [mode, setMode] = useState<Mode>("command");
+  const [mode, setMode] = useState<BattleMode>("command");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const focusNext = useRef(false);
   const selectedPreview = useRef<HTMLHeadingElement>(null);
@@ -124,7 +89,7 @@ export function RevenantBattleView({ battle, onAction, onReturn, onVisitClinic }
     selectedPreview.current?.focus({ preventScroll: true });
   }, [mode, selectedId, battle.round, battle.outcome, replacing]);
 
-  function showMode(next: Mode) {
+  function showMode(next: BattleMode) {
     focusNext.current = true;
     setMode(next);
   }
@@ -154,7 +119,7 @@ export function RevenantBattleView({ battle, onAction, onReturn, onVisitClinic }
     ? battle.outcome === "won" ? "Brambleberry Grove reached Stage 1" : "Your team fainted"
     : replacing !== undefined ? "Send in a healthy Pokémon"
       : mode === "command" ? "Choose a command"
-        : `${commands.find((command) => command.mode === mode)?.label} · ${actorName}`;
+        : `${mode[0].toUpperCase() + mode.slice(1)} · ${actorName}`;
 
   return <main className="revenant-battle" aria-labelledby="grove-name" onKeyDown={(event) => {
     if (event.key === "Escape" && mode !== "command") {
@@ -179,7 +144,7 @@ export function RevenantBattleView({ battle, onAction, onReturn, onVisitClinic }
           <Health name={REVENANT_NAME} hp={battle.boss.hp} maxHp={battle.boss.maxHp} boss />
         </div>
         {activeBattle && <p className="revenant-intent" title={targetNames.length ? `Targets ${targetNames.join(", ")}` : undefined}>
-          <ArtIcon icon="spore-sigil" />
+          <BattleIcon icon="spore-sigil" />
           <span>{move.name}</span>
         </p>}
       </div>
@@ -218,64 +183,51 @@ export function RevenantBattleView({ battle, onAction, onReturn, onVisitClinic }
       </ol>
     </section>
 
-    <section className="revenant-command-bar" aria-label="Battle commands" data-mode={mode}>
-      <header className="revenant-command-heading">
-        {mode !== "command" && activeBattle && replacing === undefined && <button
-          type="button" className="revenant-back" onClick={() => showMode("command")}><ArrowLeft aria-hidden="true" /> Back</button>}
-        <h2 ref={selectedPreview} tabIndex={-1}>{heading}</h2>
-        {activeBattle && <span className="revenant-round-progress" aria-live="polite">{queued} / {active.length} queued</span>}
-      </header>
-
-      {!activeBattle ? <div className="revenant-command-options revenant-command-options--result">
+    <BattleCommandBar heading={heading} headingRef={selectedPreview}
+      status={activeBattle ? `${queued} / ${active.length} queued` : undefined}
+      onBack={mode !== "command" && activeBattle && replacing === undefined ? () => showMode("command") : undefined}>
+      {!activeBattle ? <div className="battle-command-options battle-command-options--result">
         <p role="status">{battle.outcome === "won"
           ? "The spores settle. Return to Brookbend and tell Professor Maple."
           : "Recover at the Brookbend Clinic, then return to investigate the spores again."}</p>
-        <button type="button" className="revenant-resolve" onClick={battle.outcome === "won" ? onReturn : onVisitClinic}>
+        <button type="button" className="battle-command-resolve" onClick={battle.outcome === "won" ? onReturn : onVisitClinic}>
           {battle.outcome === "won" ? <>Return to Grove <ChevronRight aria-hidden="true" /></> : <><HeartPulse aria-hidden="true" /> Visit the Clinic</>}
         </button>
-      </div> : replacing !== undefined ? <div className="revenant-command-options">
-        {reserves.map((reserve) => <Tile key={reserve.id} icon="switch" onClick={() => {
+      </div> : replacing !== undefined ? <div className="battle-command-options">
+        {reserves.map((reserve) => <BattleTile key={reserve.id} icon="switch" onClick={() => {
           focusNext.current = true;
           onAction({ type: "replace", slot: replacing, withId: reserve.id });
-        }}>{species[reserve.species].name} · Lv. {levelOf(reserve)}</Tile>)}
-      </div> : mode === "command" ? <div className="revenant-command-options revenant-command-options--main">
-        {commands.map(({ label, mode: destination }) => <Tile key={destination} icon={destination}
-          onClick={() => showMode(destination)}>{label}</Tile>)}
-        <button type="button" className="revenant-resolve" disabled={!ready} onClick={resolveRound}>Resolve round</button>
-      </div> : mode === "fight" && actor ? <div className="revenant-command-options">
-        {revenantMoves(actor.species).map((attack, index) => {
-          const command = { type: "move", move: index as 0 | 1 | 2 | 3 } as const;
-          return <Tile key={attack.name} icon={moveIcons[attack.name] ?? "fight"}
-            title={moveDetail(attack)} onClick={() => queue(command)}
-            disabled={!canPlanRevenantCommand(battle, actor.id, command)}>{attack.name}</Tile>;
-        })}
-      </div> : mode === "items" && actor ? <>
-        <p className="revenant-hint">Oran Berry ×{battle.oranBerries} · Heals up to {ORAN_BERRY_HEAL * REVENANT_HEAL_MULTIPLIER} HP here.</p>
-        <div className="revenant-command-options">
+        }}>{species[reserve.species].name} · Lv. {levelOf(reserve)}</BattleTile>)}
+      </div> : mode === "command" ? <BattleCommands onChoose={showMode} resolve={{ disabled: !ready, onClick: resolveRound }} />
+        : mode === "fight" && actor ? <BattleMoves moves={revenantMoves(actor.species)}
+          onChoose={(slot) => queue({ type: "move", move: slot })}
+          disabled={(slot) => !canPlanRevenantCommand(battle, actor.id, { type: "move", move: slot })} /> : mode === "items" && actor ? <>
+        <p className="battle-command-hint">Oran Berry ×{battle.oranBerries} · Heals up to {ORAN_BERRY_HEAL * REVENANT_HEAL_MULTIPLIER} HP here.</p>
+        <div className="battle-command-options">
           {revenantItemTargets(battle).map((target) => {
             const command = { type: "item", item: "oranBerry", targetId: target.id } as const;
-            return <Tile key={target.id} icon="items" onClick={() => queue(command)}
-              disabled={!canPlanRevenantCommand(battle, actor.id, command)}>{species[target.species].name}</Tile>;
+            return <BattleTile key={target.id} icon="items" onClick={() => queue(command)}
+              disabled={!canPlanRevenantCommand(battle, actor.id, command)}>{species[target.species].name}</BattleTile>;
           })}
         </div>
-        {battle.oranBerries === 0 && <p className="revenant-hint">Your Bag has no Oran Berries.</p>}
-        {battle.oranBerries > 0 && revenantItemTargets(battle).length === 0 && <p className="revenant-hint">No conscious active Pokémon needs healing.</p>}
-      </> : mode === "switch" && actor ? <div className="revenant-command-options">
+        {battle.oranBerries === 0 && <p className="battle-command-hint">Your Bag has no Oran Berries.</p>}
+        {battle.oranBerries > 0 && revenantItemTargets(battle).length === 0 && <p className="battle-command-hint">No conscious active Pokémon needs healing.</p>}
+      </> : mode === "switch" && actor ? <div className="battle-command-options">
         {reserves.length ? reserves.map((reserve) => {
           const command = { type: "switch", withId: reserve.id } as const;
-          return <Tile key={reserve.id} icon="switch" onClick={() => queue(command)}
-            disabled={!canPlanRevenantCommand(battle, actor.id, command)}>{species[reserve.species].name}</Tile>;
-        }) : <p className="revenant-hint">No healthy reserve Pokémon is available.</p>}
-      </div> : <div className="revenant-inspect">
+          return <BattleTile key={reserve.id} icon="switch" onClick={() => queue(command)}
+            disabled={!canPlanRevenantCommand(battle, actor.id, command)}>{species[reserve.species].name}</BattleTile>;
+        }) : <p className="battle-command-hint">No healthy reserve Pokémon is available.</p>}
+      </div> : <div className="battle-command-inspect">
         <p><strong>{REVENANT_NAME}</strong> · Bug / Grass · {battle.boss.hp}/{battle.boss.maxHp} HP</p>
         <p><strong>{move.name}</strong>{targetNames.length ? ` targets ${targetNames.join(" and ")}.` : " is the next boss move."}</p>
         <p>{battle.frenzy > 0 ? `Frenzy phase ${battle.frenzy} · ` : ""}The spores halve allied healing.</p>
       </div>}
 
-      {activeBattle && replacing === undefined && mode === "command" && selectedPlan && actor && <div className="revenant-order">
+      {activeBattle && replacing === undefined && mode === "command" && selectedPlan && actor && <div className="battle-command-order">
         <span>{actorName} · {selectedPlan}</span>
         <button type="button" onClick={() => onAction({ type: "clear", actorId: actor.id })}>Clear order</button>
       </div>}
-    </section>
+    </BattleCommandBar>
   </main>;
 }

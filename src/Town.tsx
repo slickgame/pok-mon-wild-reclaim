@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronRight, EyeOff } from "lucide-react";
 import { GroveOuting } from "./GroveOuting";
+import type { WorldLocation } from "./gameSave";
 import { RevenantBattleView } from "./RevenantBattleView";
 import { TrainerBattleView } from "./TrainerBattleView";
 import { TownPanel, useTownPlay, type PanelId } from "./townPlay";
@@ -37,12 +38,19 @@ const destinations = {
   hollow: { hash: "#verdant-hollow", title: "Verdant Hollow", heading: "hollow-name" },
   grove: { hash: "#brambleberry-grove", title: "Brambleberry Grove", heading: "grove-name" },
 };
-type WorldLocation = keyof typeof destinations;
-
-function requestedLocation(): WorldLocation {
+function requestedLocation(): WorldLocation | undefined {
   if (window.location.hash === destinations.grove.hash) return "grove";
   if (window.location.hash === destinations.hollow.hash) return "hollow";
-  return "town";
+  if (window.location.hash === "#brookbend") return "town";
+}
+
+function showLocation(location: WorldLocation, replace = false) {
+  const hash = destinations[location].hash;
+  if (window.location.hash === hash) return;
+  const url = new URL(window.location.href);
+  url.hash = hash;
+  if (replace) window.history.replaceState(window.history.state, "", url);
+  else window.history.pushState(window.history.state, "", url);
 }
 
 function Glyph({ name }: { name: GlyphName }) {
@@ -56,52 +64,28 @@ export function Town() {
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [showPlaces, setShowPlaces] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
-  const play = useTownPlay();
+  const play = useTownPlay(requestedLocation());
   const trainerBattle = play.outing.trainerBattle;
   const revenantBattle = play.outing.revenantBattle;
-  const revenantActive = revenantBattle?.outcome === "active";
-  const [location, setLocation] = useState(() => play.canEnterGrove ? (revenantActive ? "grove" : requestedLocation()) : "town");
+  const { location, travel: saveTravel } = play;
   const inGrove = location === "grove";
   const isLocked = (id: PanelId) =>
     id === "workshop" || id === "talent" || (id === "gate" && !play.canEnterGrove);
 
   useEffect(() => {
-    function readLocation() {
-      if (revenantActive && play.canEnterGrove) {
-        const hash = destinations.grove.hash;
-        if (window.location.hash !== hash) {
-          const url = new URL(window.location.href);
-          url.hash = hash;
-          window.history.replaceState(window.history.state, "", url);
-        }
-        setPanel(null);
-        setJournalOpen(false);
-        setLocation("grove");
-        return;
-      }
-      const requested = requestedLocation();
-      if (requested !== "town" && !play.canEnterGrove) {
-        const url = new URL(window.location.href);
-        url.hash = "";
-        window.history.replaceState(window.history.state, "", url);
-        setLocation("town");
-        return;
-      }
-      setLocation(requested);
-    }
-
     function restoreLocation() {
       setPanel(null);
       setJournalOpen(false);
-      readLocation();
+      const destination = saveTravel(requestedLocation() ?? "town");
+      showLocation(destination, true);
     }
 
-    readLocation();
     window.addEventListener("hashchange", restoreLocation);
     return () => window.removeEventListener("hashchange", restoreLocation);
-  }, [play.canEnterGrove, revenantActive]);
+  }, [saveTravel]);
 
   useEffect(() => {
+    showLocation(location, true);
     const { title, heading } = destinations[location];
     document.title = `${title} · Pokémon Wild Reclaim`;
     if (document.activeElement === document.body) {
@@ -110,23 +94,10 @@ export function Town() {
   }, [location]);
 
   function travel(destination: WorldLocation, nextPanel: PanelId | null = null) {
-    if (destination !== "town" && !play.canEnterGrove) return;
-    if (revenantActive && destination !== "grove") return;
-    if (inGrove && destination !== "grove") {
-      if (revenantBattle) play.dispatchOuting({ type: "closeRevenant" });
-      if (play.outing.encounter && play.outing.encounter.outcome !== "active") {
-        play.dispatchOuting({ type: "closeEncounter" });
-      }
-      if (trainerBattle && trainerBattle.outcome !== "active") {
-        play.dispatchOuting({ type: "closeTrainer" });
-      }
-    }
-    const url = new URL(window.location.href);
-    url.hash = destinations[destination].hash;
-    if (url.hash !== window.location.hash) window.history.pushState(window.history.state, "", url);
+    if (saveTravel(destination) !== destination) return;
+    showLocation(destination);
     setPanel(nextPanel);
     setJournalOpen(false);
-    setLocation(destination);
     window.scrollTo(0, 0);
   }
 

@@ -26,6 +26,7 @@ const typeChart: Record<PokemonType, Matchup> = {
 
 export type BattleConditions = { accuracy: number; defense: number; attack?: number; speed?: number; paralyzed?: boolean; seededBy?: number };
 export const emptyConditions: BattleConditions = { accuracy: 0, defense: 0 };
+export const ORAN_BERRY_HEAL = 10;
 
 export type BattleTarget = {
   id: number;
@@ -85,6 +86,16 @@ export function readBattleConditions(value: unknown): BattleConditions {
 
 function battleName(mon: BattleTarget) {
   return mon.name ?? species[mon.species].name;
+}
+
+export function moveTargetsSelf(move: SpeciesMove) {
+  return move.effect === 'withdraw';
+}
+
+export function paralysisStopsMove(actor: BattleTarget, random: () => number, log: string[]) {
+  if (!actor.conditions.paralyzed || random() >= 0.25) return false;
+  log.push(`${battleName(actor)} is paralyzed and couldn’t move.`);
+  return true;
 }
 
 const loweredStats = {

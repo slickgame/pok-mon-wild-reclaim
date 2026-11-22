@@ -1,14 +1,14 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, ArrowLeftRight, ChevronRight, Crosshair, Footprints, HeartPulse, Search, Shield, Sparkles, Swords,
-  type LucideIcon,
+  ArrowLeft, ChevronRight, Footprints, HeartPulse, Search, Swords, type LucideIcon,
 } from "lucide-react";
 import {
-  canBeginRevenant, canBeginTrainer, canExploreGrove, captureChance, getGroveQuestPhase, getLead, levelOf, maxHp, PARTY_LIMIT, species,
-  type GroveDiscovery, type OutingAction, type OutingState, type SpeciesId,
+  canBeginRevenant, canBeginTrainer, canExploreGrove, canUseWildBerry, captureChance, getGroveQuestPhase, getLead, levelOf,
+  maxHp, PARTY_LIMIT, species, type Encounter, type GroveDiscovery, type OutingAction, type OutingState, type SpeciesId,
 } from "./outing";
-import { typeMultiplier, type BattleConditions } from "./battleRules";
-import { moveDescription, type SpeciesMove } from "./pokemonData";
+import { ORAN_BERRY_HEAL, typeMultiplier, type BattleConditions } from "./battleRules";
+import { battleMoves, moveDescription, type Companion } from "./pokemonData";
+import { BattleCommandBar, BattleCommands, BattleMoves, BattleTile, type BattleMode } from "./BattleCommandBar";
 import { PokemonSprite } from "./PokemonSprite";
 import { GroveFieldJournal } from "./GroveFieldJournal";
 import { GroveSidebar } from "./GroveSidebar";
@@ -101,8 +101,11 @@ function Combatant({ speciesId, hp, maximum, level, conditions, wild = false }: 
   const { name, kind } = species[speciesId];
   const effects = [
     conditions?.seededBy !== undefined ? "Seeded" : null,
+    conditions?.paralyzed ? "Paralyzed" : null,
     conditions?.accuracy ? `Accuracy ${conditions.accuracy}` : null,
-    conditions?.defense ? `Defense +${conditions.defense}` : null,
+    conditions?.defense ? `Defense ${conditions.defense > 0 ? "+" : ""}${conditions.defense}` : null,
+    conditions?.attack ? `Attack ${conditions.attack}` : null,
+    conditions?.speed ? `Speed ${conditions.speed}` : null,
   ].filter(Boolean);
   return <div className={`grove-combatant${wild ? " grove-combatant--wild" : ""}`}>
     <PokemonSprite className="grove-portrait" speciesId={speciesId} />
@@ -138,19 +141,118 @@ function GroveButton({ icon: Icon, label, detail, onClick, disabled, primary = f
   </button>;
 }
 
-function attackDetail(move: SpeciesMove, target: SpeciesId, guards = false) {
-  const multiplier = typeMultiplier(move.type, species[target].types);
-  const matchup = multiplier === 0 ? "Immune" : multiplier === 1 ? "" : `${multiplier}× matchup`;
-  return [move.type, `Power ${move.power}`, matchup, guards && "Halves retaliation"].filter(Boolean).join(" · ");
+function GroveAtlas({ children }: { children?: ReactNode }) {
+  return <div className="atlas grove-atlas">
+    <div className="map-frame">
+      <img className="town-art" src="/art/brambleberry-grove.webp"
+        alt="Berry bushes and pines line a creek and woodland trail." width="1672" height="941" fetchPriority="high" />
+    </div>
+    {children}
+  </div>;
+}
+
+function WildBattleView({ battle, lead, outing, onAction, toolbar }: {
+  battle: Encounter;
+  lead: Companion;
+  outing: OutingState;
+  onAction: (action: OutingAction) => void;
+  toolbar?: ReactNode;
+}) {
+  const [menu, setMenu] = useState<BattleMode>("command");
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const commandRef = useRef<HTMLDivElement>(null);
+  const needsReplacement = lead.hp === 0;
+  const mode = needsReplacement ? "switch" : menu;
+  const reserves = outing.party.filter((member) => member.id !== lead.id && member.hp > 0);
+  const actor = species[lead.species];
+  const opponent = species[battle.species];
+  const canThrow = outing.pokeBalls > 0 && outing.party.length < PARTY_LIMIT;
+  const berryReason = !outing.fieldSupplies ? "No Oran Berries left" : "HP is already full";
+  const throwReason = outing.party.length >= PARTY_LIMIT ? "Party is full" : "No Pokéballs left";
+  const headings: Record<BattleMode, string> = {
+    command: "Choose a command",
+    fight: `Fight · ${actor.name}`,
+    items: "Items",
+    switch: needsReplacement ? "Choose a healthy Pokémon" : "Switch Pokémon",
+    inspect: "Inspect",
+  };
+
+  useEffect(() => {
+    if (mode === "switch" && needsReplacement) {
+      const first = commandRef.current?.querySelector<HTMLButtonElement>(".battle-command-tile:not(:disabled)");
+      if (first) return first.focus({ preventScroll: true });
+    }
+    headingRef.current?.focus({ preventScroll: true });
+  }, [mode, needsReplacement]);
+
+  function choose(action: OutingAction) {
+    setMenu("command");
+    onAction(action);
+  }
+
+  return <main className="town grove-outing grove-outing--battle" aria-label="Wild encounter">
+    <GroveAtlas>
+      <header className="grove-wild-heading">
+        <h1 id="grove-name">Wild encounter</h1>
+        <p>Brambleberry Grove</p>
+      </header>
+      {toolbar}
+      <details className="grove-wild-log">
+        <summary>Battle log</summary>
+        <ol>{battle.log.map((line, index) => <li key={`${index}-${line}`}>{line}</li>)}</ol>
+      </details>
+      <section className="grove-combatants" aria-label="Pokémon in battle">
+        <Combatant speciesId={lead.species} hp={lead.hp} maximum={maxHp(lead)} level={levelOf(lead)} conditions={battle.conditions?.player[lead.id]} />
+        <Combatant speciesId={battle.species} hp={battle.hp} maximum={opponent.baseHp} level={1} conditions={battle.conditions?.wild} wild />
+      </section>
+    </GroveAtlas>
+    <div className="grove-wild-controls" ref={commandRef}>
+      <BattleCommandBar heading={headings[mode]} headingRef={headingRef}
+        onBack={mode !== "command" && !needsReplacement ? () => setMenu("command") : undefined}>
+        {mode === "command" && <BattleCommands onChoose={setMenu} />}
+        {mode === "fight" && <BattleMoves moves={battleMoves(lead.species)} onChoose={(move) => choose({ type: "move", move })}
+          describe={(move) => {
+            if (!move.power) return moveDescription(move);
+            const matchup = typeMultiplier(move.type, opponent.types);
+            return `${moveDescription(move)} · ${matchup === 0 ? "Immune" : `${matchup}× matchup`}`;
+          }} />}
+        {mode === "items" && <div className="battle-command-options">
+          <BattleTile icon="items" label="Throw Pokéball" disabled={!canThrow} title={canThrow ? undefined : throwReason}
+            onClick={() => choose({ type: "capture" })}>
+            Throw Pokéball <small>{canThrow ? `${outing.pokeBalls} left · ${Math.round(captureChance(battle) * 100)}% capture chance` : throwReason}</small>
+          </BattleTile>
+          <BattleTile icon="items" label="Use Oran Berry" disabled={!canUseWildBerry(outing)}
+            title={canUseWildBerry(outing) ? undefined : berryReason} onClick={() => choose({ type: "useWildBerry" })}>
+            Use Oran Berry <small>{canUseWildBerry(outing) ? `${outing.fieldSupplies} left · Restores up to ${ORAN_BERRY_HEAL} HP` : berryReason}</small>
+          </BattleTile>
+        </div>}
+        {mode === "switch" && (reserves.length ? <div className="battle-command-options" aria-label="Choose a healthy Pokémon">
+          {reserves.map((member) => <BattleTile key={member.id} icon="switch"
+            label={`${needsReplacement ? "Send out" : "Switch to"} ${species[member.species].name}`}
+            onClick={() => choose({ type: "selectLead", id: member.id })}>
+            {species[member.species].name} <small>{member.hp}/{maxHp(member)} HP</small>
+          </BattleTile>)}
+        </div> : <p className="battle-command-hint">No healthy reserves.</p>)}
+        {mode === "inspect" && <div className="battle-command-inspect grove-wild-inspect">
+          <p><strong>{opponent.name}</strong> · Lv. 1 · {opponent.kind}</p>
+          <p>{battle.hp}/{opponent.baseHp} HP · {opponent.moves.strike.name}</p>
+        </div>}
+      </BattleCommandBar>
+      <div className="grove-wild-footer">
+        <p role="status" aria-live="polite">{battle.log.at(-1)}</p>
+        {!needsReplacement && <button type="button" className="grove-wild-run"
+          onClick={() => onAction({ type: "flee" })}><Footprints aria-hidden="true" /> Leave encounter</button>}
+      </div>
+    </div>
+  </main>;
 }
 
 export function GroveOuting({
   outing, onAction, onReturn, onVisitClinic, onSpeakToLina, onOpenZonePanel, journalOpen, onCloseJournal, toolbar,
 }: GroveOutingProps) {
-  const { encounter, pokeBalls, party, groveDiscovery } = outing;
+  const { encounter, groveDiscovery } = outing;
   const lead = getLead(outing);
   const battle = encounter?.outcome === "active" ? encounter : null;
-  const [switching, setSwitching] = useState(false);
   const resultOutcome = encounter && encounter.outcome !== "active" ? encounter.outcome : null;
   const result = resultOutcome ? encounter : null;
   const panel = useRef<HTMLElement>(null);
@@ -168,15 +270,6 @@ export function GroveOuting({
   }, [phase]);
 
   const leadReady = lead !== undefined && lead.hp > 0;
-  const moves = lead && species[lead.species].moves;
-  const reserves = party.filter((member) => member.id !== lead?.id && member.hp > 0);
-  const choosingSwitch = !!battle && (switching || !leadReady);
-  const partyFull = party.length >= PARTY_LIMIT;
-  const outOfPokeBalls = pokeBalls === 0;
-
-  useEffect(() => {
-    if (choosingSwitch) panel.current?.querySelector<HTMLButtonElement>("[aria-label='Choose a healthy Pokémon'] button")?.focus();
-  }, [choosingSwitch]);
 
   if (showJournal) {
     const search = leadReady
@@ -195,25 +288,12 @@ export function GroveOuting({
       onClose={onCloseJournal} panelRef={panel} />;
   }
 
+  if (battle && lead) return <WildBattleView battle={battle} lead={lead} outing={outing} onAction={onAction} toolbar={toolbar} />;
+
   const isField = phase === "field";
   return <main className={`town grove-outing grove-outing--${phase}`} aria-label="Brambleberry Grove"
     ref={isField ? panel : undefined}>
-    <div className="atlas grove-atlas">
-      <div className="map-frame">
-        <img
-          className="town-art"
-          src="/art/brambleberry-grove.webp"
-          alt="Berry bushes and pines line a creek and woodland trail."
-          width="1672"
-          height="941"
-          fetchPriority="high"
-        />
-      </div>
-      {battle && lead && <section className="grove-combatants" aria-label="Pokémon in battle">
-        <Combatant speciesId={lead.species} hp={lead.hp} maximum={maxHp(lead)} level={levelOf(lead)} conditions={battle.conditions?.player[lead.id]} />
-        <Combatant speciesId={battle.species} hp={battle.hp} maximum={species[battle.species].baseHp} level={1} conditions={battle.conditions?.wild} wild />
-      </section>}
-    </div>
+    <GroveAtlas />
 
     {isField ? <GroveSidebar canExplore={canExploreGrove(outing)}
       onExplore={() => onAction({ type: "exploreGrove" })} onOpenPanel={onOpenZonePanel}
@@ -226,36 +306,7 @@ export function GroveOuting({
         <img className="town-divider" src="/art/ui/divider.png" alt="" />
       </header>
 
-      {battle && moves ? <>
-        <div className="grove-phase">
-          <h2 tabIndex={-1} data-phase-heading aria-describedby={logId}>Wild encounter</h2>
-          <div className="grove-battle-log" id={logId} role="status" aria-atomic="true">
-            {battle.log.slice(-3).map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}
-          </div>
-        </div>
-        {choosingSwitch ? <div className="grove-actions" role="group" aria-label="Choose a healthy Pokémon">
-          {reserves.map((member) => <GroveButton key={member.id} icon={ArrowLeftRight}
-            label={`${leadReady ? "Switch to" : "Send out"} ${species[member.species].name}`}
-            detail={`${member.hp}/${maxHp(member)} HP`} onClick={() => {
-              setSwitching(false);
-              onAction({ type: "selectLead", id: member.id });
-            }} />)}
-          {leadReady && <GroveButton icon={ArrowLeft} label="Back to actions" onClick={() => setSwitching(false)} />}
-        </div> : <div className="grove-actions">
-          <GroveButton icon={Swords} label={moves.strike.name}
-            detail={attackDetail(moves.strike, battle.species)} onClick={() => onAction({ type: "move", move: "strike" })} primary />
-          <GroveButton icon={Shield} label={moves.guard.name}
-            detail={attackDetail(moves.guard, battle.species, true)} onClick={() => onAction({ type: "move", move: "guard" })} />
-          {moves.signature && <GroveButton icon={Sparkles} label={moves.signature.name}
-            detail={moveDescription(moves.signature)} onClick={() => onAction({ type: "move", move: "signature" })} />}
-          <GroveButton icon={Crosshair} label="Throw Pokéball" disabled={partyFull || outOfPokeBalls}
-            detail={partyFull ? "Party is full" : outOfPokeBalls ? "No Pokéballs left" : `${pokeBalls} left · ${Math.round(captureChance(battle) * 100)}% capture chance`}
-            onClick={() => onAction({ type: "capture" })} />
-          {reserves.length > 0 && <GroveButton icon={ArrowLeftRight} label="Switch Pokémon"
-            onClick={() => setSwitching(true)} />}
-          <GroveButton icon={Footprints} label="Leave encounter" onClick={() => onAction({ type: "flee" })} />
-        </div>}
-      </> : result && resultOutcome ? <>
+      {result && resultOutcome ? <>
         <div className="grove-phase">
           <h2 tabIndex={-1} data-phase-heading aria-describedby={logId}>{resultTitles[resultOutcome]}</h2>
           <div className="grove-battle-log" id={logId}>

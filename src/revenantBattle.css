@@ -63,8 +63,7 @@
   filter: drop-shadow(0 2px 3px #1e1211af);
 }
 
-.revenant-header h1:focus,
-.revenant-command-heading h2:focus { outline: none; }
+.revenant-header h1:focus { outline: none; }
 
 .revenant-round,
 .revenant-log {
@@ -177,7 +176,7 @@
   filter: drop-shadow(0 2px 3px #2a1527a0);
 }
 
-.revenant-intent .revenant-control-icon { width: 1.2em; height: 1.2em; }
+.revenant-intent .battle-command-icon { width: 1.2em; height: 1.2em; }
 
 .revenant-boss-field {
   z-index: 1;
@@ -338,125 +337,6 @@
   text-align: center;
 }
 
-.revenant-command-bar {
-  position: relative;
-  display: grid;
-  flex: 0 0 auto;
-  align-content: center;
-  gap: clamp(.24rem, .45cqw, .7rem);
-  min-height: max(7.1rem, 14svh);
-  padding: clamp(.58rem, 1cqw, 1.35rem) clamp(1.12rem, 6.15cqw, 8rem);
-  border-radius: .8rem;
-  background: #132d2160 url('/art/strange-spores/command-bar.webp') center / 100% 100% no-repeat;
-  filter: drop-shadow(0 -2px 5px #160e1694);
-}
-
-.revenant-command-heading {
-  display: grid;
-  grid-template-columns: minmax(5rem, 1fr) minmax(0, auto) minmax(5rem, 1fr);
-  align-items: center;
-  gap: .7rem;
-  min-height: 2.2rem;
-}
-
-.revenant-command-heading h2 {
-  grid-column: 2;
-  grid-row: 1;
-  margin: 0;
-  text-align: center;
-  font-size: clamp(1.15rem, 2.05cqw, 2.2rem);
-  font-weight: 700;
-  line-height: 1.12;
-  letter-spacing: -.025em;
-  text-shadow: 0 2px 3px #05150c;
-}
-
-.revenant-round-progress {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: end;
-  white-space: nowrap;
-  color: #eddbad;
-  font-size: clamp(.75rem, 1.1cqw, 1.1rem);
-  font-variant-numeric: tabular-nums;
-}
-
-.revenant-command-options {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(.3rem, .76cqw, .9rem);
-}
-
-.revenant-command-options--main { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.08fr); }
-.revenant-command-options--result { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
-.revenant-command-options--result p { margin: 0; }
-
-.revenant-tile,
-.revenant-resolve,
-.revenant-back {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .51em;
-  min-width: 0;
-  min-height: max(48px, 4.13cqw);
-  padding: .52em .68em;
-  border: 0;
-  border-radius: .55em;
-  background: url('/art/strange-spores/tile.webp') center / 100% 100% no-repeat;
-  color: #202414;
-  font-size: clamp(.88rem, 1.79cqw, 1.83rem);
-  text-align: center;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -.028em;
-  filter: drop-shadow(0 3px 3px #0b100bb4);
-}
-
-.revenant-control-icon,
-.revenant-resolve svg,
-.revenant-back svg { flex: 0 0 auto; width: 1.4em; height: 1.4em; object-fit: contain; }
-
-.revenant-tile:hover:not(:disabled),
-.revenant-resolve:hover:not(:disabled),
-.revenant-back:hover { filter: brightness(1.13) drop-shadow(0 3px 3px #0b100bb4); }
-
-.revenant-tile:disabled,
-.revenant-resolve:disabled { filter: grayscale(.22) brightness(.82); cursor: default; }
-
-.revenant-resolve {
-  padding-inline: .83em;
-  white-space: nowrap;
-  background-image: url('/art/strange-spores/resolve-tile.webp');
-  color: var(--spore-cream);
-  text-shadow: 0 2px 2px #0a2115;
-}
-
-.revenant-back {
-  grid-column: 1;
-  grid-row: 1;
-  justify-self: start;
-  min-height: 44px;
-  padding: .32em .8em;
-  font-size: clamp(.88rem, 1.22cqw, 1.25rem);
-}
-
-.revenant-back svg { width: 1.05em; height: 1.05em; }
-
-.revenant-order,
-.revenant-hint,
-.revenant-inspect {
-  margin: 0;
-  color: #f0e1b8;
-  font-size: clamp(.8rem, 1.1cqw, 1.06rem);
-  line-height: 1.2;
-}
-
-.revenant-hint { grid-column: 1 / -1; text-align: center; }
-.revenant-inspect p { margin: 0 0 .2rem; }
-.revenant-order { display: flex; justify-content: center; align-items: center; gap: .5em; }
-.revenant-order button { padding: .3em; border: 0; background: none; text-decoration: underline; }
-
 @media (max-height: 670px) and (orientation: landscape) {
   .revenant-stage { min-height: max(17.2rem, 70svh); }
   .revenant-header h1 { font-size: min(3cqw, 6.3svh); }
@@ -464,10 +344,6 @@
   .revenant-boss-plaque { font-size: min(1.45cqw, 3.1svh); }
   .revenant-intent { font-size: min(1.54cqw, 3.65svh); }
   .revenant-lineup { bottom: 8%; }
-  .revenant-command-bar { min-height: 0; padding-block: .33rem .47rem; gap: .12rem; }
-  .revenant-command-heading { min-height: 1.65rem; }
-  .revenant-tile, .revenant-resolve { min-height: max(38px, 3.75cqw); }
-  .revenant-back { min-height: 35px; }
 }
 
 @media (max-width: 740px) and (orientation: portrait) {
@@ -487,13 +363,4 @@
   .revenant-ally-plaque { width: 97%; gap: .14em; font-size: clamp(.73rem, 3.52cqw, 1.24rem); padding-inline: 8%; }
   .revenant-ally .revenant-health { font-size: .77em; }
   .revenant-ally-ring { inset-inline: -12%; }
-  .revenant-command-bar { min-height: 0; padding: .46rem .6rem .63rem; }
-  .revenant-command-heading { grid-template-columns: minmax(3rem, 1fr) minmax(0, auto) minmax(3rem, 1fr); gap: .28rem; }
-  .revenant-command-heading h2 { font-size: clamp(.96rem, 4.12cqw, 1.32rem); }
-  .revenant-command-options, .revenant-command-options--main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .revenant-command-options--main .revenant-resolve { grid-column: 1 / -1; }
-  .revenant-command-options--result { display: grid; grid-template-columns: 1fr; }
-  .revenant-tile, .revenant-resolve { min-height: 44px; font-size: clamp(.87rem, 3.8cqw, 1.16rem); }
-  .revenant-back { min-height: 36px; padding-inline: .35em; }
-  .revenant-back svg { display: none; }
 }

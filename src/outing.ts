@@ -1,10 +1,10 @@
 import {
-  drainSeed, emptyConditions, readBattleConditions, resolveBattleMove,
+  drainSeed, emptyConditions, ORAN_BERRY_HEAL, paralysisStopsMove, readBattleConditions, resolveBattleMove,
   type BattleConditions, type BattleTarget,
 } from './battleRules';
 import {
-  gainXp, getMove, isSpeciesId, levelOf, MAX_XP, maxHp, species, starterIds, wildIds,
-  type Companion, type MoveId, type SpeciesId,
+  battleMoves, gainXp, getMove, isSpeciesId, levelOf, MAX_XP, maxHp, species, starterIds, wildIds,
+  type BattleMoveSlot, type Companion, type MoveId, type SpeciesId,
 } from './pokemonData';
 import {
   loadTrainerBattle, startTrainerBattle, trainerParty, updateTrainerBattle,
@@ -79,7 +79,8 @@ export type OutingAction =
   | { type: 'restAtCamp' }
   | { type: 'clearGroveOvergrowth' }
   | { type: 'reportGroveToLina' }
-  | { type: 'move'; move: MoveId }
+  | { type: 'move'; move: MoveId | BattleMoveSlot }
+  | { type: 'useWildBerry' }
   | { type: 'capture' }
   | { type: 'flee' }
   | { type: 'closeEncounter' }
@@ -127,6 +128,12 @@ export function getLead(state: OutingState) {
 export function captureChance(encounter: Encounter) {
   const damageRatio = 1 - encounter.hp / species[encounter.species].baseHp;
   return Math.min(0.92, 0.24 + damageRatio * 0.68);
+}
+
+export function canUseWildBerry(state: OutingState) {
+  const lead = getLead(state);
+  return state.encounter?.outcome === 'active' && state.fieldSupplies > 0 &&
+    !!lead && lead.hp > 0 && lead.hp < maxHp(lead);
 }
 
 export function clinicAvailable(state: OutingState) {
@@ -253,7 +260,7 @@ function resolveWildTurn(
   roll: number,
   guarded = false,
 ) {
-  if (wild.hp > 0 && player.hp > 0) {
+  if (wild.hp > 0 && player.hp > 0 && !paralysisStopsMove(wild, () => (roll + 0.61803398875) % 1, log)) {
     const retaliation = resolveBattleMove(wild, player, species[wild.species].moves.strike, roll, guarded);
     player = retaliation.target;
     wild = retaliation.actor;
@@ -331,7 +338,7 @@ export function updateOuting(state: OutingState, action: OutingAction, roll = 0.
 
   if (action.type === 'startTrainer') {
     if (!canBeginTrainer(state, action.trainerId)) return state;
-    const trainerBattle = startTrainerBattle(action.trainerId, state.party, state.leadId);
+    const trainerBattle = startTrainerBattle(action.trainerId, state.party, state.leadId, state.fieldSupplies);
     return trainerBattle ? { ...state, trainerBattle, groveDiscovery: null } : state;
   }
   if (action.type === 'trainerAction') {
@@ -342,7 +349,7 @@ export function updateOuting(state: OutingState, action: OutingAction, roll = 0.
     const nextLead = party.find((member) => member.id === state.leadId && member.hp > 0)
       ?? party.find((member) => member.hp > 0) ?? party[0];
     return {
-      ...state, trainerBattle, party, leadId: nextLead?.id ?? null,
+      ...state, trainerBattle, party, leadId: nextLead?.id ?? null, fieldSupplies: trainerBattle.oranBerries,
       theoDefeated: state.theoDefeated || (trainerBattle.outcome === 'won' && trainerBattle.trainerId === 'theo'),
       ruskDefeated: state.ruskDefeated || (trainerBattle.outcome === 'won' && trainerBattle.trainerId === 'rusk'),
     };
@@ -429,8 +436,20 @@ export function updateOuting(state: OutingState, action: OutingAction, roll = 0.
     return { ...earned, party: [...earned.party, newPartner] };
   }
 
-  const move = getMove(lead.species, action.move);
+  if (action.type === 'useWildBerry') {
+    if (!canUseWildBerry(state)) return state;
+    const healed = Math.min(ORAN_BERRY_HEAL, player.maxHp - player.hp);
+    const usedBerry = { ...state, fieldSupplies: state.fieldSupplies - 1 };
+    const message = `${species[lead.species].name} recovered ${healed} HP with an Oran Berry.`;
+    return resolveWildTurn(usedBerry, lead, encounter, { ...player, hp: player.hp + healed }, wild, [message], retaliationRoll);
+  }
+
+  const move = typeof action.move === 'number' ? battleMoves(lead.species)[action.move] : getMove(lead.species, action.move);
   if (!move) return state;
+  const log: string[] = [];
+  if (paralysisStopsMove(player, () => (random + 0.61803398875) % 1, log)) {
+    return resolveWildTurn(state, lead, encounter, player, wild, log, retaliationRoll);
+  }
   const result = resolveBattleMove(player, wild, move, random);
   return resolveWildTurn(
     state, lead, encounter, result.actor, result.target, result.log, retaliationRoll, action.move === 'guard',
@@ -554,7 +573,8 @@ export function loadOuting(value: string | null): OutingState {
     if (!party.length) return initialOuting;
     const savedLead = party.find(({ id }) => id === parsed.leadId) ?? party.find(({ hp }) => hp > 0) ?? party[0];
     const encounter = readEncounter(parsed.encounter, savedLead, party);
-    const candidate = encounter ? null : loadTrainerBattle(parsed.trainerBattle);
+    const savedFieldSupplies = integer(parsed.fieldSupplies, 0, 0, GROVE_BERRY_LIMIT);
+    const candidate = encounter ? null : loadTrainerBattle(parsed.trainerBattle, savedFieldSupplies);
     const savedTrainerParty = candidate && trainerParty(candidate);
     const trainerBattle = candidate && savedTrainerParty && savedTrainerParty.length === party.length &&
       party.every((member) => savedTrainerParty.some(({ id, species }) => id === member.id && species === member.species))
@@ -570,7 +590,7 @@ export function loadOuting(value: string | null): OutingState {
       (savedRevenant.outcome === 'won' || record(parsed.sporesQuest)?.defeated !== true)
       ? savedRevenant : null;
     const sporesQuest = groveQuest.reported ? readSporesQuest(parsed.sporesQuest, revenantBattle) : undiscoveredSpores;
-    const fieldSupplies = revenantBattle?.oranBerries ?? integer(parsed.fieldSupplies, 0, 0, GROVE_BERRY_LIMIT);
+    const fieldSupplies = revenantBattle?.oranBerries ?? trainerBattle?.oranBerries ?? savedFieldSupplies;
     const groveDiscovery = groveQuest.explored && !encounter && !trainerBattle && !revenantBattle
       ? readGroveDiscovery(parsed.groveDiscovery, fieldSupplies, theoDefeated, sporesQuest) : null;
     const currentParty = revenantBattle && savedRevenantParty ? savedRevenantParty : trainerBattle && savedTrainerParty ? savedTrainerParty : party;

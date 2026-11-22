@@ -1,15 +1,16 @@
 import {
-  battleSpeed, drainSeed, emptyConditions, readBattleConditions, resolveBattleMove, type BattleTarget,
+  battleSpeed, drainSeed, emptyConditions, moveTargetsSelf, ORAN_BERRY_HEAL, paralysisStopsMove, readBattleConditions,
+  resolveBattleMove, type BattleTarget,
 } from './battleRules';
 import {
-  gainXp, isSpeciesId, levelOf, MAX_XP, maxHp, revenantMoves, species, type Companion, type SpeciesMove,
+  gainXp, isSpeciesId, levelOf, MAX_XP, maxHp, revenantMoves, species, type BattleMoveSlot, type Companion, type SpeciesMove,
 } from './pokemonData';
 import type { BattleMon, TrainerSide } from './trainerBattle';
 
 export { revenantMoves } from './pokemonData';
+export { ORAN_BERRY_HEAL } from './battleRules';
 export const REVENANT_NAME = 'Revenant-tainted Paras';
 export const REVENANT_HEAL_MULTIPLIER = 0.5;
-export const ORAN_BERRY_HEAL = 10;
 
 export const revenantBossMoves = {
   scratch: { name: 'Scratch', type: 'Normal', category: 'physical', power: 6, accuracy: 1, priority: 0 },
@@ -20,12 +21,11 @@ export const revenantBossMoves = {
 
 const slots = [0, 1, 2] as const;
 type Slot = typeof slots[number];
-type MoveSlot = Slot | 3;
 type BossMove = keyof typeof revenantBossMoves;
 type Frenzy = 0 | 1 | 2;
 export type RevenantIntent = { move: BossMove; targetSlots: Slot[] };
 export type RevenantCommand =
-  | { type: 'move'; move: MoveSlot }
+  | { type: 'move'; move: BattleMoveSlot }
   | { type: 'switch'; withId: number }
   | { type: 'item'; item: 'oranBerry'; targetId: number };
 export type RevenantAction =
@@ -153,12 +153,6 @@ function fillSlot(battle: RevenantBattleState, slot: Slot, member: BattleMon) {
   if (!battle.participants.includes(member.id)) battle.participants.push(member.id);
 }
 
-function fullyParalyzed(actor: BattleTarget, random: () => number, log: string[]) {
-  if (!actor.conditions.paralyzed || random() >= 0.25) return false;
-  log.push(`${actor.name ?? species[actor.species].name} is paralyzed and couldn’t move.`);
-  return true;
-}
-
 function resolveAlly(battle: RevenantBattleState, actor: BattleMon, command: RevenantCommand, random: () => number) {
   if (command.type === 'switch') {
     const slot = slots.find(position => battle.player.active[position] === actor.id);
@@ -180,9 +174,9 @@ function resolveAlly(battle: RevenantBattleState, actor: BattleMon, command: Rev
     battle.log.push(`${species[target.species].name} recovered ${heal} HP from an Oran Berry.`);
     return;
   }
-  if (fullyParalyzed(actor, random, battle.log)) return;
+  if (paralysisStopsMove(actor, random, battle.log)) return;
   const move = revenantMoves(actor.species)[command.move];
-  const self = move.effect === 'withdraw';
+  const self = moveTargetsSelf(move);
   const result = resolveBattleMove(actor, self ? actor : battle.boss, move, random(), false, REVENANT_HEAL_MULTIPLIER);
   updateAlly(battle, result.actor);
   if (!self) battle.boss = result.target;
@@ -190,7 +184,7 @@ function resolveAlly(battle: RevenantBattleState, actor: BattleMon, command: Rev
 }
 
 function resolveBoss(battle: RevenantBattleState, random: () => number) {
-  if (fullyParalyzed(battle.boss, random, battle.log)) return;
+  if (paralysisStopsMove(battle.boss, random, battle.log)) return;
   const intent = battle.intent;
   const baseMove = revenantBossMoves[intent.move];
   const attack = intent.move === 'revenantSpore' ? { ...baseMove, power: baseMove.power + 2 * battle.frenzy } : baseMove;

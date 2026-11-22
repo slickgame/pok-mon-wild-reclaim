@@ -194,6 +194,143 @@
   line-height: 1.12;
 }
 
+.grove-outing--battle.town {
+  display: flex;
+  flex-direction: column;
+  gap: .28rem;
+  height: auto;
+  min-height: 100svh;
+  padding: .32rem;
+  background: #13271c;
+  color: #fff0cf;
+}
+
+.grove-outing--battle .grove-atlas {
+  position: relative;
+  flex: 1 0 auto;
+  width: 100%;
+  height: auto;
+  min-height: clamp(19rem, 62svh, 78rem);
+  aspect-ratio: auto;
+  border: 1px solid #cba25f;
+  border-radius: 1rem;
+  background: #2b382c;
+}
+
+.grove-outing--battle .map-frame {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.grove-wild-heading {
+  position: absolute;
+  inset: .38rem auto auto 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.grove-wild-heading h1 {
+  margin: 0;
+  padding: .27em 1.58em;
+  background: url('/art/strange-spores/title-plaque.webp') center / 100% 100% no-repeat;
+  color: #22311c;
+  font-size: clamp(1.25rem, 2.55cqw, 2.8rem);
+  line-height: 1.14;
+  white-space: nowrap;
+  filter: drop-shadow(0 2px 3px #16190db3);
+}
+
+.grove-wild-heading > p {
+  width: fit-content;
+  margin: .2rem auto 0;
+  padding: .19em .64em;
+  border: 1px solid #bfa269;
+  border-radius: .42em;
+  background: #162b20eb;
+  font-size: clamp(.72rem, 1.13cqw, .98rem);
+  white-space: nowrap;
+}
+
+.grove-outing--battle .tool-bar {
+  inset: .5rem .55rem auto auto;
+  width: min(32cqw, 29rem);
+}
+
+.grove-outing--battle .tool-button { font-size: clamp(.92rem, 1.36cqw, 1.5rem); }
+.grove-outing--battle .tool-button .glyph { width: clamp(1rem, 1.62cqw, 1.65rem); height: clamp(1rem, 1.62cqw, 1.65rem); }
+
+.grove-wild-log {
+  position: absolute;
+  z-index: 3;
+  inset: .65rem auto auto .65rem;
+  max-width: min(25rem, 80%);
+  padding: .34rem .64rem;
+  border: 1px solid #b78d4d;
+  border-radius: .45rem;
+  background: #14291df0;
+  font-size: clamp(.85rem, 1.16cqw, 1.07rem);
+}
+
+.grove-wild-log summary { cursor: pointer; }
+
+.grove-wild-log ol {
+  max-height: min(16rem, 40svh);
+  overflow-y: auto;
+  margin: .32rem 0 .12rem;
+  padding-left: 1.35rem;
+}
+
+.grove-outing--battle .grove-combatants {
+  inset-inline: 13%;
+  inset-block-end: clamp(1rem, 8svh, 6rem);
+  gap: 12%;
+}
+
+.grove-outing--battle .grove-portrait { height: clamp(5.5rem, 23svh, 17rem); }
+
+.grove-wild-controls { flex: 0 0 auto; }
+
+.grove-wild-controls .battle-command-tile small {
+  display: block;
+  margin-top: .23em;
+  font-size: .53em;
+  font-weight: 600;
+}
+
+.grove-wild-inspect { text-align: center; }
+.grove-wild-inspect p { margin: .18em 0; }
+
+.grove-wild-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .65rem;
+  padding: .24rem clamp(.48rem, 3.35cqw, 3rem);
+  color: #f6ecd0;
+  font-size: clamp(.79rem, 1.12cqw, 1.025rem);
+}
+
+.grove-wild-footer p { margin: 0; }
+
+.grove-wild-run {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: .4em;
+  min-height: 2.44rem;
+  padding: .37em .62em;
+  border: 1px solid #af925d;
+  border-radius: .4rem;
+  color: #fff0ca;
+  background: #20382b;
+  font-size: .94em;
+}
+
+.grove-wild-run svg { width: 1em; height: 1em; }
+.grove-wild-run:hover { background: #304c39; }
+
 @media (min-width: 701px), (orientation: landscape) {
   .grove-outing .tool-bar { z-index: 2; }
 }
@@ -202,42 +339,36 @@
   .grove-outing { --grove-width: clamp(17.25rem, 34cqw, 26rem); }
   .grove-outing .grove-panel { gap: .42rem; padding: .57rem .68rem; }
   .grove-heading .town-divider { margin-top: .2rem; }
-  .grove-outing--battle .grove-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grove-outing--battle .grove-button { grid-template-columns: .86rem minmax(0, 1fr); gap: .34rem; padding: .33rem .4rem; }
-  .grove-outing--battle .grove-button svg { width: .86rem; height: .86rem; }
-  .grove-outing--battle .grove-button-arrow { display: none; }
+  .grove-outing--battle .grove-atlas { min-height: max(13rem, 52svh); }
+  .grove-outing--battle .grove-combatants { inset-block-end: .65rem; }
+  .grove-outing--battle .grove-portrait { height: 5.25rem; }
 }
 
-@media (max-height: 380px) and (orientation: landscape) {
-  .grove-outing--battle { --grove-width: clamp(17.25rem, 49cqw, 26rem); }
-  .grove-outing--battle .grove-panel { gap: .28rem; }
-  .grove-outing--battle .grove-heading > p,
-  .grove-outing--battle .grove-heading .town-divider { display: none; }
-  .grove-outing--battle .grove-heading h1 { font-size: 1.3rem; }
-  .grove-outing--battle .grove-battle-log { padding: .28rem .46rem; }
-  .grove-outing--battle .grove-battle-log p { font-size: .79rem; }
-  .grove-outing--battle .grove-actions { gap: .3rem; }
-  .grove-outing--battle .grove-button { padding-block: .25rem; font-size: .84rem; }
+@media (max-width: 950px) and (orientation: landscape) {
+  .grove-outing--battle .tool-bar { top: 3.2rem; width: min(18rem, 43cqw); }
+  .grove-outing--battle .tool-button { font-size: .92rem; }
 }
 
 @media (max-width: 700px) and (orientation: portrait) {
   .grove-outing { grid-template-rows: auto auto minmax(0, 1fr); }
   .grove-outing .grove-panel { width: auto; padding: .7rem .75rem; }
   .grove-outing .grove-heading h1 { font-size: clamp(1.45rem, 6cqw, 2rem); }
-  .grove-outing--battle .grove-atlas { height: clamp(8.75rem, 30svh, 17rem); aspect-ratio: auto; }
-  .grove-outing--battle .map-frame { width: max(100%, calc(clamp(8.75rem, 30svh, 17rem) * 1672 / 941)); }
-  .grove-combatants { inset-inline: 8px; inset-block-end: 6px; gap: 7px; }
-  .grove-portrait { height: clamp(4.25rem, 17svh, 9.5rem); }
-  .grove-outing--battle .grove-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grove-outing--battle .grove-button { grid-template-columns: .83rem minmax(0, 1fr); gap: .34rem; padding: .34rem .42rem; }
-  .grove-outing--battle .grove-button svg { width: .83rem; height: .83rem; }
-  .grove-outing--battle .grove-button-arrow { display: none; }
-  .grove-outing--battle .grove-button small { font-size: max(.68rem, 3cqw); }
+  .grove-outing--battle .grove-atlas { min-height: clamp(18rem, 49svh, 35rem); }
+  .grove-outing--battle .tool-bar {
+    position: absolute;
+    inset: 4.05rem .38rem auto;
+    width: auto;
+    min-height: 2.65rem;
+    margin: 0;
+  }
+  .grove-outing--battle .tool-button { min-height: 2.15rem; }
+  .grove-wild-log { inset-block-start: 7rem; }
+  .grove-outing--battle .grove-combatants { inset-inline: .55rem; inset-block-end: .65rem; gap: .44rem; }
+  .grove-outing--battle .grove-portrait { height: clamp(4.65rem, 15svh, 8.5rem); }
+  .grove-wild-controls .battle-command-tile small { font-size: .68em; }
 }
 
 @media (max-width: 380px) and (max-height: 650px) and (orientation: portrait) {
   .grove-outing .grove-panel { gap: .43rem; }
-  .grove-outing--battle .grove-atlas { height: 8.65rem; }
-  .grove-outing--battle .map-frame { width: 100%; }
-  .grove-portrait { height: 4.7rem; }
+  .grove-outing--battle .grove-portrait { height: 4.7rem; }
 }

@@ -11,3 +11,5 @@ For an in-game update, capture a Before screenshot from the existing build befor
 ## After every in-game update
 
 Embed labeled Before and After screenshots from the actual game directly in chat so both images are visible without opening a link. Include the verified Vercel preview link for the build shown in the After screenshot. If publishing the preview is blocked, state the blocker and provide the available playtest so the user can still try the update.
+
+Use the same protected Wild Reclaim preview hostname for each build so browser saves remain available. Move the existing preview alias to the verified deployment and make that alias the primary playtest link.

@@ -1,10 +1,11 @@
 import {
-  damagePreview, drainSeed, emptyConditions, readBattleConditions, resolveBattleMove,
+  battleSpeed, damagePreview, drainSeed, emptyConditions, moveTargetsSelf, ORAN_BERRY_HEAL, paralysisStopsMove,
+  readBattleConditions, resolveBattleMove,
   type BattleTarget,
 } from './battleRules';
 import {
-  gainXp, getMove, isSpeciesId, levelOf, maxHp, MAX_XP, species,
-  type Companion, type MoveId, type SpeciesId,
+  battleMoves, battleMoveSlots, gainXp, getMove, isSpeciesId, levelOf, maxHp, MAX_XP, species,
+  type BattleMoveSlot, type Companion, type MoveId, type SpeciesId,
 } from './pokemonData';
 
 export const battlePositions = ['Front', 'Mid', 'Rear'] as const;
@@ -30,8 +31,9 @@ export const trainerProfiles: Record<TrainerId, TrainerProfile> = {
 export type BattleMon = Companion & BattleTarget;
 export type TrainerSide = { team: BattleMon[]; active: Lineup };
 export type TrainerCommand =
-  | { type: 'move'; move: MoveId; targetId: number | null }
-  | { type: 'switch'; withId: number };
+  | { type: 'move'; move: BattleMoveSlot; targetId: number | null }
+  | { type: 'switch'; withId: number }
+  | { type: 'item'; item: 'oranBerry'; targetId: number };
 export type TrainerAction =
   | { type: 'plan'; actorId: number; command: TrainerCommand }
   | { type: 'clear'; actorId: number }
@@ -46,10 +48,12 @@ export type TrainerBattleState = {
   enemy: TrainerSide;
   plans: Partial<Record<number, TrainerCommand>>;
   participants: number[];
+  oranBerries: number;
   log: string[];
 };
 
 const LOG_LIMIT = 48;
+const BERRY_LIMIT = 99;
 
 function activeParty(side: TrainerSide) {
   return side.active.flatMap(id => {
@@ -66,16 +70,20 @@ export function trainerReserves(battle: TrainerBattleState) {
   return reserves(battle.player);
 }
 
+export function trainerItemTargets(battle: TrainerBattleState) {
+  return activeParty(battle.player).filter(mon => mon.hp < mon.maxHp);
+}
+
 export function trainerReplacements(battle: TrainerBattleState): number[] {
   return battle.outcome === 'active' && trainerReserves(battle).length
     ? slots.filter(slot => battle.player.active[slot] === null)
     : [];
 }
 
-export function trainerMoveTargets(battle: TrainerBattleState, actorId: number, moveId: MoveId) {
+export function trainerMoveTargets(battle: TrainerBattleState, actorId: number, moveId: BattleMoveSlot) {
   const actor = activeParty(battle.player).find(mon => mon.id === actorId);
-  const move = actor && getMove(actor.species, moveId);
-  return move && move.effect !== 'withdraw' ? activeParty(battle.enemy).map(mon => mon.id) : [];
+  const move = actor && battleMoves(actor.species)[moveId];
+  return move && !moveTargetsSelf(move) ? activeParty(battle.enemy).map(mon => mon.id) : [];
 }
 
 function playerMon(member: Companion): BattleMon {
@@ -91,7 +99,9 @@ function openingEnemy(trainerId: TrainerId): TrainerSide {
   return { team, active };
 }
 
-export function startTrainerBattle(trainerId: TrainerId, party: Companion[], leadId: number | null): TrainerBattleState | null {
+export function startTrainerBattle(
+  trainerId: TrainerId, party: Companion[], leadId: number | null, oranBerries = 0,
+): TrainerBattleState | null {
   if (trainerId !== 'theo' && trainerId !== 'rusk') return null;
   const ready = party.filter(member => member.hp > 0);
   if (ready.length < 3) return null;
@@ -102,6 +112,7 @@ export function startTrainerBattle(trainerId: TrainerId, party: Companion[], lea
     trainerId, round: 1, outcome: 'active',
     player: { team: party.map(playerMon), active },
     enemy: openingEnemy(trainerId), plans: {}, participants: active.filter(id => id !== null),
+    oranBerries: integer(oranBerries, 0, BERRY_LIMIT) ?? 0,
     log: [`${trainerProfiles[trainerId].name} challenges your team.`],
   };
 }
@@ -110,25 +121,29 @@ export function trainerParty(battle: TrainerBattleState): Companion[] {
   return battle.player.team.map(({ id, species, hp, xp }) => ({ id, species, hp, xp }));
 }
 
-function canPlan(battle: TrainerBattleState, actorId: number, command: TrainerCommand) {
+export function canPlanTrainerCommand(battle: TrainerBattleState, actorId: number, command: TrainerCommand) {
   const actor = activeParty(battle.player).find(mon => mon.id === actorId);
-  if (!actor || trainerReplacements(battle).length) return false;
+  if (battle.outcome !== 'active' || !actor || trainerReplacements(battle).length) return false;
   if (command.type === 'move') {
-    const move = getMove(actor.species, command.move);
+    const move = battleMoves(actor.species)[command.move];
     if (!move) return false;
-    if (move.effect === 'withdraw') return command.targetId === null;
+    if (moveTargetsSelf(move)) return command.targetId === null;
     return command.targetId !== null && trainerMoveTargets(battle, actorId, command.move).includes(command.targetId);
   }
+  const otherPlans = Object.entries(battle.plans).filter(([id]) => Number(id) !== actorId).map(([, plan]) => plan);
+  if (command.type === 'item') {
+    return command.item === 'oranBerry' && trainerItemTargets(battle).some(mon => mon.id === command.targetId) &&
+      otherPlans.filter(plan => plan?.type === 'item').length < battle.oranBerries;
+  }
   return trainerReserves(battle).some(mon => mon.id === command.withId) &&
-    !Object.entries(battle.plans).some(([id, other]) =>
-      Number(id) !== actorId && other?.type === 'switch' && other.withId === command.withId);
+    !otherPlans.some(plan => plan?.type === 'switch' && plan.withId === command.withId);
 }
 
 export function trainerBattleReady(battle: TrainerBattleState) {
   const acting = activeParty(battle.player);
   return battle.outcome === 'active' && acting.length > 0 && activeParty(battle.enemy).length > 0 && acting.every(mon => {
     const plan = battle.plans[mon.id];
-    return plan !== undefined && canPlan(battle, mon.id, plan);
+    return plan !== undefined && canPlanTrainerCommand(battle, mon.id, plan);
   });
 }
 
@@ -150,7 +165,9 @@ function adjustedAttacker(actor: BattleMon) {
   return actor.id < 0 ? { ...actor, level: 1 + Math.floor(actor.level / 3) } : actor;
 }
 
-function enemyPlan(enemy: BattleMon, player: TrainerSide): TrainerCommand {
+type EnemyCommand = { type: 'move'; move: MoveId; targetId: number | null };
+
+function enemyPlan(enemy: BattleMon, player: TrainerSide): EnemyCommand {
   const attacker = adjustedAttacker(enemy);
   const lowHp = enemy.hp <= enemy.maxHp / 3;
   const best = activeParty(player).flatMap(mon => (['strike', 'guard'] as const).map(move => {
@@ -166,12 +183,16 @@ function enemyPlan(enemy: BattleMon, player: TrainerSide): TrainerCommand {
 type Queued = {
   side: SideId;
   actorId: number;
-  command: TrainerCommand;
+  command: TrainerCommand | EnemyCommand;
   targetSlot: number;
   priority: number;
   speed: number;
   tie: number;
 };
+
+function commandMove(actor: BattleMon, move: MoveId | BattleMoveSlot) {
+  return typeof move === 'number' ? battleMoves(actor.species)[move] : getMove(actor.species, move);
+}
 
 function roundQueue(battle: TrainerBattleState, random: () => number) {
   const queue: Queued[] = [];
@@ -179,12 +200,13 @@ function roundQueue(battle: TrainerBattleState, random: () => number) {
     for (const actor of activeParty(battle[side])) {
       const command = side === 'player' ? battle.plans[actor.id] : enemyPlan(actor, battle.player);
       if (!command) continue;
-      const move = command.type === 'move' ? getMove(actor.species, command.move) : undefined;
+      const priority = command.type === 'move' ? commandMove(actor, command.move)?.priority ?? 0
+        : command.type === 'switch' ? 10 : 9;
       const slot = battle[side].active.indexOf(actor.id);
       const targetId = command.type === 'move' ? command.targetId : null;
-      queue.push({ side, actorId: actor.id, command, priority: move?.priority ?? 0,
+      queue.push({ side, actorId: actor.id, command, priority,
         targetSlot: targetId === null ? -1 : battle[sideOpposite(side)].active.indexOf(targetId),
-        speed: species[actor.species].speed + actor.level,
+        speed: battleSpeed(actor),
         tie: random() + (2 - slot) * 0.075,
       });
     }
@@ -217,9 +239,23 @@ function resolveAction(battle: TrainerBattleState, pending: Queued, guarded: Set
     return;
   }
 
-  const move = getMove(actor.species, command.move);
+  if (command.type === 'item') {
+    const target = trainerItemTargets(battle).find(mon => mon.id === command.targetId);
+    if (battle.oranBerries === 0 || !target) {
+      battle.log.push('The Oran Berry was kept for later.');
+      return;
+    }
+    const heal = Math.min(target.maxHp - target.hp, ORAN_BERRY_HEAL);
+    battle.oranBerries -= 1;
+    updateMon(acting, { ...target, hp: target.hp + heal });
+    battle.log.push(`${species[target.species].name} recovered ${heal} HP from an Oran Berry.`);
+    return;
+  }
+
+  if (paralysisStopsMove(actor, random, battle.log)) return;
+  const move = commandMove(actor, command.move);
   if (!move) return;
-  const self = move.effect === 'withdraw';
+  const self = moveTargetsSelf(move);
   const opponents = activeParty(defending);
   const target = self ? actor : opponents.find(mon => mon.id === defending.active[pending.targetSlot]) ?? opponents[0];
   if (!target) return;
@@ -306,7 +342,7 @@ export function updateTrainerBattle(battle: TrainerBattleState, action: TrainerA
   if (battle.outcome !== 'active') return battle;
   switch (action.type) {
     case 'plan':
-      return canPlan(battle, action.actorId, action.command)
+      return canPlanTrainerCommand(battle, action.actorId, action.command)
         ? { ...battle, plans: { ...battle.plans, [action.actorId]: action.command } }
         : battle;
     case 'clear': {
@@ -382,20 +418,28 @@ function readTrainerEnemy(trainerId: TrainerId, value: unknown): TrainerSide | n
   return { team, active };
 }
 
-function readTrainerCommand(value: unknown): TrainerCommand | undefined {
+function readTrainerCommand(value: unknown, speciesId: SpeciesId): TrainerCommand | undefined {
   const command = record(value);
   if (!command) return undefined;
   if (command.type === 'switch' && typeof command.withId === 'number') {
     return { type: 'switch', withId: command.withId };
   }
-  if (command.type === 'move' && (command.move === 'strike' || command.move === 'guard' || command.move === 'signature') &&
-    (command.targetId === null || typeof command.targetId === 'number')) {
-    return { type: 'move', move: command.move, targetId: command.targetId };
+  if (command.type === 'item' && command.item === 'oranBerry' && typeof command.targetId === 'number') {
+    return { type: 'item', item: 'oranBerry', targetId: command.targetId };
+  }
+  if (command.type === 'move' && (command.targetId === null || typeof command.targetId === 'number')) {
+    const savedMove = command.move;
+    const legacyMove = savedMove === 'strike' || savedMove === 'guard' || savedMove === 'signature'
+      ? getMove(speciesId, savedMove)?.name.replace(/ and guard$/, '') : undefined;
+    const moves = battleMoves(speciesId);
+    // Carry the same learned move forward whenever the old guarded variant lost its special behavior.
+    const move = battleMoveSlots.find(slot => slot === savedMove || moves[slot].name === legacyMove);
+    if (move !== undefined) return { type: 'move', move, targetId: command.targetId };
   }
   return undefined;
 }
 
-export function loadTrainerBattle(value: unknown): TrainerBattleState | null {
+export function loadTrainerBattle(value: unknown, oranBerryFallback = 0): TrainerBattleState | null {
   const raw = record(value);
   if (raw?.trainerId !== 'theo' && raw?.trainerId !== 'rusk') return null;
   const player = readTrainerPlayer(raw.player);
@@ -405,9 +449,9 @@ export function loadTrainerBattle(value: unknown): TrainerBattleState | null {
 
   for (const [affected, opposing] of [[player, enemy], [enemy, player]]) {
     for (const [index, member] of affected.team.entries()) {
-      const { accuracy, defense, seededBy } = member.conditions;
+      const { seededBy, ...conditions } = member.conditions;
       if (seededBy !== undefined && !opposing.team.some(mon => mon.id === seededBy)) {
-        affected.team[index] = { ...member, conditions: { accuracy, defense } };
+        affected.team[index] = { ...member, conditions };
       }
     }
   }
@@ -415,6 +459,7 @@ export function loadTrainerBattle(value: unknown): TrainerBattleState | null {
   const participants = Array.isArray(raw.participants) ? raw.participants : [];
   const battle: TrainerBattleState = {
     trainerId: raw.trainerId, round, outcome: 'active', player, enemy, plans: {},
+    oranBerries: integer(raw.oranBerries, 0, BERRY_LIMIT) ?? integer(oranBerryFallback, 0, BERRY_LIMIT) ?? 0,
     participants: [...new Set([...participants, ...player.active])].filter((id): id is number =>
       typeof id === 'number' && player.team.some(member => member.id === id)),
     log: Array.isArray(raw.log) ? raw.log.filter((entry): entry is string => typeof entry === 'string')
@@ -426,9 +471,13 @@ export function loadTrainerBattle(value: unknown): TrainerBattleState | null {
   if (outcome !== 'active') return battle;
 
   const plans = record(raw.plans);
+  let droppedPlan = false;
   for (const actor of activeParty(player)) {
-    const command = readTrainerCommand(plans?.[actor.id]);
-    if (command && canPlan(battle, actor.id, command)) battle.plans[actor.id] = command;
+    const saved = plans?.[actor.id];
+    const command = readTrainerCommand(saved, actor.species);
+    if (command && canPlanTrainerCommand(battle, actor.id, command)) battle.plans[actor.id] = command;
+    else if (saved !== undefined) droppedPlan = true;
   }
+  if (droppedPlan) battle.log = [...battle.log, 'Choose a new action for each Pokémon with an open order.'].slice(-LOG_LIMIT);
   return battle;
 }

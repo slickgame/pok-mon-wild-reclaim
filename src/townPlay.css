@@ -123,6 +123,29 @@
   color: #c6deae;
 }
 
+.town-play-save,
+.town-play-save-confirmation {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.town-play-save-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.town-play-save-confirmation {
+  padding: 0.85rem;
+  border: 1px solid #d6bf7778;
+  border-radius: 0.5rem;
+  background: #113124ce;
+}
+
+.town-play-save-error {
+  color: #ffc7a8;
+}
+
 .town-play-list {
   list-style: none;
   display: grid;

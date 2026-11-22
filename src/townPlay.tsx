@@ -1,8 +1,7 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import {
   CAMP_HEAL_PERCENT,
   GROVE_WILD_WINS_REQUIRED,
-  OUTING_SAVE_KEY,
   canBeginTrainer,
   canOpenSporesDiscovery,
   canRestAtCamp,
@@ -10,7 +9,6 @@ import {
   getGroveQuestPhase,
   getLead,
   levelOf,
-  loadOuting,
   maxHp,
   species,
   starterIds,
@@ -18,24 +16,13 @@ import {
   type OutingAction,
   type OutingState,
 } from './outing';
+import { hasActiveEncounter, MAX_IMPORT_BYTES, normalizeLocation, readGameSave, type GameSave, type Milestone, type WorldLocation } from './gameSave';
 import { PokemonSprite } from './PokemonSprite';
+import { useGameSave } from './useGameSave';
 import './townPlay.css';
 
 export type GrovePanelId = 'party' | 'bag' | 'grove-camp' | 'grove-talk' | 'grove-quests' | 'grove-habitat' | 'grove-travel';
 export type PanelId = GrovePanelId | 'maple' | 'clinic' | 'merra' | 'board' | 'gate' | 'grove-lina' | 'workshop' | 'talent' | 'journal' | 'settings';
-
-const SAVE_KEY = 'wild-reclaim.brookbend.opening.v1';
-const MILESTONES = ['mapleMet', 'clinicVisited', 'merraMet', 'boardRead', 'gateOpen'] as const;
-type Milestone = typeof MILESTONES[number];
-type Progress = Record<Milestone, boolean>;
-
-const FIRST_VISIT: Progress = {
-  mapleMet: false,
-  clinicVisited: false,
-  merraMet: false,
-  boardRead: false,
-  gateOpen: false,
-};
 
 const TOUR = [
   { milestone: 'clinicVisited', panel: 'clinic', objective: 'Check in at the Clinic', actionLabel: 'Visit the Clinic' },
@@ -43,124 +30,34 @@ const TOUR = [
   { milestone: 'boardRead', panel: 'board', objective: 'Read the town notice', actionLabel: 'Visit the Quest Board' },
 ] as const;
 
-function readProgress(value: string | null): Progress {
-  if (!value) return FIRST_VISIT;
-  const parsed = JSON.parse(value) as Partial<Progress> | null;
-  if (!parsed || typeof parsed !== 'object') return FIRST_VISIT;
-  return {
-    mapleMet: parsed.mapleMet === true,
-    clinicVisited: parsed.clinicVisited === true,
-    merraMet: parsed.merraMet === true,
-    boardRead: parsed.boardRead === true,
-    gateOpen: parsed.gateOpen === true,
-  };
-}
-
-function loadProgress(): Progress {
-  try {
-    return readProgress(window.localStorage.getItem(SAVE_KEY));
-  } catch {
-    return FIRST_VISIT;
-  }
-}
-
-function mergeProgress(current: Progress, incoming: Progress): Progress {
-  if (MILESTONES.every((key) => current[key] || !incoming[key])) return current;
-  return {
-    mapleMet: current.mapleMet || incoming.mapleMet,
-    clinicVisited: current.clinicVisited || incoming.clinicVisited,
-    merraMet: current.merraMet || incoming.merraMet,
-    boardRead: current.boardRead || incoming.boardRead,
-    gateOpen: current.gateOpen || incoming.gateOpen,
-  };
-}
-
-function loadSavedOuting() {
-  try {
-    return loadOuting(window.localStorage.getItem(OUTING_SAVE_KEY));
-  } catch {
-    return loadOuting(null);
-  }
-}
-
-function useOutingPlay() {
-  const [outing, setOuting] = useState(loadSavedOuting);
-  const [canSaveOuting, setCanSaveOuting] = useState(true);
-  const currentOuting = useRef(outing);
-
-  useEffect(() => {
-    function catchUp(event: StorageEvent) {
-      if (event.key !== OUTING_SAVE_KEY) return;
-      const current = loadSavedOuting();
-      currentOuting.current = current;
-      setOuting(current);
-    }
-
-    window.addEventListener('storage', catchUp);
-    return () => window.removeEventListener('storage', catchUp);
-  }, []);
-
-  function dispatchOuting(action: OutingAction) {
-    let current = currentOuting.current;
-    if (canSaveOuting) {
-      try {
-        const saved = window.localStorage.getItem(OUTING_SAVE_KEY);
-        if (saved !== null) current = loadOuting(saved);
-      } catch {
-        setCanSaveOuting(false);
-      }
-    }
-
-    const next = updateOuting(current, action, Math.random());
-    currentOuting.current = next;
-    setOuting(next);
-    if (next === current) return;
-
-    try {
-      window.localStorage.setItem(OUTING_SAVE_KEY, JSON.stringify(next));
-      setCanSaveOuting(true);
-    } catch {
-      setCanSaveOuting(false);
-    }
-  }
-
-  return { outing, dispatchOuting, canSaveOuting };
-}
-
-export function useTownPlay() {
-  const [progress, setProgress] = useState(loadProgress);
-  const [saveStatus, setSaveStatus] = useState<'pending' | 'saved' | 'unavailable'>('pending');
-  const { outing, dispatchOuting, canSaveOuting } = useOutingPlay();
+export function useTownPlay(requestedLocation?: WorldLocation) {
+  const { save, saveStatus, changeSave, importSave, getSave } = useGameSave(requestedLocation);
+  const { progress, outing, location } = save;
 
   function finish(milestone: Milestone) {
-    setProgress((current) => current[milestone] ? current : { ...current, [milestone]: true });
+    changeSave(current => current.progress[milestone] ? current : {
+      ...current, progress: { ...current.progress, [milestone]: true },
+    });
   }
 
-  useEffect(() => {
-    try {
-      const merged = mergeProgress(progress, loadProgress());
-      window.localStorage.setItem(SAVE_KEY, JSON.stringify(merged));
-      setProgress(merged);
-      setSaveStatus('saved');
-    } catch {
-      setSaveStatus('unavailable');
-    }
-  }, [progress]);
+  function dispatchOuting(action: OutingAction) {
+    changeSave(current => {
+      const next = updateOuting(current.outing, action, Math.random());
+      return next === current.outing ? current : { ...current, outing: next };
+    });
+  }
 
-  useEffect(() => {
-    function catchUp(event: StorageEvent) {
-      if (event.key !== SAVE_KEY) return;
-      try {
-        const incoming = readProgress(event.newValue);
-        setProgress((current) => mergeProgress(current, incoming));
-      } catch {
-        // An invalid save in another tab does not replace current progress.
-      }
+  const travel = useCallback((destination: WorldLocation) => changeSave(current => {
+    const target = normalizeLocation(current, destination);
+    if (target === current.location) return current;
+    let nextOuting = current.outing;
+    if (current.location === 'grove') {
+      if (nextOuting.revenantBattle) nextOuting = updateOuting(nextOuting, { type: 'closeRevenant' });
+      if (nextOuting.trainerBattle) nextOuting = updateOuting(nextOuting, { type: 'closeTrainer' });
+      if (nextOuting.encounter) nextOuting = updateOuting(nextOuting, { type: 'closeEncounter' });
     }
-
-    window.addEventListener('storage', catchUp);
-    return () => window.removeEventListener('storage', catchUp);
-  }, []);
+    return { ...current, location: target, outing: nextOuting };
+  }).location, [changeSave]);
 
   const nextTourStop = TOUR.find(({ milestone }) => !progress[milestone]);
   const hasStarter = outing.party.length > 0;
@@ -171,9 +68,7 @@ export function useTownPlay() {
     openingObjective = { objective: 'Meet your starter team', actionLabel: 'Choose your lead', panel: 'maple' };
   }
   const canEnterGrove = progress.gateOpen && hasStarter;
-  const resumeBattle = canEnterGrove && (
-    outing.encounter?.outcome === 'active' || outing.trainerBattle?.outcome === 'active' || outing.revenantBattle?.outcome === 'active'
-  );
+  const resumeBattle = canEnterGrove && hasActiveEncounter(outing);
   if (canEnterGrove && !resumeBattle && outing.sporesQuest.defeated && !outing.sporesQuest.reported) {
     openingObjective = { objective: 'Report to Professor Maple', actionLabel: 'Visit Professor Maple', panel: 'maple' };
   }
@@ -183,7 +78,7 @@ export function useTownPlay() {
 
   return {
     objective, actionLabel, actionTarget, canEnterGrove, progress, finish,
-    saveStatus: canSaveOuting ? saveStatus : 'unavailable',
+    saveStatus, location, travel, importSave, getSave,
     nextTourStop, outing, dispatchOuting, hasStarter,
   };
 }
@@ -204,6 +99,89 @@ function PanelAction({ onClick, children, disabled, label }: {
   label?: string;
 }) {
   return <button className="town-play-action" type="button" onClick={onClick} disabled={disabled} aria-label={label}>{children}</button>;
+}
+
+const saveStatusCopy = {
+  saved: 'Progress saves automatically in this browser. Export a backup to move it to another browser or device.',
+  recovered: 'Recovered your last usable progress. Autosave is active again.',
+  unavailable: 'Automatic saving is unavailable. Export a backup before leaving to keep this session’s progress.',
+  damaged: 'The stored save could not be read. You can restore a backup if you have one.',
+  conflict: 'Another tab saved newer progress. Export this session as a backup before reloading.',
+};
+
+const backupLocations = { town: 'Brookbend Town', hollow: 'Verdant Hollow', grove: 'Brambleberry Grove' };
+
+function SaveSettings({ play }: { play: TownPlay }) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<GameSave | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+
+  function downloadBackup() {
+    try {
+      const file = new Blob([JSON.stringify(play.getSave(), null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'wild-reclaim-save.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMessage({ text: 'Save backup downloaded.', error: false });
+    } catch {
+      setMessage({ text: 'The save backup could not be downloaded.', error: true });
+    }
+  }
+
+  async function selectBackup(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setPending(null);
+    setMessage(null);
+    if (file.size > MAX_IMPORT_BYTES) {
+      setMessage({ text: 'This backup is too large to be a Wild Reclaim save.', error: true });
+      return;
+    }
+    setBusy(true);
+    try {
+      const backup = readGameSave(await file.text());
+      if (backup) setPending(backup);
+      else setMessage({ text: 'Choose a valid Wild Reclaim save backup. Your current progress is unchanged.', error: true });
+    } catch {
+      setMessage({ text: 'The selected file could not be read.', error: true });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function restoreBackup() {
+    if (!pending) return;
+    if (play.importSave(pending)) {
+      setPending(null);
+      setMessage({ text: 'Save restored.', error: false });
+    } else setMessage({ text: 'The backup could not be saved. Your current progress is unchanged.', error: true });
+  }
+
+  return <section className="town-play-save">
+    <p role="status">{saveStatusCopy[play.saveStatus]}</p>
+    <div className="town-play-save-controls">
+      <PanelAction onClick={downloadBackup}>Export save</PanelAction>
+      <PanelAction onClick={() => fileInput.current?.click()} disabled={busy}>Import save</PanelAction>
+    </div>
+    <input type="file" accept=".json,application/json" aria-label="Save backup file" ref={fileInput}
+      onChange={selectBackup} hidden />
+    {pending && <div className="town-play-save-confirmation">
+      <p>Restore {backupLocations[pending.location]} with {pending.outing.party.length} Pokémon. This replaces the current save in this browser.</p>
+      <div className="town-play-save-controls">
+        <PanelAction onClick={restoreBackup}>Replace save</PanelAction>
+        <PanelAction onClick={() => { setPending(null); setMessage(null); }}>Cancel</PanelAction>
+      </div>
+    </div>}
+    {message && <p className={message.error ? 'town-play-save-error' : 'town-play-progress'}
+      role={message.error ? 'alert' : 'status'}>{message.text}</p>}
+  </section>;
 }
 
 function StopDialogue({ play, milestone, speaker, children, label, completed }: {
@@ -516,11 +494,7 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove, onE
       </>;
     }
     case 'settings':
-      return <p className="town-play-note" role="status">{
-        play.saveStatus === 'saved' ? 'Progress is saved automatically in this browser.' :
-          play.saveStatus === 'unavailable' ? 'Browser storage is unavailable. Progress lasts until you leave or reload.' :
-            'Checking browser storage…'
-      }</p>;
+      return <SaveSettings play={play} />;
   }
 }
 

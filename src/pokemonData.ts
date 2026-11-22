@@ -3,6 +3,8 @@ export const wildIds = ['caterpie', 'weedle', 'pidgey', 'rattata', 'oddish', 'be
 
 export type SpeciesId = typeof starterIds[number] | typeof wildIds[number];
 export type MoveId = 'strike' | 'guard' | 'signature';
+export const battleMoveSlots = [0, 1, 2, 3] as const;
+export type BattleMoveSlot = typeof battleMoveSlots[number];
 export type PokemonType =
   | 'Normal' | 'Fire' | 'Water' | 'Electric' | 'Grass' | 'Ice'
   | 'Fighting' | 'Poison' | 'Ground' | 'Flying' | 'Psychic' | 'Bug'
@@ -113,15 +115,14 @@ type FourMoves = readonly [SpeciesMove, SpeciesMove, SpeciesMove, SpeciesMove];
 const statusMove = (name: string, effect: NonNullable<SpeciesMove['effect']>, type: PokemonType = 'Normal', accuracy = 1) =>
   strike(name, 0, type, 'status', { effect, accuracy });
 
-// The Revenant encounter opens with four learned choices for every recruit.
-// Preserve the quick attack-and-guard options in the existing encounters.
+// Learnable battle moves shared by all encounter menus.
 const growl = statusMove('Growl', 'attackDown');
 const tailWhip = statusMove('Tail Whip', 'defenseDown');
 const stringShot = statusMove('String Shot', 'speedDown', 'Bug', 0.95);
 const stunSpore = statusMove('Stun Spore', 'paralyze', 'Grass', 0.75);
 const tackle = strike('Tackle', 5);
 const scratch = species.paras.moves.strike;
-const revenantMoveSets = {
+const battleMoveSets = {
   bulbasaur: [species.bulbasaur.moves.strike, tackle, species.bulbasaur.moves.signature!, growl],
   charmander: [species.charmander.moves.strike, scratch, species.charmander.moves.signature!, growl],
   squirtle: [species.squirtle.moves.strike, tackle, species.squirtle.moves.signature!, tailWhip],
@@ -134,9 +135,11 @@ const revenantMoveSets = {
   paras: [scratch, strike('Absorb', 5, 'Grass', 'special', { effect: 'absorb' }), stunSpore, strike('Bug Bite', 6, 'Bug')],
 } satisfies Record<SpeciesId, FourMoves>;
 
-export function revenantMoves(id: SpeciesId): FourMoves {
-  return revenantMoveSets[id];
+export function battleMoves(id: SpeciesId): FourMoves {
+  return battleMoveSets[id];
 }
+
+export const revenantMoves = battleMoves;
 
 export function pokemonSpriteUrl(id: SpeciesId) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${species[id].dexNumber}.png`;

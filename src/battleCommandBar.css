@@ -1,0 +1,139 @@
+.battle-command-bar {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  align-content: center;
+  gap: clamp(.24rem, .45cqw, .7rem);
+  min-height: max(7.1rem, 14svh);
+  padding: clamp(.58rem, 1cqw, 1.35rem) clamp(1.12rem, 6.15cqw, 8rem);
+  border-radius: .8rem;
+  background: #132d2160 url('/art/strange-spores/command-bar.webp') center / 100% 100% no-repeat;
+  filter: drop-shadow(0 -2px 5px #160e1694);
+}
+
+.battle-command-heading {
+  display: grid;
+  grid-template-columns: minmax(5rem, 1fr) minmax(0, auto) minmax(5rem, 1fr);
+  align-items: center;
+  gap: .7rem;
+  min-height: 2.2rem;
+}
+
+.battle-command-heading h2 {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.15rem, 2.05cqw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -.025em;
+  text-shadow: 0 2px 3px #05150c;
+}
+
+.battle-command-progress {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  white-space: nowrap;
+  color: #eddbad;
+  font-size: clamp(.75rem, 1.1cqw, 1.1rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.battle-command-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(.3rem, .76cqw, .9rem);
+}
+
+.battle-command-options--main { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.08fr); }
+.battle-command-options--result { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
+.battle-command-options--result p { margin: 0; }
+
+.battle-command-tile,
+.battle-command-resolve,
+.battle-command-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .51em;
+  min-width: 0;
+  min-height: max(48px, 4.13cqw);
+  padding: .52em .68em;
+  border: 0;
+  border-radius: .55em;
+  background: url('/art/strange-spores/tile.webp') center / 100% 100% no-repeat;
+  color: #202414;
+  font-size: clamp(.88rem, 1.79cqw, 1.83rem);
+  text-align: center;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -.028em;
+  filter: drop-shadow(0 3px 3px #0b100bb4);
+}
+
+.battle-command-icon,
+.battle-command-resolve svg,
+.battle-command-back svg { flex: 0 0 auto; width: 1.4em; height: 1.4em; object-fit: contain; }
+
+.battle-command-tile:hover:not(:disabled),
+.battle-command-resolve:hover:not(:disabled),
+.battle-command-back:hover { filter: brightness(1.13) drop-shadow(0 3px 3px #0b100bb4); }
+
+.battle-command-tile:disabled,
+.battle-command-resolve:disabled { filter: grayscale(.22) brightness(.82); cursor: default; }
+
+.battle-command-resolve {
+  padding-inline: .83em;
+  white-space: nowrap;
+  background-image: url('/art/strange-spores/resolve-tile.webp');
+  color: #fff0cf;
+  text-shadow: 0 2px 2px #0a2115;
+}
+
+.battle-command-back {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  min-height: 44px;
+  padding: .32em .8em;
+  font-size: clamp(.88rem, 1.22cqw, 1.25rem);
+}
+
+.battle-command-back svg { width: 1.05em; height: 1.05em; }
+
+.battle-command-order,
+.battle-command-hint,
+.battle-command-inspect {
+  margin: 0;
+  color: #f0e1b8;
+  font-size: clamp(.8rem, 1.1cqw, 1.06rem);
+  line-height: 1.2;
+}
+
+.battle-command-hint { grid-column: 1 / -1; text-align: center; }
+.battle-command-inspect p { margin: 0 0 .2rem; }
+.battle-command-order { display: flex; justify-content: center; align-items: center; gap: .5em; }
+.battle-command-order button { padding: .3em; border: 0; background: none; text-decoration: underline; }
+
+.battle-command-heading h2:focus { outline: none; }
+
+@media (max-height: 670px) and (orientation: landscape) {
+  .battle-command-bar { min-height: 0; padding-block: .33rem .47rem; gap: .12rem; }
+  .battle-command-heading { min-height: 1.65rem; }
+  .battle-command-tile, .battle-command-resolve { min-height: max(38px, 3.75cqw); }
+  .battle-command-back { min-height: 35px; }
+}
+
+@media (max-width: 740px) and (orientation: portrait) {
+  .battle-command-bar { min-height: 0; padding: .46rem .6rem .63rem; }
+  .battle-command-heading { grid-template-columns: minmax(3rem, 1fr) minmax(0, auto) minmax(3rem, 1fr); gap: .28rem; }
+  .battle-command-heading h2 { font-size: clamp(.96rem, 4.12cqw, 1.32rem); }
+  .battle-command-options, .battle-command-options--main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .battle-command-options--main .battle-command-resolve { grid-column: 1 / -1; }
+  .battle-command-options--result { display: grid; grid-template-columns: 1fr; }
+  .battle-command-tile, .battle-command-resolve { min-height: 44px; font-size: clamp(.87rem, 3.8cqw, 1.16rem); }
+  .battle-command-back { min-height: 36px; padding-inline: .35em; }
+  .battle-command-back svg { display: none; }
+}
