@@ -1,4 +1,4 @@
-import { species, type PokemonType, type SpeciesId, type SpeciesMove } from './pokemonData';
+import { species, SMOKESCREEN_GOAL, isSignatureSmokescreen, type PokemonType, type SpeciesId, type SpeciesMove } from './pokemonData';
 
 type Matchup = { weak?: PokemonType[]; resist?: PokemonType[]; immune?: PokemonType[] };
 
@@ -36,6 +36,7 @@ export type BattleTarget = {
   maxHp: number;
   level: number;
   conditions: BattleConditions;
+  smokescreenUses?: number;
 };
 
 export function typeMultiplier(moveType: PokemonType, defenderTypes: readonly PokemonType[]): number {
@@ -105,13 +106,13 @@ const loweredStats = {
   speedDown: { stat: 'speed', label: 'Speed', amount: 2 },
 } as const;
 
-function lowerStat(target: BattleTarget, effect: keyof typeof loweredStats) {
+function lowerStat(target: BattleTarget, effect: keyof typeof loweredStats, override?: number) {
   const { stat, label, amount } = loweredStats[effect];
   const stage = target.conditions[stat] ?? 0;
   const name = battleName(target);
   if (stage <= -6) return { target, log: `${name}’s ${label} cannot go lower.` };
   return {
-    target: { ...target, conditions: { ...target.conditions, [stat]: Math.max(-6, stage - amount) } },
+    target: { ...target, conditions: { ...target.conditions, [stat]: Math.max(-6, stage - (override ?? amount)) } },
     log: `${name}’s ${label} fell.`,
   };
 }
@@ -120,6 +121,12 @@ export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, mov
   const actorName = battleName(actor);
   const targetName = battleName(target);
   const log = [`${actorName} used ${move.name}.`];
+  const uses = actor.smokescreenUses ?? 0;
+  const signature = isSignatureSmokescreen(actor, move);
+  if (signature && uses < SMOKESCREEN_GOAL) {
+    actor = { ...actor, smokescreenUses: uses + 1 };
+    if (uses + 1 === SMOKESCREEN_GOAL) log.push('Charmander mastered Smokescreen!');
+  }
   if (move.effect === 'withdraw') {
     if (actor.conditions.defense >= 6) return { actor, target, log: [...log, `${actorName}’s Defense cannot go higher.`] };
     const defended = { ...actor, conditions: { ...actor.conditions, defense: actor.conditions.defense + 1 } };
@@ -131,7 +138,7 @@ export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, mov
 
   if (move.effect === 'smokescreen' || move.effect === 'attackDown' || move.effect === 'defenseDown' ||
       (move.effect === 'speedDown' && move.category === 'status')) {
-    const lowered = lowerStat(target, move.effect);
+    const lowered = lowerStat(target, move.effect, signature && uses >= SMOKESCREEN_GOAL ? 2 : undefined);
     return { actor, target: lowered.target, log: [...log, lowered.log] };
   }
   if (move.effect === 'paralyze') {

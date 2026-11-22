@@ -486,3 +486,50 @@ button.party-moves-lead:disabled {
   .party-moves-summary { display: none; }
   .party-moves-grip { padding-inline: .08em; }
 }
+
+.party-moves-member {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.party-roster-grip { grid-area: auto; margin-inline-start: .35rem; }
+.party-moves-member[data-roster-drop] { outline: 2px solid #ffdf80; outline-offset: 2px; }
+.party-moves-row--signature .signature-progress { grid-column: 2 / -2; padding-bottom: .25rem; }
+.signature-progress { min-width: 0; font-size: clamp(.75rem, 1.1vw, 1.08rem); line-height: 1.2; }
+.signature-progress-meter { display: flex; align-items: center; gap: .65rem; }
+.signature-progress-meter span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.signature-progress progress {
+  width: 100%;
+  height: .85rem;
+  appearance: none;
+  border: 1px solid #a08046;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #bfa978;
+  accent-color: #426c31;
+}
+.signature-progress progress::-webkit-progress-bar { background: #bfa978; }
+.signature-progress progress::-webkit-progress-value { background: linear-gradient(#679747, #315725); border-radius: 1rem; }
+.signature-progress progress::-moz-progress-bar { background: linear-gradient(#679747, #315725); border-radius: 1rem; }
+.signature-progress p { margin: .25rem 0 0; }
+.signature-progress--details {
+  margin-top: .85rem;
+  padding: 1.25rem .3rem .3rem;
+  background: url('/art/field-journal/leaf-divider.webp') center top / 100% 1rem no-repeat;
+}
+.signature-progress--details h4 { margin: .1rem 0 .55rem; text-align: center; font-size: 1.25rem; }
+@media (max-width: 680px) {
+  .party-roster-grip { order: -1; min-height: 1.8rem; margin: 0 0 .15rem; }
+  .party-moves-row--signature .signature-progress { grid-column: 2 / -1; }
+}
+@media (min-width: 681px) {
+  .party-moves-member { grid-template-columns: auto minmax(0, 1fr); gap: .12rem .3rem; padding-block: .28rem; }
+  .party-moves-member-select { grid-template-columns: clamp(2.65rem, 4.9vw, 5rem) minmax(0, 1fr); padding-block: 0; }
+  .party-moves-member-copy strong { font-size: clamp(.95rem, 1.62vw, 1.68rem); overflow-wrap: normal; }
+  .party-moves-member .party-moves-lead { grid-column: 2; justify-self: start; margin-inline-start: clamp(2.9rem, 5.45vw, 5.6rem); }
+  .party-roster-grip { grid-row: 1 / span 2; }
+}
+.signature-progress progress::-webkit-progress-value {
+  background: #426c31 url('/art/party-moves/signature-fill.webp') center / 100% 100% no-repeat;
+}
+.signature-progress progress::-moz-progress-bar {
+  background: #426c31 url('/art/party-moves/signature-fill.webp') center / 100% 100% no-repeat;
+}

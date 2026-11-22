@@ -102,7 +102,16 @@ export const species: Record<SpeciesId, Species> = {
   },
 };
 
-export type Companion = { id: number; species: SpeciesId; hp: number; xp: number };
+export type Companion = { id: number; species: SpeciesId; hp: number; xp: number; smokescreenUses?: number };
+
+export const SMOKESCREEN_GOAL = 10;
+export function readSmokescreenUses(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) ? Math.max(0, Math.min(SMOKESCREEN_GOAL, value)) : 0;
+}
+
+export function isSignatureSmokescreen(member: Pick<Companion, 'species' | 'id'>, move: SpeciesMove) {
+  return member.id > 0 && member.species === 'charmander' && move.name === 'Smokescreen';
+}
 
 export function isSpeciesId(value: unknown): value is SpeciesId {
   return typeof value === 'string' && Object.hasOwn(species, value);

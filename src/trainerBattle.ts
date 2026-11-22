@@ -1,3 +1,4 @@
+import { readSmokescreenUses } from './pokemonData';
 import {
   battleSpeed, damagePreview, drainSeed, emptyConditions, moveTargetsSelf, ORAN_BERRY_HEAL, paralysisStopsMove,
   readBattleConditions, resolveBattleMove,
@@ -118,7 +119,7 @@ export function startTrainerBattle(
 }
 
 export function trainerParty(battle: TrainerBattleState): Companion[] {
-  return battle.player.team.map(({ id, species, hp, xp }) => ({ id, species, hp, xp }));
+  return battle.player.team.map(({ id, species, hp, xp, smokescreenUses }) => ({ id, species, hp, xp, smokescreenUses }));
 }
 
 export function canPlanTrainerCommand(battle: TrainerBattleState, actorId: number, command: TrainerCommand) {
@@ -216,7 +217,7 @@ function roundQueue(battle: TrainerBattleState, random: () => number) {
 
 function updateMon(side: TrainerSide, next: BattleTarget) {
   const index = side.team.findIndex(mon => mon.id === next.id);
-  if (index >= 0) side.team[index] = { ...side.team[index], hp: next.hp, conditions: next.conditions };
+  if (index >= 0) side.team[index] = { ...side.team[index], hp: next.hp, conditions: next.conditions, smokescreenUses: next.smokescreenUses };
 }
 
 function noteFaint(battle: TrainerBattleState, before: BattleMon, after: BattleTarget) {
@@ -386,7 +387,7 @@ function readTrainerPlayer(value: unknown): TrainerSide | null {
     const id = integer(saved.id, 1, Number.MAX_SAFE_INTEGER);
     const xp = integer(saved.xp, 0, MAX_XP);
     if (id === undefined || xp === undefined || team.some(member => member.id === id)) return null;
-    const member = playerMon({ id, xp, hp: 0, species: saved.species });
+    const member = playerMon({ id, xp, hp: 0, species: saved.species, smokescreenUses: readSmokescreenUses(saved.smokescreenUses) });
     const hp = integer(saved.hp, 0, member.maxHp);
     if (hp === undefined) return null;
     team.push({ ...member, hp, conditions: readBattleConditions(saved.conditions) });
