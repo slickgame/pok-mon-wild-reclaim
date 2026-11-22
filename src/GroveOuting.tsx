@@ -1,15 +1,16 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, ArrowLeftRight, ChevronRight, Crosshair, Footprints, HeartPulse, Search, Shield, Sparkles, Swords,
+  ArrowLeft, ArrowLeftRight, BookOpen, ChevronRight, Crosshair, Footprints, HeartPulse, Search, Shield, Sparkles, Swords,
   type LucideIcon,
 } from "lucide-react";
 import {
-  canBeginTrainer, captureChance, getLead, levelOf, maxHp, PARTY_LIMIT, species,
+  canBeginTrainer, captureChance, getGroveQuestPhase, getLead, levelOf, maxHp, PARTY_LIMIT, species,
   type OutingAction, type OutingState, type SpeciesId,
 } from "./outing";
 import { typeMultiplier, type BattleConditions } from "./battleRules";
 import { moveDescription, type SpeciesMove } from "./pokemonData";
 import { PokemonSprite } from "./PokemonSprite";
+import { GroveFieldJournal } from "./GroveFieldJournal";
 import "./groveOuting.css";
 
 type GroveOutingProps = {
@@ -17,6 +18,7 @@ type GroveOutingProps = {
   onAction: (action: OutingAction) => void;
   onReturn: () => void;
   onVisitClinic?: () => void;
+  onSpeakToLina?: () => void;
   toolbar?: ReactNode;
 };
 
@@ -88,16 +90,19 @@ function attackDetail(move: SpeciesMove, target: SpeciesId, guards = false) {
   return [move.type, `Power ${move.power}`, matchup, guards && "Halves retaliation"].filter(Boolean).join(" · ");
 }
 
-export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, toolbar }: GroveOutingProps) {
+export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, onSpeakToLina, toolbar }: GroveOutingProps) {
   const { encounter, pokeBalls, party } = outing;
   const lead = getLead(outing);
   const battle = encounter?.outcome === "active" ? encounter : null;
   const [switching, setSwitching] = useState(false);
+  const [journalClosed, setJournalClosed] = useState(false);
   const resultOutcome = encounter && encounter.outcome !== "active" ? encounter.outcome : null;
   const result = resultOutcome ? encounter : null;
   const panel = useRef<HTMLElement>(null);
   const logId = useId();
-  const phase = battle ? "battle" : result ? "result" : "field";
+  const questPhase = getGroveQuestPhase(outing);
+  const showJournal = !encounter && questPhase !== "explore" && !journalClosed;
+  const phase = battle ? "battle" : result ? "result" : showJournal ? "journal" : "field";
   const previousPhase = useRef(phase);
 
   useEffect(() => {
@@ -120,6 +125,24 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, toolbar
   useEffect(() => {
     if (choosingSwitch) panel.current?.querySelector<HTMLButtonElement>("[aria-label='Choose a healthy Pokémon'] button")?.focus();
   }, [choosingSwitch]);
+
+  if (showJournal) {
+    const close = () => setJournalClosed(true);
+    const search = leadReady
+      ? { label: "Look for wild Pokémon", run: () => onAction({ type: "search" }) }
+      : { label: "Visit the Clinic", run: onVisitClinic };
+    const actions = {
+      explore: search,
+      clear: { label: "Clear overgrowth", run: () => onAction({ type: "clearGroveOvergrowth" }) },
+      battle: search,
+      report: { label: "Speak with Ranger Lina", run: onSpeakToLina },
+      complete: { label: "Continue exploring", run: close },
+    };
+    const action = actions[questPhase];
+
+    return <GroveFieldJournal quest={outing.groveQuest} actionLabel={action.label} onAction={action.run}
+      onClose={close} panelRef={panel} />;
+  }
 
   return <main className={`town grove-outing${battle ? " grove-outing--battle" : ""}`} aria-labelledby="grove-name">
     <div className="atlas grove-atlas">
@@ -205,6 +228,8 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, toolbar
         </div>
         <div className="grove-actions">
           {leadReady && <GroveButton icon={Search} label="Look for wild Pokémon" onClick={() => onAction({ type: "search" })} primary />}
+          {questPhase !== "explore" && <GroveButton icon={BookOpen} label="Open Ranger’s Field Journal"
+            onClick={() => setJournalClosed(false)} />}
           <GroveButton icon={Swords} label="Train with Youngster Theo" disabled={!theoReady}
             detail={theoReady ? "3v2 training match" : "Bring three healthy Pokémon"}
             onClick={() => onAction({ type: "startTrainer", trainerId: "theo" })} />

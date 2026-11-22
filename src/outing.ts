@@ -32,6 +32,12 @@ export type Encounter = {
   log: string[];
   conditions?: EncounterConditions;
 };
+type GroveQuestProgress = {
+  explored: boolean;
+  clearedOvergrowth: boolean;
+  wildWins: number;
+  reported: boolean;
+};
 export type OutingState = {
   party: Companion[];
   leadId: number | null;
@@ -40,12 +46,15 @@ export type OutingState = {
   trainerBattle: TrainerBattleState | null;
   theoDefeated: boolean;
   ruskDefeated: boolean;
+  groveQuest: GroveQuestProgress;
 };
 
 export type OutingAction =
   | { type: 'chooseStarter'; species: SpeciesId }
   | { type: 'selectLead'; id: number }
   | { type: 'search' }
+  | { type: 'clearGroveOvergrowth' }
+  | { type: 'reportGroveToLina' }
   | { type: 'move'; move: MoveId }
   | { type: 'capture' }
   | { type: 'flee' }
@@ -57,13 +66,22 @@ export type OutingAction =
 
 export const PARTY_LIMIT = 6;
 export const OUTING_SAVE_KEY = 'wild-reclaim.outing.v1';
+export const GROVE_WILD_WINS_REQUIRED = 2;
 const STARTER_POKE_BALLS = 4;
 const CLINIC_POKE_BALLS = 1;
 const LOG_LIMIT = 8;
 
 export const initialOuting: OutingState = {
   party: [], leadId: null, pokeBalls: 0, encounter: null, trainerBattle: null, theoDefeated: false, ruskDefeated: false,
+  groveQuest: { explored: false, clearedOvergrowth: false, wildWins: 0, reported: false },
 };
+
+export function getGroveQuestPhase({ groveQuest }: OutingState) {
+  if (!groveQuest.explored) return 'explore';
+  if (!groveQuest.clearedOvergrowth) return 'clear';
+  if (groveQuest.wildWins < GROVE_WILD_WINS_REQUIRED) return 'battle';
+  return groveQuest.reported ? 'complete' : 'report';
+}
 
 export function getLead(state: OutingState) {
   return state.party.find(({ id }) => id === state.leadId);
@@ -106,6 +124,7 @@ function beginEncounter(state: OutingState, roll: number): OutingState {
   const picked = wildIds[Math.min(wildIds.length - 1, Math.floor(roll * wildIds.length))];
   return {
     ...state,
+    groveQuest: { ...state.groveQuest, explored: true },
     encounter: {
       species: picked, hp: species[picked].baseHp, outcome: 'active',
       log: [`A wild ${species[picked].name} appeared.`],
@@ -179,7 +198,9 @@ function resolveWildTurn(
   if (wild.hp === 0) {
     const trained = companion.hp > 0 ? gainXp(companion, 6) : companion;
     const reward = companion.hp > 0 ? [xpMessage(companion, trained)] : [];
-    return saveLead(state, trained, recordTurn(updated, 'won', ...log, `${species[wild.species].name} retreated.`, ...reward));
+    const won = saveLead(state, trained, recordTurn(updated, 'won', ...log, `${species[wild.species].name} retreated.`, ...reward));
+    const wildWins = Math.min(GROVE_WILD_WINS_REQUIRED, won.groveQuest.wildWins + 1);
+    return { ...won, groveQuest: { ...won.groveQuest, wildWins } };
   }
   if (player.hp === 0) log.push('Choose a healthy Pokémon to continue.');
   return saveLead(state, companion, recordTurn(updated, 'active', ...log));
@@ -232,6 +253,12 @@ export function updateOuting(state: OutingState, action: OutingAction, roll = 0.
     }
     case 'search':
       return beginEncounter(state, random);
+    case 'clearGroveOvergrowth':
+      if (encounter || getGroveQuestPhase(state) !== 'clear') return state;
+      return { ...state, groveQuest: { ...state.groveQuest, clearedOvergrowth: true } };
+    case 'reportGroveToLina':
+      if (encounter || getGroveQuestPhase(state) !== 'report') return state;
+      return { ...state, groveQuest: { ...state.groveQuest, reported: true } };
     case 'clinic':
       if (!clinicAvailable(state)) return state;
       return {
@@ -280,6 +307,18 @@ function record(value: unknown): Record<string, unknown> | undefined {
 
 function integer(value: unknown, fallback: number, lower: number, upper: number) {
   return typeof value === 'number' && Number.isSafeInteger(value) ? Math.max(lower, Math.min(upper, value)) : fallback;
+}
+
+function readGroveQuest(value: unknown, encounter: Encounter | null): GroveQuestProgress {
+  const saved = record(value);
+  const clearedOvergrowth = saved?.clearedOvergrowth === true;
+  const wildWins = integer(saved?.wildWins, encounter?.outcome === 'won' ? 1 : 0, 0, GROVE_WILD_WINS_REQUIRED);
+  return {
+    explored: saved?.explored === true || clearedOvergrowth || wildWins > 0 || encounter !== null,
+    clearedOvergrowth,
+    wildWins,
+    reported: saved?.reported === true && clearedOvergrowth && wildWins === GROVE_WILD_WINS_REQUIRED,
+  };
 }
 
 function previousSpecies(value: unknown) {
@@ -364,6 +403,7 @@ export function loadOuting(value: string | null): OutingState {
       pokeBalls: integer(parsed.pokeBalls ?? parsed.snares, 0, 0, STARTER_POKE_BALLS),
       theoDefeated, ruskDefeated: theoDefeated &&
         (parsed.ruskDefeated === true || (trainerBattle?.trainerId === 'rusk' && trainerBattle.outcome === 'won')),
+      groveQuest: readGroveQuest(parsed.groveQuest, encounter),
     };
   } catch {
     return initialOuting;

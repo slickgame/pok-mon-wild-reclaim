@@ -114,6 +114,7 @@ export function Town() {
       onAction={play.dispatchOuting}
       onReturn={() => travel(false)}
       onVisitClinic={() => travel(false, "clinic")}
+      onSpeakToLina={() => setPanel("grove-lina")}
       toolbar={toolbar}
     /> : <main className="town" aria-labelledby="town-name">
       <div className="atlas">

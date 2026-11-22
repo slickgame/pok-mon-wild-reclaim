@@ -135,6 +135,14 @@
   margin-top: 0.65rem;
 }
 
+.town-play-quest + .town-play-quest {
+  margin-top: 1.25rem;
+}
+
+.town-play-quest .town-play-progress {
+  margin-top: 0.55rem;
+}
+
 .town-play-list li {
   display: flex;
   justify-content: space-between;

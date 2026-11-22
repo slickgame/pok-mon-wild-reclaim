@@ -1,0 +1,235 @@
+.field-journal {
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+  min-height: 100svh;
+  color: #192a15;
+  background: linear-gradient(#0a211c57, #0b271d33 70%, #06170e57),
+    #193728 url('/art/brambleberry-grove.webp') center / cover no-repeat;
+}
+
+.field-journal__header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: 1.02cqw 1.25cqw 0;
+}
+
+.field-journal__header p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .42em;
+  margin: 0;
+  padding: .42em 1.1em;
+  font-weight: 700;
+  line-height: 1.13;
+  text-align: center;
+  white-space: nowrap;
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 2px 2px #03100782);
+}
+
+.field-journal__header .field-journal__name {
+  width: min(30.6cqw, 38rem);
+  min-height: 4.15cqw;
+  padding-inline-start: 2.65em;
+  color: #fff0d0;
+  font-size: clamp(1rem, 1.95cqw, 2.6rem);
+  background-image: url('/art/field-journal/title-plaque.webp');
+  text-shadow: 0 1px 2px #142615;
+}
+
+.field-journal__header .field-journal__location {
+  width: min(33.7cqw, 43rem);
+  min-height: 3.65cqw;
+  padding-inline-start: 2.8em;
+  font-size: clamp(.8rem, 1.43cqw, 2rem);
+  letter-spacing: -.025em;
+  background-image: url('/art/field-journal/location-plaque.webp');
+}
+
+.field-journal__book {
+  position: absolute;
+  top: 53.25%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(87.4cqw, 155svh, 146rem);
+  aspect-ratio: 1.94;
+  container-type: inline-size;
+  background: url('/art/field-journal/open-book.webp') center / 100% 100% no-repeat;
+  filter: drop-shadow(0 .5rem .7rem #0d200e8c);
+}
+
+.field-journal__left,
+.field-journal__right { position: absolute; }
+
+.field-journal__left { inset: 19.2% 51.6% auto 9.5%; text-align: center; }
+
+.field-journal__left h1 {
+  margin: 0;
+  font-size: 4.5cqw;
+  font-weight: 700;
+  letter-spacing: -.035em;
+  line-height: 1.12;
+  white-space: nowrap;
+}
+
+.field-journal__left h1:focus { outline: none; }
+
+.field-journal__rule {
+  width: 79%;
+  height: 2.55cqw;
+  margin: .18cqw auto 0;
+  background: url('/art/field-journal/leaf-divider.webp') center / 100% 100% no-repeat;
+}
+
+.field-journal__mobile-illustration { display: none; }
+
+.field-journal__right { inset: 19.4% 6.8% auto 53.1%; }
+
+.field-journal__objectives {
+  display: grid;
+  gap: 1.26cqw;
+  margin: 0 1.43cqw 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.field-journal__objective {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.75cqw;
+  min-height: 5.32cqw;
+  padding: .66cqw 1.42cqw .66cqw 1.69cqw;
+  font-size: 2.3cqw;
+  font-weight: 700;
+  letter-spacing: -.033em;
+  line-height: 1.08;
+  background: url('/art/field-journal/objective-row.webp') center / 100% 100% no-repeat;
+}
+
+.field-journal__mark {
+  display: grid;
+  place-items: center;
+  width: 3.03cqw;
+  aspect-ratio: 1;
+  border: max(2px, .23cqw) solid #25412d;
+  border-radius: .6cqw;
+  background: #fff2d349;
+}
+
+.field-journal__mark[data-complete='true'] {
+  color: #fff7dd;
+  background: linear-gradient(145deg, #31513a, #1e3826);
+  box-shadow: inset 0 0 0 1px #77906c54;
+}
+
+.field-journal__mark svg { width: 87%; height: 87%; }
+.field-journal__count { font-size: .91em; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+
+.field-journal__action {
+  display: block;
+  width: 100%;
+  min-height: max(44px, 7.1cqw);
+  margin-top: 3.9cqw;
+  padding: .4em 12%;
+  border: 0;
+  border-radius: 1.5cqw;
+  background: url('/art/field-journal/action-plaque.webp') center / 100% 100% no-repeat;
+  color: #fff3d7;
+  font-size: 2.37cqw;
+  line-height: 1.13;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px #07170e;
+  filter: drop-shadow(0 3px 2px #29190360);
+}
+
+.field-journal__action:hover:not(:disabled) { filter: brightness(1.12) drop-shadow(0 3px 3px #29190360); }
+.field-journal__action:active:not(:disabled) { transform: translateY(1px); }
+.field-journal__action:disabled { filter: grayscale(.42) brightness(.85); cursor: default; }
+.field-journal__action:focus-visible { outline-color: #264f36; }
+
+.field-journal__follow-up {
+  margin: .8cqw 0 0;
+  text-align: center;
+  font-size: 1.45cqw;
+  font-weight: 700;
+}
+
+.field-journal__close {
+  position: absolute;
+  bottom: max(.28rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45em;
+  min-height: 44px;
+  padding: .35em .95em;
+  white-space: nowrap;
+  border: 1px solid #b9a477;
+  border-radius: .4em;
+  background: #142f22ec;
+  color: #fff0d0;
+  font-size: clamp(.82rem, 1.1cqw, 1.1rem);
+  box-shadow: 0 2px 4px #101b0d87;
+}
+
+.field-journal__close:hover { background: #34543b; }
+.field-journal__close svg { width: 1em; height: 1em; }
+
+@media (max-width: 900px), (max-height: 470px) {
+  .field-journal {
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    gap: .75rem;
+    padding: .75rem .65rem max(.75rem, env(safe-area-inset-bottom));
+  }
+
+  .field-journal__header { display: grid; justify-items: center; padding: 0; gap: .35rem; }
+  .field-journal__header .field-journal__name { width: min(77cqw, 22rem); min-height: 2.7rem; padding-inline-start: 2.35em; font-size: clamp(1.02rem, 4.8cqw, 1.45rem); }
+  .field-journal__header .field-journal__location { width: min(93cqw, 25rem); min-height: 2.3rem; padding-inline-start: 2.2em; font-size: clamp(.76rem, 3.65cqw, 1.06rem); }
+
+  .field-journal__book {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    width: min(100%, 32rem);
+    aspect-ratio: auto;
+    margin-inline: auto;
+    padding: clamp(2.45rem, 12.5cqw, 4.2rem) clamp(1.35rem, 8.5cqw, 2.85rem) clamp(3rem, 15cqw, 4.85rem);
+    background: url('/art/field-journal/portrait-page.webp') center / 100% 100% no-repeat;
+  }
+
+  .field-journal__left,
+  .field-journal__right { position: static; }
+  .field-journal__left h1 { white-space: normal; font-size: clamp(1.9rem, 8.25cqw, 3rem); }
+  .field-journal__rule { width: 70%; height: 1.4rem; margin-top: .1rem; }
+
+  .field-journal__mobile-illustration {
+    display: block;
+    width: 100%;
+    height: clamp(6.3rem, 36cqw, 12rem);
+    margin: .14rem 0 .64rem;
+    background: url('/art/field-journal/grove-vignette.webp') center / contain no-repeat;
+  }
+
+  .field-journal__objectives { margin: 0; gap: .43rem; }
+  .field-journal__objective { min-height: 2.7rem; gap: .53rem; padding: .48rem .62rem; font-size: clamp(1rem, 5cqw, 1.42rem); }
+  .field-journal__mark { width: clamp(1.26rem, 6.5cqw, 1.8rem); border-radius: .23rem; }
+  .field-journal__action { min-height: 3.12rem; margin-top: .85rem; border-radius: .55rem; font-size: clamp(1.02rem, 5.7cqw, 1.55rem); white-space: normal; }
+  .field-journal__follow-up { margin: .4rem 0 0; font-size: .9rem; }
+  .field-journal__close { position: static; transform: none; }
+}

@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
+  GROVE_WILD_WINS_REQUIRED,
   OUTING_SAVE_KEY,
   clinicAvailable,
+  getGroveQuestPhase,
   getLead,
   levelOf,
   loadOuting,
@@ -14,7 +16,7 @@ import {
 import { PokemonSprite } from './PokemonSprite';
 import './townPlay.css';
 
-export type PanelId = 'maple' | 'clinic' | 'merra' | 'board' | 'gate' | 'workshop' | 'talent' | 'party' | 'bag' | 'journal' | 'settings';
+export type PanelId = 'maple' | 'clinic' | 'merra' | 'board' | 'gate' | 'grove-lina' | 'workshop' | 'talent' | 'party' | 'bag' | 'journal' | 'settings';
 
 const SAVE_KEY = 'wild-reclaim.brookbend.opening.v1';
 const MILESTONES = ['mapleMet', 'clinicVisited', 'merraMet', 'boardRead', 'gateOpen'] as const;
@@ -211,12 +213,29 @@ function StopDialogue({ play, milestone, speaker, children, label, completed }: 
   </>;
 }
 
+function QuestEntry({ title, steps, children }: {
+  title: string;
+  steps: { text: string; done: boolean; count?: string }[];
+  children?: ReactNode;
+}) {
+  return <section className="town-play-quest">
+    <h3 className="town-play-subheading">{title}</h3>
+    <ul className="town-play-list town-play-checklist">
+      {steps.map(({ text, done, count }) => <li key={text}>
+        <span>{text}</span><span className={done ? 'town-play-done' : ''}>{count ?? (done ? 'Complete' : 'Pending')}</span>
+      </li>)}
+    </ul>
+    {children}
+  </section>;
+}
+
 const PANEL_TITLES: Record<PanelId, string> = {
   maple: 'Maple’s Lab',
   clinic: 'Clinic',
   merra: 'Merra’s Shop',
   board: 'Quest Board',
   gate: 'Travel Gate',
+  'grove-lina': 'Report to Ranger Lina',
   workshop: 'Wells’ Workshop',
   talent: 'Talent Lab',
   party: 'Party',
@@ -225,9 +244,10 @@ const PANEL_TITLES: Record<PanelId, string> = {
   settings: 'Save & Settings',
 };
 
-function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
+function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
   panel: PanelId;
   play: TownPlay;
+  onClose: () => void;
   onChooseStarter: () => void;
   onEnterGrove: () => void;
 }) {
@@ -309,6 +329,20 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
         <Dialogue speaker="Ranger Lina">Take this Trail Pass and keep it with your notes. Follow the east trail to the grove. Youngster Theo can show your team how a trainer battle works.</Dialogue>
         <PanelAction onClick={() => finish('gateOpen')}>Accept the Trail Pass</PanelAction>
       </>;
+    case 'grove-lina': {
+      const phase = getGroveQuestPhase(outing);
+      if (phase === 'complete') return <Dialogue speaker="Ranger Lina">I’ve finished assessing the grove. I’ll need your help investigating the strange spores next.</Dialogue>;
+      if (phase !== 'report' || outing.encounter || outing.trainerBattle) {
+        return <Dialogue speaker="Ranger Lina">Clear the overgrowth and win two wild battles before we compare notes.</Dialogue>;
+      }
+      return <>
+        <Dialogue speaker="Ranger Lina">That clears a path to the creek. Show me where you met the wild Pokémon so I can finish my assessment.</Dialogue>
+        <PanelAction onClick={() => {
+          dispatchOuting({ type: 'reportGroveToLina' });
+          onClose();
+        }}>Share your field notes</PanelAction>
+      </>;
+    }
     case 'workshop':
       return <p className="town-play-note">Wells’ Workshop is closed for repairs. The workbench will reopen after Wells returns.</p>;
     case 'talent':
@@ -346,6 +380,7 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
         {hasStarter && <li><span>Pokéballs</span><span>{outing.pokeBalls}</span></li>}
       </ul> : <p className="town-play-note">Your Bag is empty.</p>;
     case 'journal': {
+      const { explored, clearedOvergrowth, wildWins, reported } = outing.groveQuest;
       const steps = [
         { text: 'Meet Professor Maple', done: progress.mapleMet },
         { text: 'Meet your starter team', done: hasStarter },
@@ -357,12 +392,17 @@ function PanelContent({ panel, play, onChooseStarter, onEnterGrove }: {
         { text: 'Defeat Rusk Vale', done: outing.ruskDefeated },
       );
       return <>
-        <h3 className="town-play-subheading">Welcome to Brookbend</h3>
-        <ul className="town-play-list town-play-checklist">
-          {steps.map(({ text, done }) => <li key={text}>
-            <span>{text}</span><span className={done ? 'town-play-done' : ''}>{done ? 'Complete' : 'Pending'}</span>
-          </li>)}
-        </ul>
+        {explored && <QuestEntry title="A Grove in Need" steps={[
+          { text: 'Clear overgrowth', done: clearedOvergrowth },
+          { text: 'Win two wild battles', done: wildWins === GROVE_WILD_WINS_REQUIRED, count: `${wildWins} / ${GROVE_WILD_WINS_REQUIRED}` },
+          { text: 'Report to Ranger Lina', done: reported },
+        ]}>
+          {reported && <p className="town-play-progress">Strange Spores unlocked.</p>}
+        </QuestEntry>}
+        {play.canEnterGrove && <QuestEntry title="First Steps into Verdant Hollow" steps={[
+          { text: 'Explore Brambleberry Grove', done: explored },
+        ]} />}
+        <QuestEntry title="Welcome to Brookbend" steps={steps} />
       </>;
     }
     case 'settings':
@@ -415,7 +455,7 @@ export function TownPanel({ panel, play, onClose, onChooseStarter, onEnterGrove 
         <button className="town-play-close" type="button" onClick={onClose} aria-label="Close panel">×</button>
       </header>
       <div className="town-play-content" key={panel}>
-        <PanelContent panel={panel} play={play} onChooseStarter={onChooseStarter} onEnterGrove={onEnterGrove} />
+        <PanelContent panel={panel} play={play} onClose={onClose} onChooseStarter={onChooseStarter} onEnterGrove={onEnterGrove} />
       </div>
     </div>
   </dialog>;
