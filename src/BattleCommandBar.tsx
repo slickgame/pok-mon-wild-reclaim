@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode, Ref } from "react";
-import { moveDescription, type BattleMoveSlot, type SpeciesMove } from "./pokemonData";
+import { battleMoveSlots, moveDescription, type BattleMoveOrder, type BattleMoveSlot, type SpeciesMove } from "./pokemonData";
 import "./battleCommandBar.css";
 
 const commands = [
@@ -70,15 +70,16 @@ export function BattleCommands({ onChoose, resolve }: {
   </div>;
 }
 
-export function BattleMoves({ moves, onChoose, disabled, describe = moveDescription }: {
+export function BattleMoves({ moves, order = battleMoveSlots, onChoose, disabled, describe = moveDescription }: {
   moves: readonly [SpeciesMove, SpeciesMove, SpeciesMove, SpeciesMove];
+  order?: BattleMoveOrder;
   onChoose: (slot: BattleMoveSlot, move: SpeciesMove) => void;
   disabled?: (slot: BattleMoveSlot) => boolean;
   describe?: (move: SpeciesMove) => string;
 }) {
   return <div className="battle-command-options">
-    {moves.map((move, index) => {
-      const slot = index as BattleMoveSlot;
+    {order.map((slot) => {
+      const move = moves[slot];
       return <BattleTile key={slot} icon={moveIcons[move.name] ?? "fight"} moveSlot={slot}
         title={describe(move)} onClick={() => onChoose(slot, move)} disabled={disabled?.(slot)}>{move.name}</BattleTile>;
     })}

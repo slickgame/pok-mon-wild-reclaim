@@ -5,6 +5,7 @@ export type SpeciesId = typeof starterIds[number] | typeof wildIds[number];
 export type MoveId = 'strike' | 'guard' | 'signature';
 export const battleMoveSlots = [0, 1, 2, 3] as const;
 export type BattleMoveSlot = typeof battleMoveSlots[number];
+export type BattleMoveOrder = readonly [BattleMoveSlot, BattleMoveSlot, BattleMoveSlot, BattleMoveSlot];
 export type PokemonType =
   | 'Normal' | 'Fire' | 'Water' | 'Electric' | 'Grass' | 'Ice'
   | 'Fighting' | 'Poison' | 'Ground' | 'Flying' | 'Psychic' | 'Bug'
@@ -166,7 +167,7 @@ export function moveDescription(move: SpeciesMove) {
     case 'smokescreen': return 'Lowers the target’s accuracy by one stage.';
     case 'attackDown': return 'Lowers the target’s Attack by one stage.';
     case 'defenseDown': return 'Lowers the target’s Defense by one stage.';
-    case 'speedDown': return 'Lowers the target’s Speed by one stage.';
+    case 'speedDown': return 'Lowers the target’s Speed by two stages.';
     case 'paralyze': return 'Paralyzes the target.';
     case 'withdraw': return 'Raises the user’s Defense by one stage.';
     case 'absorb': return 'Restores half the damage dealt.';

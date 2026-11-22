@@ -115,11 +115,13 @@ export function Town() {
   return <>
     {inGrove && revenantBattle ? <RevenantBattleView
       battle={revenantBattle}
+      moveOrderById={play.outing.moveOrderById}
       onAction={(action) => play.dispatchOuting({ type: "revenantAction", action })}
       onReturn={() => play.dispatchOuting({ type: "closeRevenant" })}
       onVisitClinic={() => travel("town", "clinic")}
     /> : inGrove && trainerBattle ? <TrainerBattleView
       battle={trainerBattle}
+      moveOrderById={play.outing.moveOrderById}
       onAction={(action) => play.dispatchOuting({ type: "trainerAction", action })}
       onReturn={() => play.dispatchOuting({ type: "closeTrainer" })}
       onVisitClinic={() => travel("town", "clinic")}

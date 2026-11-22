@@ -3,7 +3,7 @@ import {
   ArrowLeft, ChevronRight, Footprints, HeartPulse, Search, Swords, type LucideIcon,
 } from "lucide-react";
 import {
-  canBeginRevenant, canBeginTrainer, canExploreGrove, canUseWildBerry, captureChance, getGroveQuestPhase, getLead, levelOf,
+  canBeginRevenant, canBeginTrainer, canExploreGrove, canUseWildBerry, captureChance, getGroveQuestPhase, getLead, getMoveOrder, levelOf,
   maxHp, PARTY_LIMIT, species, type Encounter, type GroveDiscovery, type OutingAction, type OutingState, type SpeciesId,
 } from "./outing";
 import { ORAN_BERRY_HEAL, typeMultiplier, type BattleConditions } from "./battleRules";
@@ -210,7 +210,8 @@ function WildBattleView({ battle, lead, outing, onAction, toolbar }: {
       <BattleCommandBar heading={headings[mode]} headingRef={headingRef}
         onBack={mode !== "command" && !needsReplacement ? () => setMenu("command") : undefined}>
         {mode === "command" && <BattleCommands onChoose={setMenu} />}
-        {mode === "fight" && <BattleMoves moves={battleMoves(lead.species)} onChoose={(move) => choose({ type: "move", move })}
+        {mode === "fight" && <BattleMoves moves={battleMoves(lead.species)} order={getMoveOrder(outing, lead.id)}
+          onChoose={(move) => choose({ type: "move", move })}
           describe={(move) => {
             if (!move.power) return moveDescription(move);
             const matchup = typeMultiplier(move.type, opponent.types);

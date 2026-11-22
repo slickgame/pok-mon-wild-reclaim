@@ -3,6 +3,7 @@ import { Circle } from "lucide-react";
 import { BattleCommandBar, BattleCommands, BattleMoves, BattleTile, type BattleMode } from "./BattleCommandBar";
 import { moveTargetsSelf, ORAN_BERRY_HEAL, typeMultiplier } from "./battleRules";
 import { PokemonSprite } from "./PokemonSprite";
+import type { OutingState } from "./outing";
 import { battleMoves, moveDescription, species, type BattleMoveSlot, type SpeciesMove } from "./pokemonData";
 import {
   battlePositions, canPlanTrainerCommand, trainerBattleReady, trainerItemTargets, trainerMoveTargets, trainerProfiles, trainerReplacements, trainerReserves,
@@ -12,6 +13,7 @@ import "./trainerBattle.css";
 
 type TrainerBattleViewProps = {
   battle: TrainerBattleState;
+  moveOrderById?: OutingState["moveOrderById"];
   onAction: (action: TrainerAction) => void;
   onReturn: () => void;
   onVisitClinic?: () => void;
@@ -110,7 +112,7 @@ function describeCommand(battle: TrainerBattleState, pokemon: BattleMon, command
   return target ? `${label} → ${species[target.species].name}` : label;
 }
 
-export function TrainerBattleView({ battle, onAction, onReturn, onVisitClinic, toolbar }: TrainerBattleViewProps) {
+export function TrainerBattleView({ battle, moveOrderById, onAction, onReturn, onVisitClinic, toolbar }: TrainerBattleViewProps) {
   const trainer = trainerProfiles[battle.trainerId];
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedReplacement, setSelectedReplacement] = useState<ReplacementSlot | null>(null);
@@ -332,7 +334,7 @@ export function TrainerBattleView({ battle, onAction, onReturn, onVisitClinic, t
         </div> : choosingTarget ? <p className="battle-command-hint">Choose a Pokémon on the opposing team.</p>
           : mode === "command" ? <BattleCommands onChoose={showMode}
             resolve={{ onClick: resolve, disabled: !ready, buttonRef: resolution }} />
-          : mode === "fight" && actor ? <BattleMoves moves={battleMoves(actor.species)} onChoose={selectMove} />
+          : mode === "fight" && actor ? <BattleMoves moves={battleMoves(actor.species)} order={moveOrderById?.[actor.id]} onChoose={selectMove} />
           : mode === "items" && actor ? <>
             <p className="battle-command-hint">Oran Berry ×{battle.oranBerries} · Restores up to {ORAN_BERRY_HEAL} HP.</p>
             {battle.oranBerries === 0 ? <p className="battle-command-hint">Your Bag has no Oran Berries.</p>

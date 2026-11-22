@@ -3,8 +3,8 @@ import {
   type BattleConditions, type BattleTarget,
 } from './battleRules';
 import {
-  battleMoves, gainXp, getMove, isSpeciesId, levelOf, MAX_XP, maxHp, species, starterIds, wildIds,
-  type BattleMoveSlot, type Companion, type MoveId, type SpeciesId,
+  battleMoves, battleMoveSlots, gainXp, getMove, isSpeciesId, levelOf, MAX_XP, maxHp, species, starterIds, wildIds,
+  type BattleMoveOrder, type BattleMoveSlot, type Companion, type MoveId, type SpeciesId,
 } from './pokemonData';
 import {
   loadTrainerBattle, startTrainerBattle, trainerParty, updateTrainerBattle,
@@ -56,6 +56,7 @@ export type GroveDiscovery =
 export type OutingState = {
   party: Companion[];
   leadId: number | null;
+  moveOrderById: Partial<Record<number, BattleMoveOrder>>;
   pokeBalls: number;
   encounter: Encounter | null;
   trainerBattle: TrainerBattleState | null;
@@ -72,6 +73,7 @@ export type OutingState = {
 export type OutingAction =
   | { type: 'chooseStarter'; species: SpeciesId }
   | { type: 'selectLead'; id: number }
+  | { type: 'reorderMoves'; id: number; order: readonly BattleMoveSlot[] }
   | { type: 'search' }
   | { type: 'exploreGrove' }
   | { type: 'closeGroveDiscovery' }
@@ -107,7 +109,7 @@ const TRAINER_ROLL_START = 0.90;
 const undiscoveredSpores: SporesQuestProgress = { discovered: false, investigated: false, defeated: false, reported: false };
 
 export const initialOuting: OutingState = {
-  party: [], leadId: null, pokeBalls: 0, encounter: null, trainerBattle: null, theoDefeated: false, ruskDefeated: false,
+  party: [], leadId: null, moveOrderById: {}, pokeBalls: 0, encounter: null, trainerBattle: null, theoDefeated: false, ruskDefeated: false,
   revenantBattle: null,
   groveQuest: { explored: false, clearedOvergrowth: false, wildWins: 0, reported: false },
   sporesQuest: undiscoveredSpores,
@@ -123,6 +125,21 @@ export function getGroveQuestPhase({ groveQuest }: OutingState) {
 
 export function getLead(state: OutingState) {
   return state.party.find(({ id }) => id === state.leadId);
+}
+
+export function getMoveOrder(state: OutingState, id: number): BattleMoveOrder {
+  return state.moveOrderById[id] ?? battleMoveSlots;
+}
+
+export function canReorderMoves(state: OutingState) {
+  return state.encounter?.outcome !== 'active' && state.trainerBattle?.outcome !== 'active' &&
+    state.revenantBattle?.outcome !== 'active';
+}
+
+function readMoveOrder(value: unknown): BattleMoveOrder | undefined {
+  if (!Array.isArray(value) || value.length !== battleMoveSlots.length ||
+      !battleMoveSlots.every(slot => value.includes(slot))) return undefined;
+  return [value[0], value[1], value[2], value[3]];
 }
 
 export function captureChance(encounter: Encounter) {
@@ -303,6 +320,18 @@ export function updateOuting(state: OutingState, action: OutingAction, roll = 0.
   const lead = getLead(state);
   const battle = state.trainerBattle;
   const revenant = state.revenantBattle;
+
+  if (action.type === 'reorderMoves') {
+    if (!canReorderMoves(state) || !state.party.some(({ id }) => id === action.id)) return state;
+    const order = readMoveOrder(action.order);
+    if (!order || order.every((slot, index) => slot === getMoveOrder(state, action.id)[index])) return state;
+
+    // Changing the menu order never changes the move IDs in queued battle commands.
+    const moveOrderById = { ...state.moveOrderById };
+    if (order.every((slot, index) => slot === battleMoveSlots[index])) delete moveOrderById[action.id];
+    else moveOrderById[action.id] = order;
+    return { ...state, moveOrderById };
+  }
 
   if (action.type === 'startRevenant') {
     if (!canBeginRevenant(state)) return state;
@@ -594,8 +623,13 @@ export function loadOuting(value: string | null): OutingState {
     const groveDiscovery = groveQuest.explored && !encounter && !trainerBattle && !revenantBattle
       ? readGroveDiscovery(parsed.groveDiscovery, fieldSupplies, theoDefeated, sporesQuest) : null;
     const currentParty = revenantBattle && savedRevenantParty ? savedRevenantParty : trainerBattle && savedTrainerParty ? savedTrainerParty : party;
+    const savedMoveOrders = record(parsed.moveOrderById);
+    const moveOrderById = Object.fromEntries(currentParty.flatMap(({ id }) => {
+      const order = readMoveOrder(savedMoveOrders?.[id]);
+      return order ? [[id, order] as const] : [];
+    }));
     return {
-      party: currentParty, leadId: savedLead.id, encounter, trainerBattle, revenantBattle,
+      party: currentParty, leadId: savedLead.id, moveOrderById, encounter, trainerBattle, revenantBattle,
       pokeBalls: integer(parsed.pokeBalls ?? parsed.snares, 0, 0, STARTER_POKE_BALLS),
       theoDefeated, ruskDefeated: theoDefeated &&
         (parsed.ruskDefeated === true || (trainerBattle?.trainerId === 'rusk' && trainerBattle.outcome === 'won')),

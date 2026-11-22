@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronRight, Circle, HeartPulse } from "lucide-react";
 import { BattleCommandBar, BattleCommands, BattleIcon, BattleMoves, BattleTile, type BattleMode } from "./BattleCommandBar";
 import { PokemonSprite } from "./PokemonSprite";
+import type { OutingState } from "./outing";
 import { levelOf, species } from "./pokemonData";
 import {
   canPlanRevenantCommand, ORAN_BERRY_HEAL, REVENANT_HEAL_MULTIPLIER, REVENANT_NAME,
@@ -13,6 +14,7 @@ import "./revenantBattle.css";
 
 type BattleProps = {
   battle: RevenantBattleState;
+  moveOrderById?: OutingState["moveOrderById"];
   onAction: (action: RevenantAction) => void;
   onReturn: () => void;
   onVisitClinic: () => void;
@@ -61,7 +63,7 @@ function planName(battle: RevenantBattleState, id: number) {
   return plan.type === "switch" ? `Switch to ${name ?? "reserve"}` : `Oran Berry → ${name ?? "ally"}`;
 }
 
-export function RevenantBattleView({ battle, onAction, onReturn, onVisitClinic }: BattleProps) {
+export function RevenantBattleView({ battle, moveOrderById, onAction, onReturn, onVisitClinic }: BattleProps) {
   const [mode, setMode] = useState<BattleMode>("command");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const focusNext = useRef(false);
@@ -199,7 +201,7 @@ export function RevenantBattleView({ battle, onAction, onReturn, onVisitClinic }
           onAction({ type: "replace", slot: replacing, withId: reserve.id });
         }}>{species[reserve.species].name} · Lv. {levelOf(reserve)}</BattleTile>)}
       </div> : mode === "command" ? <BattleCommands onChoose={showMode} resolve={{ disabled: !ready, onClick: resolveRound }} />
-        : mode === "fight" && actor ? <BattleMoves moves={revenantMoves(actor.species)}
+        : mode === "fight" && actor ? <BattleMoves moves={revenantMoves(actor.species)} order={moveOrderById?.[actor.id]}
           onChoose={(slot) => queue({ type: "move", move: slot })}
           disabled={(slot) => !canPlanRevenantCommand(battle, actor.id, { type: "move", move: slot })} /> : mode === "items" && actor ? <>
         <p className="battle-command-hint">Oran Berry ×{battle.oranBerries} · Heals up to {ORAN_BERRY_HEAL * REVENANT_HEAL_MULTIPLIER} HP here.</p>

@@ -248,8 +248,7 @@
 }
 
 .town-play-starter strong,
-.town-play-starter small,
-.town-play-member span {
+.town-play-starter small {
   display: block;
 }
 
@@ -260,44 +259,6 @@
 
 .town-play-starter small + small {
   margin-top: 0.35rem;
-}
-
-.town-play-content .town-play-party-note {
-  margin-bottom: 0.7rem;
-}
-
-.town-play-party li {
-  display: grid;
-  grid-template-columns: 3.35rem minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.town-play-party .pokemon-sprite {
-  width: 100%;
-  height: 3.35rem;
-  object-fit: contain;
-}
-
-.town-play-member {
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
-
-.town-play-member strong {
-  color: #fff0ce;
-  font-size: 1.05rem;
-}
-
-.town-play-lead {
-  color: #d0e2bd;
-  font-size: 0.88rem;
-}
-
-.town-play-party .town-play-action {
-  width: auto;
-  padding: 0.4rem 0.6rem;
-  font-size: 0.84rem;
 }
 
 @media (max-width: 580px) {

@@ -8,8 +8,6 @@ import {
   clinicAvailable,
   getGroveQuestPhase,
   getLead,
-  levelOf,
-  maxHp,
   species,
   starterIds,
   updateOuting,
@@ -17,6 +15,7 @@ import {
   type OutingState,
 } from './outing';
 import { hasActiveEncounter, MAX_IMPORT_BYTES, normalizeLocation, readGameSave, type GameSave, type Milestone, type WorldLocation } from './gameSave';
+import { PartyMoves } from './PartyMoves';
 import { PokemonSprite } from './PokemonSprite';
 import { useGameSave } from './useGameSave';
 import './townPlay.css';
@@ -439,32 +438,8 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove, onE
       return <p className="town-play-note">Wells’ Workshop is closed for repairs. The workbench will reopen after Wells returns.</p>;
     case 'talent':
       return <p className="town-play-note">The Talent Lab is closed. Professor Maple will share more as the town rebuilds.</p>;
-    case 'party': {
-      if (!hasStarter) return <p className="town-play-note">Meet your starter team at Maple’s Lab.</p>;
-      return <>
-        {inBattle && <p className="town-play-note town-play-party-note">Use the battle commands to switch Pokémon.</p>}
-        <ul className="town-play-list town-play-party" aria-label="Party members">
-          {outing.party.map((companion) => {
-            const partner = species[companion.species];
-            const isLead = companion.id === outing.leadId;
-            const hp = maxHp(companion);
-            return <li key={companion.id}>
-              <PokemonSprite speciesId={companion.species} />
-              <span className="town-play-member">
-                <strong>{partner.name}</strong>
-                <span>{partner.kind} · Lv. {levelOf(companion)}</span>
-                <span>{companion.hp}/{hp} HP</span>
-              </span>
-              {isLead ? <span className="town-play-lead">Lead</span> : <PanelAction
-                onClick={() => dispatchOuting({ type: 'selectLead', id: companion.id })}
-                disabled={inBattle || companion.hp === 0}
-                label={`Lead with ${partner.name}`}
-              >Set as lead</PanelAction>}
-            </li>;
-          })}
-        </ul>
-      </>;
-    }
+    case 'party':
+      return <PartyMoves outing={outing} dispatch={dispatchOuting} />;
     case 'bag':
       return progress.mapleMet ? <ul className="town-play-list">
         <li><span>Field Notebook</span><span>1</span></li>
@@ -526,7 +501,7 @@ export function TownPanel({ panel, ...props }: PanelProps & { panel: PanelId | n
 
   return <dialog
     ref={dialogRef}
-    className="town-play-dialog"
+    className={panel === 'party' && props.play.hasStarter ? 'town-play-dialog party-moves-dialog' : 'town-play-dialog'}
     aria-labelledby={titleId}
     onCancel={(event) => {
       event.preventDefault();
