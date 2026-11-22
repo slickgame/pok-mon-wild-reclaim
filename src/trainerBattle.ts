@@ -1,4 +1,4 @@
-import { readSmokescreenUses } from './pokemonData';
+import { hitsAllFoes, readSignatureProgress } from './pokemonData';
 import {
   battleSpeed, damagePreview, drainSeed, emptyConditions, moveTargetsSelf, ORAN_BERRY_HEAL, paralysisStopsMove,
   readBattleConditions, resolveBattleMove,
@@ -119,7 +119,7 @@ export function startTrainerBattle(
 }
 
 export function trainerParty(battle: TrainerBattleState): Companion[] {
-  return battle.player.team.map(({ id, species, hp, xp, smokescreenUses }) => ({ id, species, hp, xp, smokescreenUses }));
+  return battle.player.team.map(({ id, species, hp, xp, ...member }) => ({ id, species, hp, xp, ...readSignatureProgress(member) }));
 }
 
 export function canPlanTrainerCommand(battle: TrainerBattleState, actorId: number, command: TrainerCommand) {
@@ -128,7 +128,7 @@ export function canPlanTrainerCommand(battle: TrainerBattleState, actorId: numbe
   if (command.type === 'move') {
     const move = battleMoves(actor.species)[command.move];
     if (!move) return false;
-    if (moveTargetsSelf(move)) return command.targetId === null;
+    if (moveTargetsSelf(move) || hitsAllFoes(actor, move)) return command.targetId === null;
     return command.targetId !== null && trainerMoveTargets(battle, actorId, command.move).includes(command.targetId);
   }
   const otherPlans = Object.entries(battle.plans).filter(([id]) => Number(id) !== actorId).map(([, plan]) => plan);
@@ -217,7 +217,7 @@ function roundQueue(battle: TrainerBattleState, random: () => number) {
 
 function updateMon(side: TrainerSide, next: BattleTarget) {
   const index = side.team.findIndex(mon => mon.id === next.id);
-  if (index >= 0) side.team[index] = { ...side.team[index], hp: next.hp, conditions: next.conditions, smokescreenUses: next.smokescreenUses };
+  if (index >= 0) side.team[index] = { ...side.team[index], hp: next.hp, conditions: next.conditions, ...readSignatureProgress(next) };
 }
 
 function noteFaint(battle: TrainerBattleState, before: BattleMon, after: BattleTarget) {
@@ -258,6 +258,16 @@ function resolveAction(battle: TrainerBattleState, pending: Queued, guarded: Set
   if (!move) return;
   const self = moveTargetsSelf(move);
   const opponents = activeParty(defending);
+  if (hitsAllFoes(actor, move)) {
+    const log = [`${species[actor.species].name} used ${move.name} on all foes.`];
+    for (const foe of opponents) {
+      const result = resolveBattleMove(actor, foe, move, random());
+      updateMon(defending, result.target);
+      log.push(...result.log.slice(1).map(line => line === 'The move missed.' ? `It missed ${species[foe.species].name}.` : line));
+    }
+    battle.log.push(...log);
+    return;
+  }
   const target = self ? actor : opponents.find(mon => mon.id === defending.active[pending.targetSlot]) ?? opponents[0];
   if (!target) return;
   if (!self && target.id !== command.targetId && defending.active[pending.targetSlot] !== target.id) {
@@ -387,7 +397,7 @@ function readTrainerPlayer(value: unknown): TrainerSide | null {
     const id = integer(saved.id, 1, Number.MAX_SAFE_INTEGER);
     const xp = integer(saved.xp, 0, MAX_XP);
     if (id === undefined || xp === undefined || team.some(member => member.id === id)) return null;
-    const member = playerMon({ id, xp, hp: 0, species: saved.species, smokescreenUses: readSmokescreenUses(saved.smokescreenUses) });
+    const member = playerMon({ id, xp, hp: 0, species: saved.species, ...readSignatureProgress(saved) });
     const hp = integer(saved.hp, 0, member.maxHp);
     if (hp === undefined) return null;
     team.push({ ...member, hp, conditions: readBattleConditions(saved.conditions) });

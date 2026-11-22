@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Circle } from "lucide-react";
 import { BattleCommandBar, BattleCommands, BattleMoves, BattleTile, type BattleMode } from "./BattleCommandBar";
+import { hitsAllFoes } from "./pokemonData";
 import { moveTargetsSelf, ORAN_BERRY_HEAL, typeMultiplier } from "./battleRules";
 import { PokemonSprite } from "./PokemonSprite";
 import type { OutingState } from "./outing";
@@ -109,6 +110,7 @@ function describeCommand(battle: TrainerBattleState, pokemon: BattleMon, command
   const move = battleMoves(pokemon.species)[command.move];
   const target = battle.enemy.team.find(({ id }) => id === command.targetId);
   const label = move?.name ?? "Move";
+  if (move && hitsAllFoes(pokemon, move)) return `${label} → All foes`;
   return target ? `${label} → ${species[target.species].name}` : label;
 }
 
@@ -189,7 +191,7 @@ export function TrainerBattleView({ battle, moveOrderById, onAction, onReturn, o
 
   function selectMove(id: BattleMoveSlot, move: SpeciesMove) {
     if (!actor) return;
-    if (moveTargetsSelf(move)) {
+    if (moveTargetsSelf(move) || hitsAllFoes(actor, move)) {
       queue({ type: "move", move: id, targetId: null });
       return;
     }

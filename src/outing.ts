@@ -1,4 +1,4 @@
-import { readSmokescreenUses } from './pokemonData';
+import { readSignatureProgress } from './pokemonData';
 import {
   drainSeed, emptyConditions, ORAN_BERRY_HEAL, paralysisStopsMove, readBattleConditions, resolveBattleMove,
   type BattleConditions, type BattleTarget,
@@ -298,7 +298,7 @@ function resolveWildTurn(
       wild: wild.conditions,
     },
   };
-  const companion = { ...lead, hp: player.hp, smokescreenUses: player.smokescreenUses };
+  const companion = { ...lead, hp: player.hp, ...readSignatureProgress(player) };
   const healthyReserve = state.party.some((member) => member.id !== lead.id && member.hp > 0);
 
   if (player.hp === 0) {
@@ -560,7 +560,7 @@ function readParty(value: unknown): Companion[] {
     if (!isSpeciesId(speciesId)) continue;
     const id = integer(member.id, 0, 0, Number.MAX_SAFE_INTEGER - 1);
     if (!id || party.some((entry) => entry.id === id)) continue;
-    const companion = { id, species: speciesId, hp: 0, xp: integer(member.xp, 0, 0, MAX_XP), smokescreenUses: readSmokescreenUses(member.smokescreenUses) };
+    const companion = { id, species: speciesId, hp: 0, xp: integer(member.xp, 0, 0, MAX_XP), ...readSignatureProgress(member) };
     const max = maxHp(companion);
     const previousMax = previous ? previous.baseHp + (levelOf(companion) - 1) * 3 : max;
     const savedHp = integer(member.hp, previousMax, 0, previousMax);

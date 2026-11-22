@@ -1,9 +1,9 @@
-import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { ChevronDown, ChevronUp, GripVertical, Info, X } from 'lucide-react';
 import { moveTargetsSelf } from './battleRules';
 import { canReorderMoves, getLead, getMoveOrder, type OutingAction, type OutingState } from './outing';
 import { partyMoveDetails } from './partyMoveDetails';
-import { SMOKESCREEN_GOAL, isSignatureSmokescreen, battleMoves, levelOf, maxHp, species, type BattleMoveSlot, type PokemonType, type SpeciesMove } from './pokemonData';
+import { SMOKESCREEN_GOAL, signatureTraining, hitsAllFoes, type Companion, battleMoves, levelOf, maxHp, species, type BattleMoveSlot, type PokemonType, type SpeciesMove } from './pokemonData';
 import { PokemonSprite } from './PokemonSprite';
 import './partyMoves.css';
 
@@ -11,24 +11,25 @@ function TypeBadge({ type }: { type: PokemonType }) {
   return <span className="party-moves-type" data-element={type}>{type}</span>;
 }
 
-function SignatureProgress({ uses, detailed = false }: { uses: number; detailed?: boolean }) {
+function SignatureProgress({ uses, move, effect, detailed = false }: { uses: number; move: string; effect: string; detailed?: boolean }) {
   const unlocked = uses >= SMOKESCREEN_GOAL;
   return <div className={`signature-progress${detailed ? ' signature-progress--details' : ''}`}>
     {detailed && <h4>Signature Training</h4>}
     <div className="signature-progress-meter">
-      <progress aria-label="Smokescreen training" value={uses} max={SMOKESCREEN_GOAL} />
+      <progress aria-label={`${move} training`} value={uses} max={SMOKESCREEN_GOAL} />
       <span>{uses} / {SMOKESCREEN_GOAL} uses</span>
     </div>
-    <p><strong>{unlocked ? 'Mastered' : 'Upgrade'}</strong> · Lowers accuracy by 2 stages.</p>
+    <p><strong>{unlocked ? 'Mastered' : 'Upgrade'}</strong> · {effect}</p>
   </div>;
 }
 
-function MoveInfo({ move, uses, onClose }: { move: SpeciesMove; uses?: number; onClose: () => void }) {
+function MoveInfo({ move, member, onClose }: { move: SpeciesMove; member: Companion; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const targetsSelf = moveTargetsSelf(move);
   const info = partyMoveDetails(move, targetsSelf);
-  const effects = uses !== undefined && uses >= SMOKESCREEN_GOAL ? ['Lowers the target’s accuracy by two stages.'] : info.effects;
+  const training = signatureTraining(member, move);
+  const effects = training && training.uses >= SMOKESCREEN_GOAL ? [training.effect] : info.effects;
 
   useEffect(() => {
     const panel = dialog.current;
@@ -64,7 +65,7 @@ function MoveInfo({ move, uses, onClose }: { move: SpeciesMove; uses?: number; o
         <div><dt>Base accuracy</dt><dd>{info.accuracy}</dd></div>
         <div><dt>Base damage power</dt><dd>{move.power > 0 ? move.power : 'None'}</dd></div>
         <div><dt>Base PP (reference)</dt><dd>{info.pp ?? '—'}</dd></div>
-        <div><dt>Target</dt><dd>{targetsSelf ? 'Self' : 'One foe'}</dd></div>
+        <div><dt>Target</dt><dd>{targetsSelf ? 'Self' : hitsAllFoes(member, move) ? 'All foes' : 'One foe'}</dd></div>
       </dl>
       <section className="party-moves-info-effects" aria-label="Effects">
         <h4>{move.category === 'status' ? 'Effect' : 'Additional effects'}</h4>
@@ -72,7 +73,7 @@ function MoveInfo({ move, uses, onClose }: { move: SpeciesMove; uses?: number; o
       </section>
       {move.power > 0 && <p className="party-moves-info-note">Actual damage depends on level, type matchup, and battle conditions.</p>}
       <p className="party-moves-info-note">PP is shown for reference. Battles currently use no PP.</p>
-      {uses !== undefined && <SignatureProgress uses={uses} detailed />}
+      {training && <SignatureProgress uses={training.uses} move={move.name} effect={training.effect} detailed />}
     </article>
   </dialog>;
 }
@@ -154,17 +155,21 @@ export function PartyMoves({ outing, dispatch }: { outing: OutingState; dispatch
     if (member) setAnnouncement(`${species[member.species].name} moved to party position ${index + 1}.`);
   }
 
-  const trainingUses = (move: SpeciesMove) => isSignatureSmokescreen(selected, move)
-    ? selected.smokescreenUses ?? 0
-    : undefined;
   let readyIndex = 0;
-  return <div className="party-moves-layout">
-    <ul className="party-moves-roster" ref={roster} aria-label="Party members">
-      {outing.party.map((member, index) => {
+  return <div className="party-moves-layout expedition-layout">
+    <ul className="party-moves-roster expedition-roster" ref={roster} aria-label="Party members">
+      {Array.from({ length: 6 }, (_, index) => {
+        const heading = index === 0 || index === 3
+          ? <li className="expedition-row-title" aria-hidden="true">{index === 0 ? 'Party · Front Row' : 'Reserve · Back Row'}</li>
+          : null;
+        const member = outing.party[index];
+        if (!member) return <Fragment key={`empty-${index}`}>{heading}<li className="party-moves-member expedition-empty">
+          <span className="expedition-slot-number">{index + 1}</span><span className="expedition-ball" aria-hidden="true" /><span className="expedition-nameplate">Empty</span>
+        </li></Fragment>;
         const partner = species[member.species];
         const active = member.id === selected.id;
         const position = member.hp > 0 ? ['Front · Lead', 'Middle', 'Rear'][readyIndex++] ?? 'Reserve' : 'Fainted';
-        return <li key={member.id} data-party-index={index} data-roster-drop={rosterDrop === index || undefined} className={active ? 'party-moves-member is-selected' : 'party-moves-member'}>
+        return <Fragment key={member.id}>{heading}<li data-party-index={index} data-roster-drop={rosterDrop === index || undefined} className={active ? 'party-moves-member is-selected' : 'party-moves-member'}>
           <button type="button" className="party-moves-grip party-roster-grip" disabled={!editable}
             aria-label={`Reorder ${partner.name}, position ${index + 1}`} title="Drag to reorder or press an arrow key"
             onKeyDown={event => {
@@ -196,15 +201,15 @@ export function PartyMoves({ outing, dispatch }: { outing: OutingState; dispatch
               setInspectedSlot(undefined);
               setAnnouncement('');
             }}>
-            <PokemonSprite speciesId={member.species} className="party-moves-sprite" />
+            <span className="expedition-ball"><PokemonSprite speciesId={member.species} className="party-moves-sprite" /></span>
             <span className="party-moves-member-copy">
-              <strong>{partner.name}</strong>
+              <strong className="expedition-nameplate">{partner.name}</strong>
               <span aria-label={`${partner.kind}, Level ${levelOf(member)}`}>Lv. {levelOf(member)}</span>
               <span>{member.hp}/{maxHp(member)} HP</span>
             </span>
           </button>
           <span className="party-moves-lead">{position}</span>
-        </li>;
+        </li></Fragment>;
       })}
     </ul>
     <section className="party-moves-known" aria-labelledby={headingId}>
@@ -214,8 +219,8 @@ export function PartyMoves({ outing, dispatch }: { outing: OutingState; dispatch
           const move = moves[slot];
           const targetsSelf = moveTargetsSelf(move);
           const detail = partyMoveDetails(move, targetsSelf);
-          const uses = trainingUses(move);
-          return <li className={uses === undefined ? 'party-moves-row' : 'party-moves-row party-moves-row--signature'} data-slot={slot} data-move-index={index} key={slot}
+          const training = signatureTraining(selected, move);
+          return <li className={!training ? 'party-moves-row' : 'party-moves-row party-moves-row--signature'} data-slot={slot} data-move-index={index} key={slot}
             data-dragging={draggingSlot === slot || undefined}
             data-drop-target={dropIndex === index && draggingSlot !== slot || undefined}>
             <button className="party-moves-grip" type="button" tabIndex={-1} disabled={!editable}
@@ -238,13 +243,13 @@ export function PartyMoves({ outing, dispatch }: { outing: OutingState; dispatch
               <button className="party-moves-control" type="button" aria-label={`Move ${move.name} down`}
                 disabled={!editable || index === order.length - 1} onClick={() => reorder(slot, index + 1)}><ChevronDown /></button>
             </div>
-            {uses !== undefined && <SignatureProgress uses={uses} />}
+            {training && <SignatureProgress uses={training.uses} move={move.name} effect={training.effect} />}
           </li>;
         })}
       </ol>
       {!editable && <p className="party-moves-locked">Finish the battle to reorder the party or its moves.</p>}
       <span className="party-moves-announcement" role="status">{announcement}</span>
     </section>
-    {inspectedSlot !== undefined && <MoveInfo move={moves[inspectedSlot]} uses={trainingUses(moves[inspectedSlot])} onClose={() => setInspectedSlot(undefined)} />}
+    {inspectedSlot !== undefined && <MoveInfo move={moves[inspectedSlot]} member={selected} onClose={() => setInspectedSlot(undefined)} />}
   </div>;
 }

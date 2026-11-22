@@ -1,4 +1,4 @@
-import { species, SMOKESCREEN_GOAL, isSignatureSmokescreen, type PokemonType, type SpeciesId, type SpeciesMove } from './pokemonData';
+import { species, SMOKESCREEN_GOAL, signatureTraining, type PokemonType, type SpeciesId, type SpeciesMove } from './pokemonData';
 
 type Matchup = { weak?: PokemonType[]; resist?: PokemonType[]; immune?: PokemonType[] };
 
@@ -24,7 +24,7 @@ const typeChart: Record<PokemonType, Matchup> = {
   Fairy: { weak: ['Fighting', 'Dragon', 'Dark'], resist: ['Fire', 'Poison', 'Steel'] },
 };
 
-export type BattleConditions = { accuracy: number; defense: number; attack?: number; speed?: number; paralyzed?: boolean; seededBy?: number };
+export type BattleConditions = { accuracy: number; defense: number; attack?: number; speed?: number; paralyzed?: boolean; seededBy?: number; masteredSeed?: boolean };
 export const emptyConditions: BattleConditions = { accuracy: 0, defense: 0 };
 export const ORAN_BERRY_HEAL = 10;
 
@@ -37,6 +37,8 @@ export type BattleTarget = {
   level: number;
   conditions: BattleConditions;
   smokescreenUses?: number;
+  withdrawUses?: number;
+  leechSeedUses?: number;
 };
 
 export function typeMultiplier(moveType: PokemonType, defenderTypes: readonly PokemonType[]): number {
@@ -74,14 +76,14 @@ function readStage(value: unknown) {
 
 export function readBattleConditions(value: unknown): BattleConditions {
   if (!value || typeof value !== 'object') return emptyConditions;
-  const { accuracy, defense, attack, speed, paralyzed, seededBy } = value as Partial<BattleConditions>;
+  const { accuracy, defense, attack, speed, paralyzed, seededBy, masteredSeed } = value as Partial<BattleConditions>;
   return {
     accuracy: readStage(accuracy),
     defense: readStage(defense),
     ...(readStage(attack) ? { attack: readStage(attack) } : {}),
     ...(readStage(speed) ? { speed: readStage(speed) } : {}),
     ...(paralyzed === true ? { paralyzed } : {}),
-    ...(typeof seededBy === 'number' && Number.isSafeInteger(seededBy) ? { seededBy } : {}),
+    ...(typeof seededBy === 'number' && Number.isSafeInteger(seededBy) ? { seededBy, ...(masteredSeed === true ? { masteredSeed } : {}) } : {}),
   };
 }
 
@@ -121,16 +123,19 @@ export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, mov
   const actorName = battleName(actor);
   const targetName = battleName(target);
   const log = [`${actorName} used ${move.name}.`];
-  const uses = actor.smokescreenUses ?? 0;
-  const signature = isSignatureSmokescreen(actor, move);
-  if (signature && uses < SMOKESCREEN_GOAL) {
-    actor = { ...actor, smokescreenUses: uses + 1 };
-    if (uses + 1 === SMOKESCREEN_GOAL) log.push('Charmander mastered Smokescreen!');
+  const training = signatureTraining(actor, move);
+  const mastered = !!training && training.uses >= SMOKESCREEN_GOAL;
+  if (training && !mastered) {
+    const uses = training.uses + 1;
+    actor = { ...actor, [training.key]: uses };
+    if (uses === SMOKESCREEN_GOAL) log.push(`${actorName} mastered ${move.name}!`);
   }
   if (move.effect === 'withdraw') {
-    if (actor.conditions.defense >= 6) return { actor, target, log: [...log, `${actorName}’s Defense cannot go higher.`] };
-    const defended = { ...actor, conditions: { ...actor.conditions, defense: actor.conditions.defense + 1 } };
-    return { actor: defended, target, log: [...log, `${actorName}’s Defense rose.`] };
+    const defense = Math.min(6, actor.conditions.defense + (mastered ? 2 : 1));
+    const heal = mastered ? Math.min(actor.maxHp - actor.hp, Math.floor(Math.max(1, Math.floor(actor.maxHp / 8)) * healingMultiplier)) : 0;
+    if (heal > 0) log.push(`${actorName} recovered ${heal} HP.`);
+    log.push(defense === actor.conditions.defense ? `${actorName}’s Defense cannot go higher.` : `${actorName}’s Defense rose.`);
+    return { actor: { ...actor, hp: actor.hp + heal, conditions: { ...actor.conditions, defense } }, target, log };
   }
 
   const accuracy = Math.min(1, move.accuracy * stageMultiplier(actor.conditions.accuracy, 3));
@@ -138,7 +143,7 @@ export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, mov
 
   if (move.effect === 'smokescreen' || move.effect === 'attackDown' || move.effect === 'defenseDown' ||
       (move.effect === 'speedDown' && move.category === 'status')) {
-    const lowered = lowerStat(target, move.effect, signature && uses >= SMOKESCREEN_GOAL ? 2 : undefined);
+    const lowered = lowerStat(target, move.effect, mastered && move.effect === 'smokescreen' ? 2 : undefined);
     return { actor, target: lowered.target, log: [...log, lowered.log] };
   }
   if (move.effect === 'paralyze') {
@@ -158,7 +163,7 @@ export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, mov
     if (target.conditions.seededBy !== undefined) {
       return { actor, target, log: [...log, `${targetName} is already seeded.`] };
     }
-    const seeded = { ...target, conditions: { ...target.conditions, seededBy: actor.id } };
+    const seeded = { ...target, conditions: { ...target.conditions, seededBy: actor.id, masteredSeed: mastered } };
     return { actor, target: seeded, log: [...log, `${targetName} was seeded.`] };
   }
 
@@ -185,7 +190,7 @@ export function resolveBattleMove(actor: BattleTarget, target: BattleTarget, mov
 
 export function drainSeed(target: BattleTarget, owner?: BattleTarget, healingMultiplier = 1) {
   if (target.conditions.seededBy === undefined || target.hp === 0) return { target, owner, log: [] as string[] };
-  const loss = Math.min(target.hp, Math.max(1, Math.floor(target.maxHp / 8)));
+  const loss = Math.min(target.hp, Math.max(1, Math.floor(target.maxHp / (target.conditions.masteredSeed ? 6 : 8))));
   const heal = owner && owner.hp > 0 && owner.id === target.conditions.seededBy
     ? Math.min(Math.floor(loss * healingMultiplier), owner.maxHp - owner.hp) : 0;
   const log = [`Leech Seed drained ${loss} HP from ${battleName(target)}.`];

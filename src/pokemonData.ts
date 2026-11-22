@@ -102,7 +102,7 @@ export const species: Record<SpeciesId, Species> = {
   },
 };
 
-export type Companion = { id: number; species: SpeciesId; hp: number; xp: number; smokescreenUses?: number };
+export type Companion = { id: number; species: SpeciesId; hp: number; xp: number; smokescreenUses?: number; withdrawUses?: number; leechSeedUses?: number };
 
 export const SMOKESCREEN_GOAL = 10;
 export function readSmokescreenUses(value: unknown) {
@@ -111,6 +111,25 @@ export function readSmokescreenUses(value: unknown) {
 
 export function isSignatureSmokescreen(member: Pick<Companion, 'species' | 'id'>, move: SpeciesMove) {
   return member.id > 0 && member.species === 'charmander' && move.name === 'Smokescreen';
+}
+
+export function readSignatureProgress(value: Record<string, unknown>) {
+  return {
+    smokescreenUses: readSmokescreenUses(value.smokescreenUses),
+    withdrawUses: readSmokescreenUses(value.withdrawUses),
+    leechSeedUses: readSmokescreenUses(value.leechSeedUses),
+  };
+}
+
+export function signatureTraining(member: Pick<Companion, 'species' | 'id' | 'smokescreenUses' | 'withdrawUses' | 'leechSeedUses'>, move: SpeciesMove) {
+  if (isSignatureSmokescreen(member, move)) return { key: 'smokescreenUses', uses: member.smokescreenUses ?? 0, effect: 'Lowers every foe’s accuracy by 2 stages.' } as const;
+  if (member.id <= 0) return undefined;
+  if (member.species === 'squirtle' && move.effect === 'withdraw') return { key: 'withdrawUses', uses: member.withdrawUses ?? 0, effect: 'Raises Defense by 2 stages and restores up to 1/8 max HP.' } as const;
+  if (member.species === 'bulbasaur' && move.effect === 'seed') return { key: 'leechSeedUses', uses: member.leechSeedUses ?? 0, effect: 'Drains 1/6 of the target’s max HP each round.' } as const;
+}
+
+export function hitsAllFoes(member: Parameters<typeof signatureTraining>[0], move: SpeciesMove) {
+  return isSignatureSmokescreen(member, move) && (member.smokescreenUses ?? 0) >= SMOKESCREEN_GOAL;
 }
 
 export function isSpeciesId(value: unknown): value is SpeciesId {

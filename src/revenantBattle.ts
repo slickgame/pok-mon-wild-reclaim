@@ -1,4 +1,4 @@
-import { readSmokescreenUses } from './pokemonData';
+import { readSignatureProgress } from './pokemonData';
 import {
   battleSpeed, drainSeed, emptyConditions, moveTargetsSelf, ORAN_BERRY_HEAL, paralysisStopsMove, readBattleConditions,
   resolveBattleMove, type BattleTarget,
@@ -66,7 +66,7 @@ export function revenantActive(battle: RevenantBattleState) {
 }
 
 export function revenantParty(battle: RevenantBattleState): Companion[] {
-  return battle.player.team.map(({ id, species, hp, xp, smokescreenUses }) => ({ id, species, hp, xp, smokescreenUses }));
+  return battle.player.team.map(({ id, species, hp, xp, ...member }) => ({ id, species, hp, xp, ...readSignatureProgress(member) }));
 }
 
 export function revenantReserves(battle: RevenantBattleState) {
@@ -145,7 +145,7 @@ function updateAlly(battle: RevenantBattleState, mon: BattleTarget) {
   const index = battle.player.team.findIndex(member => member.id === mon.id);
   if (index < 0) return;
   const saved = battle.player.team[index];
-  battle.player.team[index] = { ...saved, hp: mon.hp, conditions: mon.conditions, smokescreenUses: mon.smokescreenUses };
+  battle.player.team[index] = { ...saved, hp: mon.hp, conditions: mon.conditions, ...readSignatureProgress(mon) };
   if (saved.hp > 0 && mon.hp === 0) battle.log.push(`${species[mon.species].name} fainted.`);
 }
 
@@ -320,7 +320,7 @@ function readPlayer(value: unknown): TrainerSide | null {
     const id = integer(saved.id, 1, Number.MAX_SAFE_INTEGER);
     const xp = integer(saved.xp, 0, MAX_XP);
     if (id === undefined || xp === undefined || team.some(mon => mon.id === id)) return null;
-    const mon = playerMon({ id, xp, hp: 0, species: saved.species, smokescreenUses: readSmokescreenUses(saved.smokescreenUses) });
+    const mon = playerMon({ id, xp, hp: 0, species: saved.species, ...readSignatureProgress(saved) });
     const hp = integer(saved.hp, 0, mon.maxHp);
     if (hp === undefined) return null;
     team.push({ ...mon, hp, conditions: readBattleConditions(saved.conditions) });

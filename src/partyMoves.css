@@ -533,3 +533,43 @@ button.party-moves-lead:disabled {
 .signature-progress progress::-moz-progress-bar {
   background: #426c31 url('/art/party-moves/signature-fill.webp') center / 100% 100% no-repeat;
 }
+
+.expedition-layout { grid-template-columns: minmax(0, 1.16fr) minmax(0, 1fr); align-items: start; }
+.expedition-roster.party-moves-roster {
+  display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .35rem;
+  max-height: none; overflow: visible; padding: clamp(1.2rem,4vw,3.5rem) 9% clamp(1.3rem,4vw,3.5rem);
+  background: #292318 url('/art/party-moves/expedition-case.webp') center / 100% 100% no-repeat;
+  border-radius: 1.2rem;
+}
+.expedition-row-title {
+  grid-column: 1 / -1; justify-self: center; padding: .16rem .85rem;
+  background: #143520; border: 1px solid #ad8a4a; border-radius: .65rem;
+  font-size: clamp(.78rem,1.35vw,1.2rem); font-weight: 700; text-align: center;
+}
+.expedition-roster .party-moves-member {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  justify-content: start; padding: .12rem; min-height: 0; gap: .15rem;
+  background: #13291d78; border: 1px solid transparent; border-radius: .65rem;
+}
+.expedition-roster .party-moves-member.is-selected { border-color: #e6bb61; box-shadow: inset 0 0 .8rem #c69a4366; }
+.expedition-roster .party-moves-member-select { display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .2rem; width: 100%; text-align: center; }
+.expedition-roster .party-moves-member-copy { font-size: clamp(.63rem,1vw,.95rem); }
+.expedition-roster .party-moves-member-copy strong { font-size: clamp(.68rem,1.1vw,1.05rem); overflow-wrap: anywhere; }
+.expedition-ball {
+  position: relative; display: block; width: 100%; max-width: 10.25rem; aspect-ratio: 1.04;
+  background: url('/art/party-moves/expedition-capsule.webp') center / contain no-repeat;
+}
+.expedition-ball .party-moves-sprite { position: absolute; width: 52%; height: 48%; left: 24%; top: 41%; object-fit: contain; filter: drop-shadow(0 2px 4px #161d11); }
+.expedition-nameplate { display: block; background: #ecd4a1; color: #172b1b; border: 1px solid #aa8b48; border-radius: .3rem; padding: 0 .32rem; }
+.expedition-roster .party-moves-lead { margin: 0; padding: .02rem .25rem; font-size: clamp(.57rem,.9vw,.8rem); }
+.expedition-roster .party-roster-grip, .expedition-slot-number { position: absolute; z-index: 1; top: .15rem; left: .12rem; margin: 0; min-width: 0; min-height: 0; padding: .12rem .24rem; font-size: clamp(.58rem,1vw,.9rem); }
+.expedition-slot-number { background: #302818; border: 1px solid #ad8a4a; border-radius: .35rem; }
+.expedition-roster .expedition-empty { padding-top: .32rem; }
+.expedition-empty .expedition-ball { opacity: .72; }
+.expedition-layout .party-moves-row { grid-template-columns: auto minmax(0,1fr) auto; grid-template-areas: 'grip name actions' 'grip type actions'; }
+.expedition-layout .party-moves-summary { display:none; }
+.expedition-layout .party-moves-row--signature .signature-progress { grid-column: 2 / -1; }
+@media (max-width: 800px) {
+  .expedition-layout { display: block; }
+  .expedition-roster.party-moves-roster { max-width: 36rem; margin: 0 auto; padding-block: 1.2rem; }
+}
