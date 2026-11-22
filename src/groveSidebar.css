@@ -1,0 +1,208 @@
+.grove-outing--field {
+  height: 100svh;
+  overflow: hidden;
+  background: #173a2b;
+}
+
+.grove-outing--field .grove-atlas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.grove-outing--field .map-frame {
+  width: max(100%, calc(100svh * 1672 / 941));
+}
+
+.grove-sidebar-track {
+  --board-width: min(39.2cqw, 70.3svh, 56rem);
+  --board-edge: .85cqw;
+  position: absolute;
+  z-index: 1;
+  top: max(.4svh, env(safe-area-inset-top));
+  right: max(var(--board-edge), env(safe-area-inset-right));
+  width: var(--board-width);
+  aspect-ratio: 650 / 902;
+  transition: transform 340ms cubic-bezier(.22, .75, .22, 1);
+}
+
+.grove-sidebar-track[data-open="false"] {
+  transform: translateX(calc(100% + max(var(--board-edge), env(safe-area-inset-right))));
+}
+
+.grove-sidebar {
+  position: absolute;
+  inset: 0;
+  container-type: inline-size;
+  color: #fff1d4;
+  background: url('/art/wild-zone/sidebar-board.webp') center / 100% 100% no-repeat;
+  filter: drop-shadow(0 4px 5px #11251485);
+}
+
+.grove-sidebar-heading {
+  position: absolute;
+  inset: 13% 8.3% auto;
+  text-align: center;
+  font-weight: 700;
+  text-shadow: 0 2px 3px #061811c9;
+}
+
+.grove-sidebar-heading h1 {
+  margin: 0;
+  font-size: 8.3cqw;
+  line-height: 1.09;
+  letter-spacing: -.038em;
+  white-space: nowrap;
+}
+
+.grove-sidebar-heading h1:focus { outline: none; }
+
+.grove-sidebar-heading p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3.1cqw;
+  margin: 1.1cqw 0 0;
+  font-size: 5.35cqw;
+  line-height: 1.1;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.grove-sidebar-heading p::before,
+.grove-sidebar-heading p::after {
+  content: "";
+  flex: 1;
+  height: max(1px, .32cqw);
+  background: linear-gradient(90deg, #9f7227, #f5d578 54%, #b77c31);
+  border-radius: 50%;
+  box-shadow: 0 1px 1px #2011019e;
+}
+
+.grove-sidebar-actions {
+  position: absolute;
+  inset: 28% 5.8% 9.7%;
+  display: grid;
+  grid-template: repeat(4, minmax(0, 1fr)) / repeat(2, minmax(0, 1fr));
+  gap: 2.7cqw 2.2cqw;
+}
+
+.grove-sidebar-action {
+  display: grid;
+  grid-template-columns: 34% minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 1.5%;
+  min-width: 0;
+  padding: 4% 8%;
+  border: 0;
+  border-radius: 1.7cqw;
+  background: url('/art/wild-zone/sidebar-tile.webp') center / 100% 100% no-repeat;
+  color: #18291a;
+  font-size: 6.1cqw;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -.045em;
+  text-shadow: 0 1px 0 #fff5cf91;
+  filter: drop-shadow(0 3px 3px #071710b0);
+}
+
+.grove-sidebar-action--explore {
+  background-image: url('/art/wild-zone/sidebar-tile-gold.webp');
+}
+
+.grove-sidebar-action[data-action="camp"] { font-size: 4.55cqw; white-space: nowrap; }
+.grove-sidebar-action img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; }
+.grove-sidebar-action:hover:not(:disabled) { filter: brightness(1.1) drop-shadow(0 3px 3px #071710b0); }
+.grove-sidebar-action:active:not(:disabled) { transform: translateY(1px); }
+.grove-sidebar-action:disabled { filter: saturate(.55) brightness(.82); cursor: default; }
+
+.grove-sidebar-toggle,
+.grove-sidebar-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .38em;
+  min-height: 44px;
+  border: 0;
+  color: #233321;
+  background: url('/art/wild-zone/sidebar-tile.webp') center / 100% 100% no-repeat;
+  font-weight: 700;
+  text-shadow: 0 1px 0 #fff8dc;
+  filter: drop-shadow(0 2px 3px #0b1a11a0);
+}
+
+.grove-sidebar-toggle {
+  position: absolute;
+  z-index: 2;
+  top: 13.1%;
+  right: calc(100% + 3px);
+  min-width: 44px;
+  padding: 0 .6rem;
+  border-radius: .42rem 0 0 .42rem;
+  background-image: url('/art/wild-zone/sidebar-handle.webp');
+  color: #ffefcb;
+  text-shadow: 0 1px 1px #0d2618;
+  white-space: nowrap;
+}
+
+.grove-sidebar-toggle svg { flex: 0 0 auto; width: 1.22rem; height: 1.22rem; }
+.grove-sidebar-track[data-open="false"] .grove-sidebar-toggle { padding-inline: .68rem 1rem; }
+.grove-sidebar-toggle:focus-visible { outline-offset: -2px; }
+
+.grove-sidebar-settings {
+  position: absolute;
+  z-index: 1;
+  top: max(1.55svh, env(safe-area-inset-top));
+  left: max(1.35cqw, env(safe-area-inset-left));
+  padding: .45em 1.27em;
+  border-radius: .5rem;
+  font-size: clamp(.91rem, 1.62cqw, 1.75rem);
+  background-image: url('/art/wild-zone/sidebar-plaque.webp');
+}
+
+.grove-sidebar-settings svg { width: .92em; height: .92em; }
+.grove-sidebar-settings:hover,
+.grove-sidebar-toggle:hover { filter: brightness(1.1) drop-shadow(0 2px 3px #0b1a11a0); }
+
+.grove-sidebar-hint {
+  position: absolute;
+  inset: auto 9% 5.4%;
+  margin: 0;
+  text-align: center;
+  font-size: max(.75rem, 2.75cqw);
+  line-height: 1.15;
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .grove-sidebar-track {
+    --board-width: min(calc(100cqw - 53px), 63svh, 34rem);
+    --board-edge: max(5px, 1cqw);
+    top: max(3.75rem, calc(env(safe-area-inset-top) + 3.25rem));
+  }
+
+  .grove-sidebar-toggle { top: 17%; }
+  .grove-sidebar-settings { font-size: .95rem; }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .grove-sidebar-track {
+    --board-width: min(49cqw, 33rem);
+    aspect-ratio: auto;
+    bottom: 1.25svh;
+  }
+
+  .grove-sidebar-heading h1 { font-size: min(7.7cqw, 7svh); }
+  .grove-sidebar-heading p { margin-top: .5cqw; font-size: min(5.35cqw, 4.8svh); }
+  .grove-sidebar-actions { inset-block: 27% 8%; gap: 1.3svh 2.2cqw; }
+  .grove-sidebar-action { min-height: 0; padding-block: 0; font-size: min(6.1cqw, 6.6svh); }
+  .grove-sidebar-action[data-action="camp"] { font-size: min(4.55cqw, 5.7svh); }
+  .grove-sidebar-action img { max-height: 10svh; }
+  .grove-sidebar-hint { bottom: 3.1%; font-size: min(.78rem, 3.35svh); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grove-sidebar-track { transition: none; }
+}

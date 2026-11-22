@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
+  CAMP_HEAL_PERCENT,
   GROVE_WILD_WINS_REQUIRED,
   OUTING_SAVE_KEY,
+  canBeginTrainer,
+  canRestAtCamp,
   clinicAvailable,
   getGroveQuestPhase,
   getLead,
@@ -12,11 +15,13 @@ import {
   starterIds,
   updateOuting,
   type OutingAction,
+  type OutingState,
 } from './outing';
 import { PokemonSprite } from './PokemonSprite';
 import './townPlay.css';
 
-export type PanelId = 'maple' | 'clinic' | 'merra' | 'board' | 'gate' | 'grove-lina' | 'workshop' | 'talent' | 'party' | 'bag' | 'journal' | 'settings';
+export type GrovePanelId = 'party' | 'bag' | 'grove-camp' | 'grove-talk' | 'grove-quests' | 'grove-habitat' | 'grove-travel';
+export type PanelId = GrovePanelId | 'maple' | 'clinic' | 'merra' | 'board' | 'gate' | 'grove-lina' | 'workshop' | 'talent' | 'journal' | 'settings';
 
 const SAVE_KEY = 'wild-reclaim.brookbend.opening.v1';
 const MILESTONES = ['mapleMet', 'clinicVisited', 'merraMet', 'boardRead', 'gateOpen'] as const;
@@ -229,6 +234,14 @@ function QuestEntry({ title, steps, children }: {
   </section>;
 }
 
+function groveQuestSteps({ clearedOvergrowth, wildWins, reported }: OutingState['groveQuest']) {
+  return [
+    { text: 'Clear overgrowth', done: clearedOvergrowth },
+    { text: 'Win two wild battles', done: wildWins >= GROVE_WILD_WINS_REQUIRED, count: `${wildWins} / ${GROVE_WILD_WINS_REQUIRED}` },
+    { text: 'Report to Ranger Lina', done: reported },
+  ];
+}
+
 const PANEL_TITLES: Record<PanelId, string> = {
   maple: 'Maple’s Lab',
   clinic: 'Clinic',
@@ -236,6 +249,11 @@ const PANEL_TITLES: Record<PanelId, string> = {
   board: 'Quest Board',
   gate: 'Travel Gate',
   'grove-lina': 'Report to Ranger Lina',
+  'grove-camp': 'Rest / Camp',
+  'grove-talk': 'Talk',
+  'grove-quests': 'Grove Quests',
+  'grove-habitat': 'Brambleberry Grove Habitat',
+  'grove-travel': 'Travel',
   workshop: 'Wells’ Workshop',
   talent: 'Talent Lab',
   party: 'Party',
@@ -244,13 +262,18 @@ const PANEL_TITLES: Record<PanelId, string> = {
   settings: 'Save & Settings',
 };
 
-function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
-  panel: PanelId;
+type PanelProps = {
   play: TownPlay;
   onClose: () => void;
   onChooseStarter: () => void;
   onEnterGrove: () => void;
-}) {
+  onEnterHollow: () => void;
+  onEnterTown: () => void;
+  onOpenPanel: (panel: PanelId) => void;
+  onOpenJournal: () => void;
+};
+
+function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove, onEnterHollow, onEnterTown, onOpenPanel, onOpenJournal }: PanelProps & { panel: PanelId }) {
   const { progress, finish, outing, dispatchOuting, hasStarter } = play;
   const lead = getLead(outing);
   const inBattle = outing.encounter?.outcome === 'active' || outing.trainerBattle?.outcome === 'active';
@@ -298,7 +321,7 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
       if (!hasStarter) return <p className="town-play-note">Come back when you have a partner to care for.</p>;
       if (inBattle) return <p className="town-play-note">Finish your active battle in the Grove before returning for care.</p>;
       return <>
-        <Dialogue speaker="Clinic attendant">I can heal your whole party. If you’ve used your last Pokéball, I’ll replace it.</Dialogue>
+        <Dialogue speaker="Clinic attendant">I can heal your whole party. If you’ve used your last Pokéball, I’ll replace it.{outing.campRestUsed && ' I can also resupply your camp.'}</Dialogue>
         {clinicAvailable(outing) ? <PanelAction onClick={() => dispatchOuting({ type: 'clinic' })}>Heal and resupply</PanelAction>
           : <p className="town-play-progress" role="status">Your party is fully healed and ready for the trail.</p>}
       </>;
@@ -343,6 +366,66 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
         }}>Share your field notes</PanelAction>
       </>;
     }
+    case 'grove-camp':
+      return <div className="town-play-action-stack">
+        <p>Once between Clinic resupplies, rest to recover up to {CAMP_HEAL_PERCENT}% of each conscious Pokémon’s maximum HP.</p>
+        {outing.campRestUsed
+          ? <p className="town-play-progress" role="status">Camp rest used. Heal and resupply at the Brookbend Clinic to rest here again.</p>
+          : <PanelAction disabled={!canRestAtCamp(outing)} onClick={() => dispatchOuting({ type: 'restAtCamp' })}>Rest at camp</PanelAction>}
+        {!outing.campRestUsed && !canRestAtCamp(outing) && <p>Camp is available when a conscious Pokémon needs healing.</p>}
+      </div>;
+    case 'grove-talk': {
+      const trainers = [
+        { id: 'theo', button: 'Train with Youngster Theo', match: '3v2 training match' },
+        { id: 'rusk', button: 'Challenge Rusk Vale', match: '3v3 trainer battle' },
+      ] as const;
+      return <ul className="town-play-list town-play-local-people" aria-label="People in Brambleberry Grove">
+        <li>
+          <p>Ranger Lina is assessing the Grove.</p>
+          <PanelAction onClick={() => onOpenPanel('grove-lina')}>Speak with Ranger Lina</PanelAction>
+        </li>
+        {trainers.filter(({ id }) => id === 'theo' || outing.theoDefeated).map(({ id, button, match }) => {
+          const ready = canBeginTrainer(outing, id);
+          return <li key={id}>
+            <p>{match}{!ready && ' · Bring three conscious Pokémon'}</p>
+            <PanelAction disabled={!ready} onClick={() => {
+              dispatchOuting({ type: 'startTrainer', trainerId: id });
+              onClose();
+            }}>{button}</PanelAction>
+          </li>;
+        })}
+      </ul>;
+    }
+    case 'grove-quests': {
+      const { explored, reported } = outing.groveQuest;
+      return <>
+        <QuestEntry title="First Steps into Verdant Hollow" steps={[
+          { text: 'Explore Brambleberry Grove', done: explored, count: explored ? 'Complete' : 'Available' },
+        ]} />
+        {explored && <QuestEntry title="A Grove in Need" steps={groveQuestSteps(outing.groveQuest)}>
+          <PanelAction onClick={onOpenJournal}>Open Field Journal</PanelAction>
+        </QuestEntry>}
+        {reported && <section className="town-play-quest">
+          <h3 className="town-play-subheading">Strange Spores</h3>
+          <p className="town-play-progress">Next quest · Investigate the spores in Brambleberry Grove.</p>
+        </section>}
+      </>;
+    }
+    case 'grove-habitat': {
+      const steps = groveQuestSteps(outing.groveQuest);
+      const done = steps.filter((step) => step.done).length;
+      return <section className="town-play-action-stack" aria-label="Restoration progress">
+        <h3 className="town-play-subheading">Stage 0 · Unrestored</h3>
+        <progress className="town-play-survey-meter" aria-label="Grove survey objectives" max={steps.length} value={done} />
+        <p>{done} of {steps.length} Grove survey objectives complete.</p>
+        <p>Complete Strange Spores to reach Stage 1.</p>
+      </section>;
+    }
+    case 'grove-travel':
+      return <nav className="town-play-action-stack" aria-label="Travel destinations">
+        <PanelAction onClick={onEnterHollow}>Verdant Hollow</PanelAction>
+        <PanelAction onClick={onEnterTown}>Return to Brookbend</PanelAction>
+      </nav>;
     case 'workshop':
       return <p className="town-play-note">Wells’ Workshop is closed for repairs. The workbench will reopen after Wells returns.</p>;
     case 'talent':
@@ -378,9 +461,10 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
         <li><span>Field Notebook</span><span>1</span></li>
         {progress.gateOpen && <li><span>Trail Pass</span><span>1</span></li>}
         {hasStarter && <li><span>Pokéballs</span><span>{outing.pokeBalls}</span></li>}
+        {outing.fieldSupplies > 0 && <li><span>Oran Berries</span><span>{outing.fieldSupplies}</span></li>}
       </ul> : <p className="town-play-note">Your Bag is empty.</p>;
     case 'journal': {
-      const { explored, clearedOvergrowth, wildWins, reported } = outing.groveQuest;
+      const { explored, reported } = outing.groveQuest;
       const steps = [
         { text: 'Meet Professor Maple', done: progress.mapleMet },
         { text: 'Meet your starter team', done: hasStarter },
@@ -392,11 +476,7 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
         { text: 'Defeat Rusk Vale', done: outing.ruskDefeated },
       );
       return <>
-        {explored && <QuestEntry title="A Grove in Need" steps={[
-          { text: 'Clear overgrowth', done: clearedOvergrowth },
-          { text: 'Win two wild battles', done: wildWins === GROVE_WILD_WINS_REQUIRED, count: `${wildWins} / ${GROVE_WILD_WINS_REQUIRED}` },
-          { text: 'Report to Ranger Lina', done: reported },
-        ]}>
+        {explored && <QuestEntry title="A Grove in Need" steps={groveQuestSteps(outing.groveQuest)}>
           {reported && <p className="town-play-progress">Strange Spores unlocked.</p>}
         </QuestEntry>}
         {play.canEnterGrove && <QuestEntry title="First Steps into Verdant Hollow" steps={[
@@ -414,25 +494,28 @@ function PanelContent({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
   }
 }
 
-export function TownPanel({ panel, play, onClose, onChooseStarter, onEnterGrove }: {
-  panel: PanelId | null;
-  play: TownPlay;
-  onClose: () => void;
-  onChooseStarter: () => void;
-  onEnterGrove: () => void;
-}) {
+export function TownPanel({ panel, ...props }: PanelProps & { panel: PanelId | null }) {
+  const { onClose } = props;
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
+  const open = panel !== null;
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (!panel || !dialog || dialog.open) return;
+    if (!open || !dialog) return;
     const previousFocus = document.activeElement;
     dialog.showModal();
     return () => {
       if (dialog.open) dialog.close();
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
     };
+  }, [open]);
+
+  useEffect(() => {
+    if (!panel) return;
+    if (dialogRef.current) dialogRef.current.scrollTop = 0;
+    headingRef.current?.focus({ preventScroll: true });
   }, [panel]);
 
   if (!panel) return null;
@@ -451,11 +534,11 @@ export function TownPanel({ panel, play, onClose, onChooseStarter, onEnterGrove 
   >
     <div className="town-play-frame">
       <header className="town-play-header">
-        <h2 id={titleId}>{PANEL_TITLES[panel]}</h2>
+        <h2 id={titleId} ref={headingRef} tabIndex={-1}>{PANEL_TITLES[panel]}</h2>
         <button className="town-play-close" type="button" onClick={onClose} aria-label="Close panel">×</button>
       </header>
       <div className="town-play-content" key={panel}>
-        <PanelContent panel={panel} play={play} onClose={onClose} onChooseStarter={onChooseStarter} onEnterGrove={onEnterGrove} />
+        <PanelContent panel={panel} {...props} />
       </div>
     </div>
   </dialog>;

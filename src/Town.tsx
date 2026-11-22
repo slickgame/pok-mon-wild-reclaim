@@ -31,7 +31,18 @@ const tools: { id: Extract<PanelId, GlyphName>; label: string }[] = [
   { id: "settings", label: "Save & Settings" },
 ];
 
-const GROVE_HASH = "#brambleberry-grove";
+const destinations = {
+  town: { hash: "", title: "Brookbend Town", heading: "town-name" },
+  hollow: { hash: "#verdant-hollow", title: "Verdant Hollow", heading: "hollow-name" },
+  grove: { hash: "#brambleberry-grove", title: "Brambleberry Grove", heading: "grove-name" },
+};
+type WorldLocation = keyof typeof destinations;
+
+function requestedLocation(): WorldLocation {
+  if (window.location.hash === destinations.grove.hash) return "grove";
+  if (window.location.hash === destinations.hollow.hash) return "hollow";
+  return "town";
+}
 
 function Glyph({ name }: { name: GlyphName }) {
   const style = name === "clinic" || name === "gate" ? undefined : {
@@ -43,25 +54,30 @@ function Glyph({ name }: { name: GlyphName }) {
 export function Town() {
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [showPlaces, setShowPlaces] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
   const play = useTownPlay();
   const trainerBattle = play.outing.trainerBattle;
-  const [inGrove, setInGrove] = useState(() => play.canEnterGrove && window.location.hash === GROVE_HASH);
+  const [location, setLocation] = useState(() => play.canEnterGrove ? requestedLocation() : "town");
+  const inGrove = location === "grove";
   const isLocked = (id: PanelId) =>
     id === "workshop" || id === "talent" || (id === "gate" && !play.canEnterGrove);
 
   useEffect(() => {
     function readLocation() {
-      const groveRequested = window.location.hash === GROVE_HASH;
-      if (groveRequested && !play.canEnterGrove) {
+      const requested = requestedLocation();
+      if (requested !== "town" && !play.canEnterGrove) {
         const url = new URL(window.location.href);
         url.hash = "";
         window.history.replaceState(window.history.state, "", url);
+        setLocation("town");
+        return;
       }
-      setInGrove(groveRequested && play.canEnterGrove);
+      setLocation(requested);
     }
 
     function restoreLocation() {
       setPanel(null);
+      setJournalOpen(false);
       readLocation();
     }
 
@@ -71,23 +87,29 @@ export function Town() {
   }, [play.canEnterGrove]);
 
   useEffect(() => {
-    document.title = `${inGrove ? "Brambleberry Grove" : "Brookbend Town"} · Pokémon Wild Reclaim`;
+    const { title, heading } = destinations[location];
+    document.title = `${title} · Pokémon Wild Reclaim`;
     if (document.activeElement === document.body) {
-      document.getElementById(inGrove ? "grove-name" : "town-name")?.focus({ preventScroll: true });
+      document.getElementById(heading)?.focus({ preventScroll: true });
     }
-  }, [inGrove]);
+  }, [location]);
 
-  function travel(toGrove: boolean, nextPanel: PanelId | null = null) {
-    if (toGrove && !play.canEnterGrove) return;
-    if (!toGrove && play.outing.encounter) play.dispatchOuting({ type: "closeEncounter" });
-    if (!toGrove && trainerBattle && trainerBattle.outcome !== "active") {
-      play.dispatchOuting({ type: "closeTrainer" });
+  function travel(destination: WorldLocation, nextPanel: PanelId | null = null) {
+    if (destination !== "town" && !play.canEnterGrove) return;
+    if (inGrove && destination !== "grove") {
+      if (play.outing.encounter && play.outing.encounter.outcome !== "active") {
+        play.dispatchOuting({ type: "closeEncounter" });
+      }
+      if (trainerBattle && trainerBattle.outcome !== "active") {
+        play.dispatchOuting({ type: "closeTrainer" });
+      }
     }
     const url = new URL(window.location.href);
-    url.hash = toGrove ? GROVE_HASH : "";
+    url.hash = destinations[destination].hash;
     if (url.hash !== window.location.hash) window.history.pushState(window.history.state, "", url);
     setPanel(nextPanel);
-    setInGrove(toGrove);
+    setJournalOpen(false);
+    setLocation(destination);
     window.scrollTo(0, 0);
   }
 
@@ -107,16 +129,37 @@ export function Town() {
       battle={trainerBattle}
       onAction={(action) => play.dispatchOuting({ type: "trainerAction", action })}
       onReturn={() => play.dispatchOuting({ type: "closeTrainer" })}
-      onVisitClinic={() => travel(false, "clinic")}
+      onVisitClinic={() => travel("town", "clinic")}
       toolbar={toolbar}
     /> : inGrove ? <GroveOuting
       outing={play.outing}
       onAction={play.dispatchOuting}
-      onReturn={() => travel(false)}
-      onVisitClinic={() => travel(false, "clinic")}
+      onReturn={() => travel("town")}
+      onVisitClinic={() => travel("town", "clinic")}
       onSpeakToLina={() => setPanel("grove-lina")}
+      onOpenZonePanel={setPanel}
+      journalOpen={journalOpen}
+      onCloseJournal={() => setJournalOpen(false)}
       toolbar={toolbar}
-    /> : <main className="town" aria-labelledby="town-name">
+    /> : location === "hollow" ? <main className="town" aria-labelledby="hollow-name">
+      <div className="atlas">
+        <div className="map-frame">
+          <img className="town-art" src="/art/brambleberry-grove.webp"
+            alt="A woodland trail follows the creek into Brambleberry Grove."
+            width="1672" height="941" fetchPriority="high" />
+        </div>
+      </div>
+      {toolbar}
+      <section className="town-card bevel" aria-label="Verdant Hollow overview">
+        <h1 id="hollow-name" tabIndex={-1}>Verdant Hollow</h1>
+        <img className="town-divider" src="/art/ui/divider.png" alt="" />
+        <p className="town-objective">Greenwood Frontier</p>
+        <nav className="town-play-action-stack" aria-label="Verdant Hollow destinations">
+          <button className="town-play-action" type="button" onClick={() => travel("grove")}>Enter Brambleberry Grove</button>
+          <button className="town-play-action" type="button" onClick={() => travel("town")}>Return to Brookbend</button>
+        </nav>
+      </section>
+    </main> : <main className="town" aria-labelledby="town-name">
       <div className="atlas">
         <div className="map-frame">
           <img
@@ -154,7 +197,7 @@ export function Town() {
         <img className="town-divider" src="/art/ui/divider.png" alt="" />
         <p className="town-objective" aria-live="polite">{play.objective}</p>
         <button className="objective-button bevel" onClick={() => {
-          if (play.actionTarget === "gate" && play.canEnterGrove) travel(true);
+          if (play.actionTarget === "gate" && play.canEnterGrove) travel("grove");
           else setPanel(play.actionTarget);
         }}>
           <Glyph name="leaf" />
@@ -196,7 +239,14 @@ export function Town() {
       play={play}
       onClose={() => setPanel(null)}
       onChooseStarter={() => setPanel("maple")}
-      onEnterGrove={() => travel(true)}
+      onEnterGrove={() => travel("grove")}
+      onEnterHollow={() => travel("hollow")}
+      onEnterTown={() => travel("town")}
+      onOpenPanel={setPanel}
+      onOpenJournal={() => {
+        setPanel(null);
+        setJournalOpen(true);
+      }}
     />
   </>;
 }

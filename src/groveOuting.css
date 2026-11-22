@@ -103,28 +103,6 @@
 .grove-button--primary:hover { border-color: #edf0ad; background: #fff5ca; }
 .grove-button--primary small { color: #41543a; }
 
-.grove-field-kit {
-  display: grid;
-  gap: .45rem;
-  padding: .54rem .64rem;
-  border: 1px solid var(--grove-panel-line);
-  border-radius: .42rem;
-  background: #10231980;
-  font-size: clamp(.78rem, 1.03cqw, .98rem);
-}
-
-.grove-field-lead { display: grid; gap: .25rem; }
-
-.grove-field-balls {
-  display: grid;
-  grid-template-columns: 1rem 1fr auto;
-  align-items: center;
-  gap: .37rem;
-}
-
-.grove-field-lead + .grove-field-balls { padding-top: .42rem; border-top: 1px solid var(--grove-panel-line); }
-.grove-field-balls svg { width: 1rem; height: 1rem; color: #cdd491; }
-
 .grove-vitals {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

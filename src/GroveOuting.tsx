@@ -1,16 +1,18 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, ArrowLeftRight, BookOpen, ChevronRight, Crosshair, Footprints, HeartPulse, Search, Shield, Sparkles, Swords,
+  ArrowLeft, ArrowLeftRight, ChevronRight, Crosshair, Footprints, HeartPulse, Search, Shield, Sparkles, Swords,
   type LucideIcon,
 } from "lucide-react";
 import {
-  canBeginTrainer, captureChance, getGroveQuestPhase, getLead, levelOf, maxHp, PARTY_LIMIT, species,
-  type OutingAction, type OutingState, type SpeciesId,
+  canBeginTrainer, canExploreGrove, captureChance, getGroveQuestPhase, getLead, levelOf, maxHp, PARTY_LIMIT, species,
+  type GroveDiscovery, type OutingAction, type OutingState, type SpeciesId,
 } from "./outing";
 import { typeMultiplier, type BattleConditions } from "./battleRules";
 import { moveDescription, type SpeciesMove } from "./pokemonData";
 import { PokemonSprite } from "./PokemonSprite";
 import { GroveFieldJournal } from "./GroveFieldJournal";
+import { GroveSidebar } from "./GroveSidebar";
+import type { GrovePanelId } from "./townPlay";
 import "./groveOuting.css";
 
 type GroveOutingProps = {
@@ -19,6 +21,9 @@ type GroveOutingProps = {
   onReturn: () => void;
   onVisitClinic?: () => void;
   onSpeakToLina?: () => void;
+  onOpenZonePanel: (panel: GrovePanelId | "settings") => void;
+  journalOpen: boolean;
+  onCloseJournal: () => void;
   toolbar?: ReactNode;
 };
 
@@ -28,6 +33,37 @@ const resultTitles = {
   fled: "Left the encounter",
   lost: "Pokémon fainted",
 };
+
+function GroveDiscoveryResult({ discovery, outing, onAction }: {
+  discovery: GroveDiscovery;
+  outing: OutingState;
+  onAction: (action: OutingAction) => void;
+}) {
+  const trainer = discovery.kind === "trainer" ? discovery.trainerId : null;
+  const trainerName = trainer === "rusk" ? "Rusk Vale" : "Youngster Theo";
+  const title = discovery.kind === "resource" ? "Oran Berries"
+    : trainer ? `You met ${trainerName}` : "A quiet clearing";
+  const detail = discovery.kind === "resource"
+    ? `You picked up ${discovery.quantity} Oran Berry and put it in your Bag.`
+    : trainer
+      ? `${trainerName} invites your team to a ${trainer === "rusk" ? "3v3" : "3v2"} battle.`
+      : "Birdsong drifts across the creek. Your team pauses in the shade before heading back to the trail.";
+  const ready = trainer !== null && canBeginTrainer(outing, trainer);
+
+  return <>
+    <div className="grove-phase">
+      <h2 tabIndex={-1} data-phase-heading>{title}</h2>
+      <p>{detail}</p>
+    </div>
+    <div className="grove-actions">
+      {trainer && <GroveButton icon={Swords} label={`Battle ${trainerName}`} primary disabled={!ready}
+        detail={ready ? undefined : "Bring three healthy Pokémon"}
+        onClick={() => onAction({ type: "startTrainer", trainerId: trainer })} />}
+      <GroveButton icon={ArrowLeft} label="Back to Grove" primary={!trainer}
+        onClick={() => onAction({ type: "closeGroveDiscovery" })} />
+    </div>
+  </>;
+}
 
 function Vitals({ name, hp, maximum }: { name: string; hp: number; maximum: number }) {
   return <div className="grove-vitals" data-hp={hp <= maximum / 3 ? "low" : "ready"}>
@@ -90,19 +126,20 @@ function attackDetail(move: SpeciesMove, target: SpeciesId, guards = false) {
   return [move.type, `Power ${move.power}`, matchup, guards && "Halves retaliation"].filter(Boolean).join(" · ");
 }
 
-export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, onSpeakToLina, toolbar }: GroveOutingProps) {
-  const { encounter, pokeBalls, party } = outing;
+export function GroveOuting({
+  outing, onAction, onReturn, onVisitClinic, onSpeakToLina, onOpenZonePanel, journalOpen, onCloseJournal, toolbar,
+}: GroveOutingProps) {
+  const { encounter, pokeBalls, party, groveDiscovery } = outing;
   const lead = getLead(outing);
   const battle = encounter?.outcome === "active" ? encounter : null;
   const [switching, setSwitching] = useState(false);
-  const [journalClosed, setJournalClosed] = useState(false);
   const resultOutcome = encounter && encounter.outcome !== "active" ? encounter.outcome : null;
   const result = resultOutcome ? encounter : null;
   const panel = useRef<HTMLElement>(null);
   const logId = useId();
   const questPhase = getGroveQuestPhase(outing);
-  const showJournal = !encounter && questPhase !== "explore" && !journalClosed;
-  const phase = battle ? "battle" : result ? "result" : showJournal ? "journal" : "field";
+  const showJournal = !encounter && !groveDiscovery && questPhase !== "explore" && journalOpen;
+  const phase = battle ? "battle" : result ? "result" : groveDiscovery ? "discovery" : showJournal ? "journal" : "field";
   const previousPhase = useRef(phase);
 
   useEffect(() => {
@@ -116,9 +153,6 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, onSpeak
   const moves = lead && species[lead.species].moves;
   const reserves = party.filter((member) => member.id !== lead?.id && member.hp > 0);
   const choosingSwitch = !!battle && (switching || !leadReady);
-  const theoReady = canBeginTrainer(outing, "theo");
-  const ruskReady = canBeginTrainer(outing, "rusk");
-  const healthyCount = reserves.length + Number(leadReady);
   const partyFull = party.length >= PARTY_LIMIT;
   const outOfPokeBalls = pokeBalls === 0;
 
@@ -127,7 +161,6 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, onSpeak
   }, [choosingSwitch]);
 
   if (showJournal) {
-    const close = () => setJournalClosed(true);
     const search = leadReady
       ? { label: "Look for wild Pokémon", run: () => onAction({ type: "search" }) }
       : { label: "Visit the Clinic", run: onVisitClinic };
@@ -136,15 +169,17 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, onSpeak
       clear: { label: "Clear overgrowth", run: () => onAction({ type: "clearGroveOvergrowth" }) },
       battle: search,
       report: { label: "Speak with Ranger Lina", run: onSpeakToLina },
-      complete: { label: "Continue exploring", run: close },
+      complete: { label: "Continue exploring", run: onCloseJournal },
     };
     const action = actions[questPhase];
 
     return <GroveFieldJournal quest={outing.groveQuest} actionLabel={action.label} onAction={action.run}
-      onClose={close} panelRef={panel} />;
+      onClose={onCloseJournal} panelRef={panel} />;
   }
 
-  return <main className={`town grove-outing${battle ? " grove-outing--battle" : ""}`} aria-labelledby="grove-name">
+  const isField = phase === "field";
+  return <main className={`town grove-outing grove-outing--${phase}`} aria-label="Brambleberry Grove"
+    ref={isField ? panel : undefined}>
     <div className="atlas grove-atlas">
       <div className="map-frame">
         <img
@@ -162,8 +197,10 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, onSpeak
       </section>}
     </div>
 
+    {isField ? <GroveSidebar canExplore={canExploreGrove(outing)}
+      onExplore={() => onAction({ type: "exploreGrove" })} onOpenPanel={onOpenZonePanel}
+      onSettings={() => onOpenZonePanel("settings")} /> : <>
     {toolbar}
-
     <section ref={panel} className="town-card grove-panel bevel" aria-label="Grove actions">
       <header className="grove-heading">
         <p>Verdant Hollow</p>
@@ -212,34 +249,8 @@ export function GroveOuting({ outing, onAction, onReturn, onVisitClinic, onSpeak
           {!leadReady && onVisitClinic && <GroveButton icon={HeartPulse} label="Visit the Clinic" onClick={onVisitClinic} primary />}
           <GroveButton icon={ArrowLeft} label="Return to Brookbend" onClick={onReturn} />
         </div>
-      </> : <>
-        <div className="grove-phase">
-          <h2 tabIndex={-1} data-phase-heading>Creekside trail</h2>
-          <p>{leadReady ? "Look along the creek for wild Pokémon." : lead ?
-            "Your lead Pokémon needs care. Visit the Clinic or switch your lead in Party." :
-            "Meet your starter team at Maple’s Lab before searching the trail."}</p>
-        </div>
-        <div className="grove-field-kit">
-          {lead && <div className="grove-field-lead">
-            <span>{species[lead.species].name} · Lv. {levelOf(lead)}</span>
-            <Vitals name={species[lead.species].name} hp={lead.hp} maximum={maxHp(lead)} />
-          </div>}
-          <div className="grove-field-balls"><Crosshair aria-hidden="true" /><span>Pokéballs</span><strong>{pokeBalls}</strong></div>
-        </div>
-        <div className="grove-actions">
-          {leadReady && <GroveButton icon={Search} label="Look for wild Pokémon" onClick={() => onAction({ type: "search" })} primary />}
-          {questPhase !== "explore" && <GroveButton icon={BookOpen} label="Open Ranger’s Field Journal"
-            onClick={() => setJournalClosed(false)} />}
-          <GroveButton icon={Swords} label="Train with Youngster Theo" disabled={!theoReady}
-            detail={theoReady ? "3v2 training match" : "Bring three healthy Pokémon"}
-            onClick={() => onAction({ type: "startTrainer", trainerId: "theo" })} />
-          {outing.theoDefeated && <GroveButton icon={Swords} label="Challenge Rusk Vale" disabled={!ruskReady}
-            detail={ruskReady ? "3v3 trainer battle" : "Bring three healthy Pokémon"}
-            onClick={() => onAction({ type: "startTrainer", trainerId: "rusk" })} />}
-          {(!leadReady || healthyCount < 3) && lead && onVisitClinic && <GroveButton icon={HeartPulse} label="Visit the Clinic" onClick={onVisitClinic} />}
-          <GroveButton icon={ArrowLeft} label="Return to Brookbend" onClick={onReturn} />
-        </div>
-      </>}
+      </> : groveDiscovery && <GroveDiscoveryResult discovery={groveDiscovery} outing={outing} onAction={onAction} />}
     </section>
+    </>}
   </main>;
 }
